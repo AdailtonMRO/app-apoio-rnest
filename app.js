@@ -1,4 +1,5 @@
-import { getStoredData, saveStoredData, SUPPORT_RULES } from './data.js';
+import { getStoredData, saveStoredData, SUPPORT_RULES, INITIAL_USERS, INITIAL_GROUPS, INITIAL_SLOTS, INITIAL_HISTORY } from './data.js';
+import { isFirebaseEnabled, loginWithGoogle, logout, onAuthChange, syncDocument, updateDocument } from './firebase-db.js';
 
 // --- ESTADO GLOBAL DA APLICAÇÃO ---
 let users = [];
@@ -55,6 +56,7 @@ const btnCloseAddModal = document.getElementById('btn-close-add-modal');
 const btnCancelAddModal = document.getElementById('btn-cancel-add-modal');
 const addSlotForm = document.getElementById('add-slot-form');
 const modalRulesCheckboxes = document.getElementById('modal-rules-checkboxes');
+const btnDeleteSlot = document.getElementById('btn-delete-slot');
 
 // Modais - WhatsApp
 const whatsappModal = document.getElementById('whatsapp-modal');
@@ -82,6 +84,7 @@ const userFormMode = document.getElementById('user-form-mode');
 const userFormOldChave = document.getElementById('user-form-old-chave');
 const userFormChave = document.getElementById('user-form-chave');
 const userFormNome = document.getElementById('user-form-nome');
+const userFormEmail = document.getElementById('user-form-email');
 const userFormCargo = document.getElementById('user-form-cargo');
 const userFormNivel = document.getElementById('user-form-nivel');
 const userSearchInput = document.getElementById('user-search-input');
@@ -123,10 +126,39 @@ function init() {
   simCurrentDateInput.addEventListener('change', handleSimDateChange);
 
   // Modais - Adicionar Escala
+  const formTipoData = document.getElementById('form-tipo-data');
+  const containerDataUnica = document.getElementById('container-data-unica');
+  const containerDataIntervalo = document.getElementById('container-data-intervalo');
+  const formDataInput = document.getElementById('form-data');
+  const formDataInicioInput = document.getElementById('form-data-inicio');
+  const formDataFimInput = document.getElementById('form-data-fim');
+
+  if (formTipoData) {
+    formTipoData.addEventListener('change', () => {
+      const tipo = formTipoData.value;
+      if (tipo === 'unica') {
+        containerDataUnica.style.display = 'block';
+        containerDataIntervalo.style.display = 'none';
+        formDataInput.required = true;
+        formDataInicioInput.required = false;
+        formDataFimInput.required = false;
+      } else {
+        containerDataUnica.style.display = 'none';
+        containerDataIntervalo.style.display = 'grid';
+        formDataInput.required = false;
+        formDataInicioInput.required = true;
+        formDataFimInput.required = true;
+      }
+    });
+  }
+
   btnOpenAddModal.addEventListener('click', () => addModal.style.display = 'flex');
   btnCloseAddModal.addEventListener('click', handleCancelarSlotModal);
   btnCancelAddModal.addEventListener('click', handleCancelarSlotModal);
   addSlotForm.addEventListener('submit', handleCriarSolicitacaoSlot);
+  if (btnDeleteSlot) {
+    btnDeleteSlot.addEventListener('click', handleExcluirSlotAdmin);
+  }
 
   // Modais - WhatsApp
   btnOpenWhatsappModal.addEventListener('click', openWhatsappExporter);
@@ -166,8 +198,136 @@ function init() {
     if (e.target === userModal) userModal.style.display = 'none';
   });
 
-  // Render inicial
-  renderAll();
+  // Render inicial se não estiver no modo Firebase (no modo Firebase, renderiza após carregar os documentos)
+  if (isFirebaseEnabled) {
+    // 1. Mostrar overlay de login
+    const loginOverlay = document.getElementById('login-overlay');
+    if (loginOverlay) loginOverlay.style.display = 'flex';
+
+    // 2. Ouvir mudanças de autenticação
+    onAuthChange((googleUser) => {
+      if (googleUser) {
+        // Encontrar usuário correspondente
+        const matched = users.find(u => 
+          u.email.toLowerCase() === googleUser.email.toLowerCase() ||
+          u.id.toLowerCase() === googleUser.email.split('@')[0].toLowerCase()
+        );
+
+        if (matched) {
+          currentUser = matched;
+          currentUserId = matched.id;
+          
+          // Esconder tela de login
+          if (loginOverlay) loginOverlay.style.display = 'none';
+          document.getElementById('login-error-message').style.display = 'none';
+
+          // Atualizar cabeçalho de autenticação
+          document.getElementById('auth-header-panel').style.display = 'flex';
+          document.getElementById('auth-user-name').textContent = googleUser.displayName || matched.nome;
+          document.getElementById('auth-user-role').textContent = `${matched.cargo} (${matched.tipo})`;
+
+          // Controle do switcher de simulação para segurança
+          const isGestor = matched.tipo === 'ADMINISTRADOR' || matched.tipo === 'GERENTE' || matched.tipo === 'SUPERVISOR';
+          const switcher = document.getElementById('sim-role-switcher');
+          if (switcher) {
+            switcher.style.display = isGestor ? 'flex' : 'none';
+          }
+          
+          renderAll();
+        } else {
+          // Usuário logado mas não cadastrado
+          document.getElementById('login-error-message').style.display = 'block';
+          logout();
+        }
+      } else {
+        if (loginOverlay) loginOverlay.style.display = 'flex';
+        document.getElementById('auth-header-panel').style.display = 'none';
+        
+        const switcher = document.getElementById('sim-role-switcher');
+        if (switcher) switcher.style.display = 'none';
+      }
+    });
+
+    // 3. Vincular cliques de Login e Logout
+    const btnLogin = document.getElementById('btn-google-login');
+    if (btnLogin) {
+      btnLogin.addEventListener('click', async () => {
+        try {
+          document.getElementById('login-error-message').style.display = 'none';
+          await loginWithGoogle();
+        } catch (err) {
+          showBanner("Erro na autenticação com o Google.", "danger");
+        }
+      });
+    }
+
+    const btnLogout = document.getElementById('btn-google-logout');
+    if (btnLogout) {
+      btnLogout.addEventListener('click', () => {
+        logout();
+      });
+    }
+
+    // 4. Iniciar sincro em tempo real
+    setupRealtimeSync();
+  } else {
+    // Modo clássico LocalStorage
+    loadData();
+    renderAll();
+  }
+}
+
+let unsubscribers = [];
+
+function setupRealtimeSync() {
+  unsubscribers.forEach(unsub => unsub());
+  unsubscribers = [];
+
+  const defaultCandidatos = {
+    's_f1': ['Ab5a', 'Kbvx'],
+    's_f2': ['Ab3r'],
+    's_f3': ['Kva8 ', 'ab1j']
+  };
+
+  // Sync users
+  unsubscribers.push(syncDocument('users', INITIAL_USERS, (data) => {
+    users = data;
+    if (currentUser) {
+      const updatedUser = users.find(u => u.id === currentUser.id);
+      if (updatedUser) {
+        currentUser = updatedUser;
+        currentUserId = updatedUser.id;
+      }
+    } else {
+      currentUser = users.find(u => u.id === currentUserId) || users[0];
+      currentUserId = currentUser.id;
+    }
+    renderAll();
+  }));
+
+  // Sync groups
+  unsubscribers.push(syncDocument('groups', INITIAL_GROUPS, (data) => {
+    groups = data;
+    renderAll();
+  }));
+
+  // Sync slots
+  unsubscribers.push(syncDocument('slots', INITIAL_SLOTS, (data) => {
+    slots = data;
+    renderAll();
+  }));
+
+  // Sync history
+  unsubscribers.push(syncDocument('history', INITIAL_HISTORY, (data) => {
+    history = data;
+    renderAll();
+  }));
+
+  // Sync candidatos
+  unsubscribers.push(syncDocument('candidatos', defaultCandidatos, (data) => {
+    candidatos = data;
+    renderAll();
+  }));
 }
 
 function loadData() {
@@ -187,9 +347,17 @@ function loadData() {
 }
 
 function persistChanges() {
-  saveStoredData({ users, groups, slots, history });
-  localStorage.setItem('rnest_law_candidatos_v5', JSON.stringify(candidatos));
-  renderAll();
+  if (isFirebaseEnabled) {
+    updateDocument('users', users);
+    updateDocument('groups', groups);
+    updateDocument('slots', slots);
+    updateDocument('history', history);
+    updateDocument('candidatos', candidatos);
+  } else {
+    saveStoredData({ users, groups, slots, history });
+    localStorage.setItem('rnest_law_candidatos_v5', JSON.stringify(candidatos));
+    renderAll();
+  }
 }
 
 function switchView(view) {
@@ -411,13 +579,7 @@ function handleSimDateChange(e) {
 }
 
 function resetDemo() {
-  localStorage.removeItem('rnest_law_users_v5');
-  localStorage.removeItem('rnest_law_groups_v5');
-  localStorage.removeItem('rnest_law_slots_v5');
-  localStorage.removeItem('rnest_law_history_v5');
-  localStorage.removeItem('rnest_law_candidatos_v5');
-
-  candidatos = {
+  const defaultCandidatos = {
     's_f1': ['Ab5a', 'Kbvx'],
     's_f2': ['Ab3r'],
     's_f3': ['Kva8 ', 'ab1j']
@@ -428,8 +590,25 @@ function resetDemo() {
   simCurrentDateInput.value = simulatedCurrentDate;
   regDataLancamentoInput.value = formatDatePt(simulatedCurrentDate);
 
-  loadData();
-  renderAll();
+  if (isFirebaseEnabled) {
+    users = INITIAL_USERS;
+    groups = INITIAL_GROUPS;
+    slots = INITIAL_SLOTS;
+    history = INITIAL_HISTORY;
+    candidatos = defaultCandidatos;
+    
+    persistChanges();
+  } else {
+    localStorage.removeItem('rnest_law_users_v5');
+    localStorage.removeItem('rnest_law_groups_v5');
+    localStorage.removeItem('rnest_law_slots_v5');
+    localStorage.removeItem('rnest_law_history_v5');
+    localStorage.removeItem('rnest_law_candidatos_v5');
+
+    candidatos = defaultCandidatos;
+    loadData();
+    renderAll();
+  }
   showBanner('Simulação e histórico resetados!', 'info');
 }
 
@@ -1177,11 +1356,10 @@ function openUserModal(mode, id = '') {
     const user = users.find(u => u.id === id);
     if (user) {
       userFormChave.value = user.id.toUpperCase();
-      // Não permitir alterar a chave chave primária se tiver histórico para evitar bugs,
-      // mas vamos deixar habilitado ou preencher
       userFormChave.disabled = true; // Chave não se edita
       userFormOldChave.value = user.id;
       userFormNome.value = user.nome;
+      userFormEmail.value = user.email || '';
       userFormCargo.value = user.cargo;
       userFormNivel.value = user.tipo;
     }
@@ -1202,10 +1380,11 @@ function handleSaveUser(e) {
   const oldChave = userFormOldChave.value;
   const newChave = userFormChave.value.trim().toUpperCase(); // Normaliza chaves em caixa alta
   const nome = userFormNome.value.trim();
+  const email = userFormEmail.value.trim().toLowerCase();
   const cargo = userFormCargo.value.trim();
   const nivel = userFormNivel.value;
 
-  if (!newChave || !nome) {
+  if (!newChave || !nome || !email) {
     showBanner('Preencha os campos obrigatórios.', 'danger');
     return;
   }
@@ -1221,7 +1400,7 @@ function handleSaveUser(e) {
     const novoUser = {
       id: newChave,
       nome: nome,
-      email: `${newChave.toLowerCase()}@rnest.com.br`,
+      email: email,
       tipo: nivel,
       cargo: cargo,
       infracoesWA: 0
@@ -1236,6 +1415,7 @@ function handleSaveUser(e) {
         return {
           ...u,
           nome: nome,
+          email: email,
           cargo: cargo,
           tipo: nivel
         };
@@ -1669,6 +1849,30 @@ function handleCancelarSlotModal() {
   const titleEl = document.getElementById('add-modal-title');
   if (titleEl) titleEl.textContent = 'Lançar Nova Solicitação de Apoio';
   addSlotForm.reset();
+  
+  // Hide delete button
+  if (btnDeleteSlot) btnDeleteSlot.style.display = 'none';
+
+  // Re-enable and reset date type selector
+  const formTipoData = document.getElementById('form-tipo-data');
+  if (formTipoData) {
+    formTipoData.disabled = false;
+    formTipoData.value = 'unica';
+  }
+  
+  // Reset visibility
+  const containerDataUnica = document.getElementById('container-data-unica');
+  const containerDataIntervalo = document.getElementById('container-data-intervalo');
+  const formDataInput = document.getElementById('form-data');
+  const formDataInicioInput = document.getElementById('form-data-inicio');
+  const formDataFimInput = document.getElementById('form-data-fim');
+  
+  if (containerDataUnica) containerDataUnica.style.display = 'block';
+  if (containerDataIntervalo) containerDataIntervalo.style.display = 'none';
+  if (formDataInput) formDataInput.required = true;
+  if (formDataInicioInput) formDataInicioInput.required = false;
+  if (formDataFimInput) formDataFimInput.required = false;
+
   modalRulesCheckboxes.querySelectorAll('input[name="modal-prev-regras"]').forEach(cb => cb.checked = false);
 }
 
@@ -1681,6 +1885,28 @@ function handleIniciarEdicaoEscala(slotId) {
 
   const titleEl = document.getElementById('add-modal-title');
   if (titleEl) titleEl.textContent = 'Editar Solicitação de Apoio';
+
+  // Show delete button
+  if (btnDeleteSlot) btnDeleteSlot.style.display = 'inline-flex';
+
+  // Force single date mode and disable type selector
+  const formTipoData = document.getElementById('form-tipo-data');
+  if (formTipoData) {
+    formTipoData.value = 'unica';
+    formTipoData.disabled = true;
+  }
+  
+  const containerDataUnica = document.getElementById('container-data-unica');
+  const containerDataIntervalo = document.getElementById('container-data-intervalo');
+  const formDataInput = document.getElementById('form-data');
+  const formDataInicioInput = document.getElementById('form-data-inicio');
+  const formDataFimInput = document.getElementById('form-data-fim');
+  
+  if (containerDataUnica) containerDataUnica.style.display = 'block';
+  if (containerDataIntervalo) containerDataIntervalo.style.display = 'none';
+  if (formDataInput) formDataInput.required = true;
+  if (formDataInicioInput) formDataInicioInput.required = false;
+  if (formDataFimInput) formDataFimInput.required = false;
 
   document.getElementById('form-grupo').value = slot.grupoId;
   document.getElementById('form-subgrupo').value = slot.subgrupo;
@@ -1706,26 +1932,105 @@ function handleIniciarEdicaoEscala(slotId) {
   }
 }
 
+function handleExcluirSlotAdmin() {
+  if (!editingSlotId) return;
+
+  const slot = slots.find(s => s.id === editingSlotId);
+  if (!slot) return;
+
+  // Se tiver um voluntário confirmado, precisamos de confirmação extra
+  const msg = slot.usuarioId 
+    ? `Esta escala possui o voluntário confirmado "${users.find(u => u.id === slot.usuarioId)?.nome || 'desconhecido'}". Deseja realmente excluí-la? (O histórico de apoios dele associado a este dia também será removido).`
+    : `Tem certeza que deseja excluir esta solicitação de apoio para o dia ${formatDatePt(slot.data)}?`;
+
+  if (confirm(msg)) {
+    // 1. Remover histórico associado ao voluntário se existir
+    if (slot.usuarioId) {
+      history = history.filter(h => !(h.usuarioId === slot.usuarioId && h.data === slot.data));
+    }
+
+    // 2. Remover da fila de candidaturas se houver disputa
+    delete candidatos[editingSlotId];
+
+    // 3. Remover o slot da lista de slots
+    slots = slots.filter(s => s.id !== editingSlotId);
+
+    showBanner('Solicitação de apoio excluída com sucesso!', 'info');
+    
+    // Fechar modal
+    handleCancelarSlotModal();
+    persistChanges();
+  }
+}
+
 function handleCriarSolicitacaoSlot(e) {
   e.preventDefault();
 
   const formGrupo = document.getElementById('form-grupo').value;
   const formSubgrupo = document.getElementById('form-subgrupo').value;
-  const formData = document.getElementById('form-data').value;
   const formHorario = document.getElementById('form-horario').value;
   const elMotivo = document.getElementById('form-motivo');
   const formMotivo = elMotivo ? elMotivo.value : '';
   const formPrioridade = document.querySelector('input[name="prioridade"]:checked').value;
+  const formTipoData = document.getElementById('form-tipo-data')?.value || 'unica';
 
   const modalCbs = modalRulesCheckboxes.querySelectorAll('input[name="modal-prev-regras"]:checked');
   const regrasPrevistas = Array.from(modalCbs).map(cb => cb.value);
 
-  if (!formSubgrupo || !formData) {
-    showBanner('Preencha os campos obrigatórios.', 'danger');
+  if (!formSubgrupo) {
+    showBanner('Preencha a atividade / subgrupo.', 'danger');
     return;
   }
 
+  let datesToCreate = [];
+
   if (editingSlotId) {
+    // Modo de edição: sempre data única
+    const formData = document.getElementById('form-data').value;
+    if (!formData) {
+      showBanner('Preencha a data.', 'danger');
+      return;
+    }
+    datesToCreate.push(formData);
+  } else {
+    // Modo de criação
+    if (formTipoData === 'unica') {
+      const formData = document.getElementById('form-data').value;
+      if (!formData) {
+        showBanner('Preencha a data.', 'danger');
+        return;
+      }
+      datesToCreate.push(formData);
+    } else {
+      // Intervalo de datas
+      const formDataInicio = document.getElementById('form-data-inicio').value;
+      const formDataFim = document.getElementById('form-data-fim').value;
+      if (!formDataInicio || !formDataFim) {
+        showBanner('Preencha as datas inicial e final do intervalo.', 'danger');
+        return;
+      }
+
+      const dateStart = new Date(formDataInicio + 'T00:00:00');
+      const dateEnd = new Date(formDataFim + 'T00:00:00');
+
+      if (dateEnd < dateStart) {
+        showBanner('A data final deve ser posterior ou igual à data inicial.', 'danger');
+        return;
+      }
+
+      let tempDate = new Date(dateStart);
+      while (tempDate <= dateEnd) {
+        const yyyy = tempDate.getFullYear();
+        const mm = String(tempDate.getMonth() + 1).padStart(2, '0');
+        const dd = String(tempDate.getDate()).padStart(2, '0');
+        datesToCreate.push(`${yyyy}-${mm}-${dd}`);
+        tempDate.setDate(tempDate.getDate() + 1);
+      }
+    }
+  }
+
+  if (editingSlotId) {
+    const formData = datesToCreate[0];
     // 1. Encontrar o slot original para atualizar o histórico do voluntário se necessário
     const slot = slots.find(s => s.id === editingSlotId);
     if (slot && slot.usuarioId) {
@@ -1779,32 +2084,38 @@ function handleCriarSolicitacaoSlot(e) {
     const titleEl = document.getElementById('add-modal-title');
     if (titleEl) titleEl.textContent = 'Lançar Nova Solicitação de Apoio';
   } else {
-    // Criar novo slot
-    const slotId = 's_' + Date.now();
-    const novoSlot = {
-      id: slotId,
-      grupoId: formGrupo,
-      subgrupo: formSubgrupo,
-      data: formData,
-      horario: formHorario,
-      status: 'LIVRE',
-      usuarioId: null,
-      observacao: '',
-      requerAprovacao: false,
-      regrasPrevistas: regrasPrevistas
-    };
+    // Criar novo slot ou múltiplos slots (para intervalo)
+    datesToCreate.forEach((dStr, idx) => {
+      const slotId = 's_' + Date.now() + '_' + idx;
+      const novoSlot = {
+        id: slotId,
+        grupoId: formGrupo,
+        subgrupo: formSubgrupo,
+        data: dStr,
+        horario: formHorario,
+        status: 'LIVRE',
+        usuarioId: null,
+        observacao: '',
+        requerAprovacao: false,
+        regrasPrevistas: regrasPrevistas
+      };
 
-    if (formMotivo) {
-      novoSlot.motivo = formMotivo;
+      if (formMotivo) {
+        novoSlot.motivo = formMotivo;
+      }
+
+      slots = [...slots, novoSlot];
+
+      if (formPrioridade === 'disputa') {
+        candidatos[slotId] = [];
+      }
+    });
+
+    if (datesToCreate.length > 1) {
+      showBanner(`${datesToCreate.length} novas escalas de apoio cadastradas com sucesso!`, 'success');
+    } else {
+      showBanner('Nova escala de apoio cadastrada!', 'success');
     }
-
-    slots = [...slots, novoSlot];
-
-    if (formPrioridade === 'disputa') {
-      candidatos[slotId] = [];
-    }
-
-    showBanner('Nova escala de apoio cadastrada!', 'success');
   }
 
   addModal.style.display = 'none';
@@ -1812,6 +2123,27 @@ function handleCriarSolicitacaoSlot(e) {
   // Limpar formulário
   document.getElementById('form-subgrupo').value = '';
   document.getElementById('form-data').value = '';
+  document.getElementById('form-data-inicio').value = '';
+  document.getElementById('form-data-fim').value = '';
+  const selectTipoData = document.getElementById('form-tipo-data');
+  if (selectTipoData) {
+    selectTipoData.disabled = false;
+    selectTipoData.value = 'unica';
+  }
+  
+  // Reset visibility
+  const containerDataUnica = document.getElementById('container-data-unica');
+  const containerDataIntervalo = document.getElementById('container-data-intervalo');
+  const formDataInput = document.getElementById('form-data');
+  const formDataInicioInput = document.getElementById('form-data-inicio');
+  const formDataFimInput = document.getElementById('form-data-fim');
+  
+  if (containerDataUnica) containerDataUnica.style.display = 'block';
+  if (containerDataIntervalo) containerDataIntervalo.style.display = 'none';
+  if (formDataInput) formDataInput.required = true;
+  if (formDataInicioInput) formDataInicioInput.required = false;
+  if (formDataFimInput) formDataFimInput.required = false;
+
   if (elMotivo) elMotivo.value = '';
   modalRulesCheckboxes.querySelectorAll('input[name="modal-prev-regras"]').forEach(cb => cb.checked = false);
 
