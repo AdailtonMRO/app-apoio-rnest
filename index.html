@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%236366f1'%3E%3Cpath d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z'/%3E%3C/svg%3E" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Apoio RNEST - Gestão de Escalas</title>
+    <title>Apoio RNEST - Dobra Democrática</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -22,18 +22,26 @@
           <div class="logo-icon">🚦</div>
           <div>
             <h1>Apoio RNEST</h1>
-            <p>Controle de Solicitações & Escalas em Tempo Real</p>
+            <p>Classificação Geral & Dobra Democrática (Lei 0001/2025)</p>
           </div>
         </div>
 
-        <div class="role-switcher">
-          <span>Simular como:</span>
-          <select id="role-select" class="role-select">
-            <!-- Preenchido via JS -->
-          </select>
-          <button id="btn-reset-demo" class="btn btn-secondary btn-icon-only" title="Resetar Dados">
-            🔄
-          </button>
+        <!-- CONFIGURAÇÃO DE SIMULAÇÃO (DATA & PERFIL) -->
+        <div class="simulation-panel">
+          <div class="sim-date-wrapper">
+            <span style="font-size: 0.75rem; color: var(--text-secondary);">Hoje é (Simulado):</span>
+            <input type="date" id="sim-current-date" class="sim-date-input" value="2026-06-04">
+          </div>
+          
+          <div class="role-switcher">
+            <span>Simular como:</span>
+            <select id="role-select" class="role-select">
+              <!-- Preenchido via JS -->
+            </select>
+            <button id="btn-reset-demo" class="btn btn-secondary btn-icon-only" title="Resetar Dados da Simulação">
+              🔄
+            </button>
+          </div>
         </div>
       </header>
 
@@ -41,62 +49,180 @@
       <div class="sheets-sync-bar">
         <div class="sync-status">
           <div class="sync-dot"></div>
-          <span>Planilha Google Sheets <strong>"RNEST_Controle_Apoios_2026"</strong> integrada</span>
+          <span>API Simulada ativa (Pontuação baseada no <strong>Projeto de Lei Nº 0001/2025</strong>)</span>
         </div>
-        <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Último Sync: hoje, agora mesmo (Via API)</span>
+        <span style="font-size: 0.75rem; opacity: 0.8;">As pontuações zeram automaticamente todo 1º de janeiro.</span>
       </div>
 
       <!-- CORPO DO DASHBOARD -->
       <div class="dashboard-grid">
         
-        <!-- CONTEÚDO PRINCIPAL (ESCALAS) -->
+        <!-- CONTEÚDO PRINCIPAL (ESCALAS E REGISTROS) -->
         <main class="main-content">
           
-          <!-- Tabs para filtrar Categorias -->
-          <div id="tab-container" class="tab-container">
-            <!-- Preenchido via JS -->
+          <!-- TABS PRINCIPAIS DO APLICATIVO -->
+          <div class="app-views-nav">
+            <button id="tab-btn-escalas" class="view-tab-btn active">📅 Escalas (Vagas de Apoio)</button>
+            <button id="tab-btn-registro" class="view-tab-btn">✍️ Registrar Meu Apoio</button>
+            <button id="tab-btn-historico" class="view-tab-btn">📜 Histórico de Lançamentos</button>
           </div>
 
-          <!-- Seção Administrativa Rápida -->
-          <div id="admin-actions-bar" class="glass-panel" style="padding: 16px 20px; display: none; gap: 12px;">
-            <button id="btn-open-add-modal" class="btn btn-primary">
-              ✚ Criar Nova Escala
-            </button>
-            <button id="btn-open-whatsapp-modal" class="btn btn-secondary">
-              💬 Gerar Template WhatsApp
-            </button>
-          </div>
-
-          <!-- Grid de Escalas -->
-          <div class="group-section">
-            <div class="group-header">
-              <h2>Quadro Geral de Escalas - Junho 2026</h2>
-              <span id="slots-count" style="font-size: 0.85rem; color: var(--text-muted);">
-                0 vaga(s) encontrada(s)
-              </span>
-            </div>
-
-            <div id="slots-grid" class="slots-grid">
+          <!-- 1. VIEW DE ESCALAS (VAGAS DISPONÍVEIS) -->
+          <div id="view-escalas" class="app-view-section">
+            <!-- Tabs para filtrar Categorias de Escalas -->
+            <div id="tab-container" class="tab-container">
               <!-- Preenchido via JS -->
             </div>
+
+            <!-- Seção Administrativa Rápida -->
+            <div id="admin-actions-bar" class="glass-panel" style="padding: 16px 20px; display: none; gap: 12px; margin-bottom: 20px;">
+              <button id="btn-open-add-modal" class="btn btn-primary">
+                ✚ Criar Solicitação de Apoio
+              </button>
+              <button id="btn-open-whatsapp-modal" class="btn btn-secondary">
+                💬 Gerar Template WhatsApp
+              </button>
+              <button id="btn-open-infracao-modal" class="btn btn-danger">
+                ⚠️ Aplicar Multa WhatsApp (+0.01)
+              </button>
+            </div>
+
+            <div class="group-section">
+              <div class="group-header">
+                <h2>Vagas Disponíveis / Escalas em Aberto</h2>
+                <span id="slots-count" style="font-size: 0.85rem; color: var(--text-muted);">
+                  0 vaga(s) encontrada(s)
+                </span>
+              </div>
+
+              <div id="slots-grid" class="slots-grid">
+                <!-- Preenchido via JS -->
+              </div>
+            </div>
           </div>
+
+          <!-- 2. VIEW DE AUTO-REGISTRO DE APOIO CONCLUÍDO (ART. 9º) -->
+          <div id="view-registro" class="app-view-section" style="display: none;">
+            <div class="glass-panel" style="padding: 28px; display: flex; flex-direction: column; gap: 20px;">
+              <div>
+                <h2>Registrar Apoio Concluído (Dobra Efetuada)</h2>
+                <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;">
+                  Conforme o **Art. 9º**, registre o seu apoio informando a data e as características. O cálculo da pontuação do apoio é feito automaticamente.
+                </p>
+              </div>
+
+              <form id="register-completed-support-form" style="display: flex; flex-direction: column; gap: 20px;">
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                  <div class="form-group">
+                    <label class="form-label">Quem realizou o apoio?</label>
+                    <select id="reg-usuario" class="input-field">
+                      <!-- Apoiadores preenchidos via JS -->
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Área / Atividade Realizada:</label>
+                    <input type="text" id="reg-subgrupo" class="input-field" placeholder="Ex: Painel Térmico, Campo Caldeira, Águas" required>
+                  </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                  <div class="form-group">
+                    <label class="form-label">Data de Término do Apoio:</label>
+                    <input type="date" id="reg-data" class="input-field" required>
+                    <span id="reg-date-warning" style="font-size: 0.75rem; color: var(--danger); display: none; margin-top: 4px;">
+                      ⚠️ Lançamento fora do prazo de 72 horas! Será aplicada a penalidade R13 automaticamente.
+                    </span>
+                  </div>
+                  
+                  <div class="form-group">
+                    <label class="form-label">Data de Lançamento (Hoje):</label>
+                    <input type="text" id="reg-data-lancamento" class="input-field" readonly style="opacity: 0.75; background: hsla(222, 47%, 5%, 0.5);">
+                  </div>
+                </div>
+
+                <div class="form-group">
+                  <label class="form-label">Selecione todas as características aplicáveis ao apoio (Art. 4º):</label>
+                  <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 8px;">
+                    Os pesos serão multiplicados conforme a fórmula: <code>Pontuação = ∏ (Peso / 10)</code>.
+                  </p>
+                  
+                  <div id="rules-checkbox-container" class="rules-checkbox-grid">
+                    <!-- Preenchido via JS com R1 a R12 -->
+                  </div>
+                </div>
+
+                <!-- Painel de Pré-visualização de Pontos -->
+                <div class="points-preview-card">
+                  <div>
+                    <span style="font-size: 0.8rem; color: var(--text-secondary); display: block;">Pontuação Estimada para este Apoio:</span>
+                    <strong id="reg-points-preview" style="font-size: 1.8rem; color: var(--info);">1.00</strong>
+                  </div>
+                  <div style="font-size: 0.75rem; color: var(--text-muted); text-align: right; max-width: 250px;">
+                    Fórmula: <code id="reg-formula-preview">1.0</code>. Apoios mais pesados dão menos pontos, preservando sua prioridade!
+                  </div>
+                </div>
+
+                <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 10px;">
+                  <button type="submit" class="btn btn-primary">
+                    💾 Gravar Apoio e Atualizar Ranking
+                  </button>
+                </div>
+
+              </form>
+            </div>
+          </div>
+
+          <!-- 3. VIEW DE HISTÓRICO DE LANÇAMENTOS -->
+          <div id="view-historico" class="app-view-section" style="display: none;">
+            <div class="glass-panel" style="padding: 24px;">
+              <div class="group-header" style="margin-bottom: 20px;">
+                <h2>Histórico de Apoios Registrados (2026)</h2>
+                <p style="font-size: 0.85rem; color: var(--text-secondary);">
+                  Estes lançamentos compõem a pontuação do ranking oficial. Todos os apoios são auditáveis.
+                </p>
+              </div>
+
+              <div class="table-responsive">
+                <table class="ranking-table" style="width: 100%;">
+                  <thead>
+                    <tr>
+                      <th>Data Apoio</th>
+                      <th>Colaborador</th>
+                      <th>Área</th>
+                      <th>Características (Art. 4º)</th>
+                      <th>Lançamento</th>
+                      <th style="text-align: right;">Pontuação</th>
+                      <th style="text-align: center;">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody id="history-table-body">
+                    <!-- Preenchido via JS -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
         </main>
 
         <!-- SIDEBAR DIREITA (PLANILHA GOOGLE / RANKING) -->
         <aside class="sidebar">
           
-          <!-- Widget de Informações do Usuário Atual -->
+          <!-- Widget de Informações do Usuário Selecionado -->
           <div id="my-panel-widget" class="widget glass-panel" style="border-left: 4px solid var(--info);">
             <!-- Preenchido via JS -->
           </div>
 
-          <!-- Widget do Ranking Google Sheets -->
+          <!-- Widget do Ranking Google Sheets (Classificação Geral) -->
           <div class="widget glass-panel">
             <h3 class="widget-title">
-              📊 Ranking de Prioridade (Ano)
+              📊 Classificação de Prioridade (Ranking)
             </h3>
-            <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 14px;">
-              Quanto <strong>menor</strong> o número de apoios no ano, maior a prioridade para preencher novas vagas.
+            <p style="font-size: 0.72rem; color: var(--text-secondary); margin-bottom: 12px; line-height: 1.4;">
+              * **Ordem**: Menor pontuação acumulada primeiro.
+              * **Desempate**: Data de apoio mais antiga (**Art. 8º**).
+              * **Exclusão**: Cargos GPI/OPMAN não entram na disputa.
             </p>
 
             <table class="ranking-table">
@@ -104,7 +230,8 @@
                 <tr>
                   <th>Pos</th>
                   <th>Colaborador</th>
-                  <th style="text-align: right;">Apoios (Ano)</th>
+                  <th style="text-align: center;">Último Apoio</th>
+                  <th style="text-align: right;">Geral</th>
                 </tr>
               </thead>
               <tbody id="ranking-table-body">
@@ -113,26 +240,23 @@
             </table>
           </div>
 
-          <!-- Info Box -->
-          <div class="widget glass-panel" style="background: var(--bg-input); font-size: 0.8rem; color: var(--text-muted);">
-            <strong>💡 Como simular:</strong>
-            <ol style="padding-left: 16px; margin-top: 8px; display: flex; flex-direction: column; gap: 6px;">
-              <li>Altere o perfil no topo (ex: escolha <strong>Syan</strong> - 0 apoios, ou <strong>Adailton</strong> - 8 apoios).</li>
-              <li>Tente assumir ou candidatar-se a vagas livres.</li>
-              <li>Mude para <strong>Gerente Administrativo</strong> para aprovar as vagas excedentes pendentes.</li>
-              <li>Mude para <strong>Admin Operações</strong> para criar escalas ou cancelar vagas.</li>
-            </ol>
+          <!-- Info Box / Resumo da Lei -->
+          <div class="widget glass-panel" style="background: var(--bg-input); font-size: 0.8rem; color: var(--text-muted); display: flex; flex-direction: column; gap: 10px;">
+            <strong>💡 Simulação da Lei 0001/2025:</strong>
+            <p><strong>Limite de 72 Horas:</strong> Defina a data simulada no topo. Se lançar um apoio com atraso superior a 72h, o sistema travará a penalidade `R13` (peso 20 / multiplicador 2.0).</p>
+            <p><strong>Empate no Ranking:</strong> Max e Javã iniciam empatados com 0.8 pontos. Note que Max lidera a prioridade pois seu apoio foi em 10/05/26 (mais antigo que o de Javã, 15/05/26).</p>
+            <p><strong>Multas WA:</strong> Exclusivo de Admin, adiciona 0.01 por infração na classificação do colaborador.</p>
           </div>
 
         </aside>
       </div>
 
-      <!-- MODAL: CRIAR NOVA ESCALA (ADMIN) -->
+      <!-- MODAL: CRIAR SOLICITAÇÃO DE VAGA (ADMIN) -->
       <div id="add-modal" class="modal-overlay" style="display: none;">
         <div class="modal-content glass-panel">
           <div class="modal-header">
-            <h2 class="modal-title">Criar Nova Escala de Apoio</h2>
-            <button id="btn-close-add-modal" style="background: transparent; border: none; color: #fff; fontSize: 1.25rem; cursor: pointer;">✕</button>
+            <h2 class="modal-title">Lançar Nova Solicitação de Apoio</h2>
+            <button id="btn-close-add-modal" style="background: transparent; border: none; color: #fff; font-size: 1.25rem; cursor: pointer;">✕</button>
           </div>
           
           <form id="add-slot-form" style="display: flex; flex-direction: column; gap: 16px;">
@@ -146,74 +270,44 @@
 
             <div class="form-group">
               <label class="form-label">Atividade / Subgrupo (Obrigatório):</label>
-              <input 
-                type="text" 
-                id="form-subgrupo"
-                class="input-field"
-                placeholder="Ex: Painel Térmico, TAF Oficinas"
-                required
-              />
+              <input type="text" id="form-subgrupo" class="input-field" placeholder="Ex: Painel Térmico, Caldeira, Águas" required />
             </div>
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
               <div class="form-group">
                 <label class="form-label">Data (Obrigatório):</label>
-                <input 
-                  type="date" 
-                  id="form-data"
-                  class="input-field"
-                  required
-                />
+                <input type="date" id="form-data" class="input-field" required />
               </div>
               <div class="form-group">
                 <label class="form-label">Turno / Horário:</label>
-                <input 
-                  type="text" 
-                  id="form-horario"
-                  class="input-field"
-                  placeholder="Ex: 07x19, 19x07, 07x18"
-                  value="07x19"
-                  required
-                />
+                <input type="text" id="form-horario" class="input-field" placeholder="Ex: 07x19, 19x07, 07x18" value="07x19" required />
               </div>
             </div>
 
             <div class="form-group">
-              <label class="form-label">Motivo (Opcional):</label>
-              <input 
-                type="text" 
-                id="form-motivo"
-                class="input-field"
-                placeholder="Ex: liberação sindical, cobrir folga"
-              />
+              <label class="form-label">Características Previstas para o Apoio (para exibição de peso):</label>
+              <div id="modal-rules-checkboxes" style="display: grid; grid-template-columns: 1fr; gap: 6px; max-height: 150px; overflow-y: auto; padding-right: 8px;">
+                <!-- Checkboxes preenchidos via JS -->
+              </div>
             </div>
 
             <div class="form-group">
               <label class="form-label">Regra de Candidatura:</label>
               <div style="display: flex; gap: 16px; margin-top: 4px;">
                 <label style="display: flex; align-items: center; gap: 6px; font-size: 0.9rem; cursor: pointer;">
-                  <input 
-                    type="radio" 
-                    name="prioridade" 
-                    value="imediata"
-                    checked
-                  />
-                  Imediata (Quem clicar primeiro assume)
+                  <input type="radio" name="prioridade" value="imediata" />
+                  Imediata (Quem clicar assume)
                 </label>
                 <label style="display: flex; align-items: center; gap: 6px; font-size: 0.9rem; cursor: pointer;">
-                  <input 
-                    type="radio" 
-                    name="prioridade" 
-                    value="disputa"
-                  />
-                  Fila de Prioridade (Menor pontuação ganha)
+                  <input type="radio" name="prioridade" value="disputa" checked />
+                  Janela de Prioridade (Menor pontuação ganha)
                 </label>
               </div>
             </div>
 
             <div class="modal-footer">
               <button type="button" id="btn-cancel-add-modal" class="btn btn-secondary">Cancelar</button>
-              <button type="submit" class="btn btn-primary">Criar Vaga</button>
+              <button type="submit" class="btn btn-primary">Lançar Solicitação</button>
             </div>
 
           </form>
@@ -225,18 +319,14 @@
         <div class="modal-content glass-panel" style="max-width: 600px;">
           <div class="modal-header">
             <h2 class="modal-title">Gerador de Template para WhatsApp</h2>
-            <button id="btn-close-whatsapp-modal" style="background: transparent; border: none; color: #fff; fontSize: 1.25rem; cursor: pointer;">✕</button>
+            <button id="btn-close-whatsapp-modal" style="background: transparent; border: none; color: #fff; font-size: 1.25rem; cursor: pointer;">✕</button>
           </div>
           
           <p style="font-size: 0.85rem; color: var(--text-secondary);">
             Copie o texto formatado abaixo para postar no grupo do WhatsApp da equipe. Os dados estão sincronizados em tempo real com o estado atual do App.
           </p>
 
-          <textarea 
-            id="whatsapp-export-area"
-            class="whatsapp-export-area"
-            readonly
-          ></textarea>
+          <textarea id="whatsapp-export-area" class="whatsapp-export-area" readonly></textarea>
 
           <div class="modal-footer">
             <button id="btn-cancel-whatsapp-modal" class="btn btn-secondary">Fechar</button>
@@ -247,14 +337,44 @@
         </div>
       </div>
 
+      <!-- MODAL: APLICAR MULTA WHATSAPP (ART. 7º) -->
+      <div id="infracao-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content glass-panel" style="max-width: 450px;">
+          <div class="modal-header">
+            <h2 class="modal-title">Aplicar Infração de WhatsApp</h2>
+            <button id="btn-close-infracao-modal" style="background: transparent; border: none; color: #fff; font-size: 1.25rem; cursor: pointer;">✕</button>
+          </div>
+          
+          <p style="font-size: 0.85rem; color: var(--text-secondary);">
+            Conforme o **Art. 7º**, o grupo é exclusivo para apoios. O uso inadequado acarreta um acréscimo de **0,01 ponto** por infração na classificação do colaborador.
+          </p>
+
+          <form id="infracao-form" style="display: flex; flex-direction: column; gap: 16px; margin-top: 10px;">
+            <div class="form-group">
+              <label class="form-label">Colaborador Infrator:</label>
+              <select id="inf-usuario" class="input-field">
+                <!-- Apoiadores preenchidos via JS -->
+              </select>
+            </div>
+            
+            <div class="modal-footer">
+              <button type="button" id="btn-cancel-infracao-modal" class="btn btn-secondary">Cancelar</button>
+              <button type="submit" class="btn btn-primary" style="background: var(--danger);">
+                ⚠️ Aplicar Penalidade (+0.01)
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
       <!-- FOOTER -->
       <footer style="margin-top: auto; padding-top: 40px; padding-bottom: 10px; text-align: center; font-size: 0.75rem; color: var(--text-muted);">
-        <p>© 2026 Apoio RNEST. Feito para gerenciamento de equipes de operação e painel.</p>
+        <p>© 2026 Apoio RNEST. Sistema regulado pelo Projeto de Lei Nº 0001/2025.</p>
       </footer>
 
     </div>
 
-    <!-- DATA & LOGIC SCRIPTS -->
+    <!-- SCRIPTS -->
     <script type="module" src="./data.js"></script>
     <script type="module" src="./app.js"></script>
   </body>

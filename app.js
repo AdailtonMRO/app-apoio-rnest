@@ -1,31 +1,49 @@
-import { getStoredData, saveStoredData, INITIAL_USERS } from './data.js';
+import { getStoredData, saveStoredData, SUPPORT_RULES } from './data.js';
 
 // --- ESTADO GLOBAL DA APLICAÇÃO ---
 let users = [];
 let groups = [];
 let slots = [];
+let history = [];
+
+// Perfil simulado ativo
+let currentUserId = 'u1'; // Syan Addi por padrão
 let currentUser = null;
-let currentUserId = '1'; // Syan por padrão
+
+// Abas de visualização principal e escalas
+let currentView = 'escalas'; // 'escalas', 'registro', 'historico'
 let activeTab = 'all';
 
-// Candidatos a vagas em disputa
+// Data simulada atual (para testes da regra de 72h)
+let simulatedCurrentDate = '2026-06-04';
+
+// Candidaturas a vagas em disputa
 // { slotId: [userId1, userId2] }
 let candidatos = {
-  's3': ['8', '10'], // Alan (6 apoios), Adailton (8 apoios)
-  's5': ['7'],       // Yasmin (5 apoios)
-  's17': ['1', '9']  // Syan (0 apoios), Janderson (7 apoios)
+  's_f1': ['u13', 'u4'], // Alan (6.0), George (1.7)
+  's_f2': ['u7'],        // Adailton (2.21)
+  's_f3': ['u2', 'u3']   // Javã (0.8, último 15/05), Max (0.8, último 10/05)
 };
 
 // --- ELEMENTOS DO DOM ---
 const roleSelect = document.getElementById('role-select');
 const btnResetDemo = document.getElementById('btn-reset-demo');
+const simCurrentDateInput = document.getElementById('sim-current-date');
 const tabContainer = document.getElementById('tab-container');
-const adminActionsBar = document.getElementById('admin-actions-bar');
 const slotsCount = document.getElementById('slots-count');
 const slotsGrid = document.getElementById('slots-grid');
 const myPanelWidget = document.getElementById('my-panel-widget');
 const rankingTableBody = document.getElementById('ranking-table-body');
 const notificationContainer = document.getElementById('notification-container');
+const adminActionsBar = document.getElementById('admin-actions-bar');
+
+// Abas da Visualização Principal
+const tabBtnEscalas = document.getElementById('tab-btn-escalas');
+const tabBtnRegistro = document.getElementById('tab-btn-registro');
+const tabBtnHistorico = document.getElementById('tab-btn-historico');
+const viewEscalas = document.getElementById('view-escalas');
+const viewRegistro = document.getElementById('view-registro');
+const viewHistorico = document.getElementById('view-historico');
 
 // Modais
 const addModal = document.getElementById('add-modal');
@@ -33,6 +51,7 @@ const btnOpenAddModal = document.getElementById('btn-open-add-modal');
 const btnCloseAddModal = document.getElementById('btn-close-add-modal');
 const btnCancelAddModal = document.getElementById('btn-cancel-add-modal');
 const addSlotForm = document.getElementById('add-slot-form');
+const modalRulesCheckboxes = document.getElementById('modal-rules-checkboxes');
 
 const whatsappModal = document.getElementById('whatsapp-modal');
 const btnOpenWhatsappModal = document.getElementById('btn-open-whatsapp-modal');
@@ -41,38 +60,76 @@ const btnCancelWhatsappModal = document.getElementById('btn-cancel-whatsapp-moda
 const whatsappExportArea = document.getElementById('whatsapp-export-area');
 const btnCopyWhatsapp = document.getElementById('btn-copy-whatsapp');
 
+const infracaoModal = document.getElementById('infracao-modal');
+const btnOpenInfracaoModal = document.getElementById('btn-open-infracao-modal');
+const btnCloseInfracaoModal = document.getElementById('btn-close-infracao-modal');
+const btnCancelInfracaoModal = document.getElementById('btn-cancel-infracao-modal');
+const infracaoForm = document.getElementById('infracao-form');
+
+// Formulário de Auto-Registro
+const regUsuarioSelect = document.getElementById('reg-usuario');
+const regSubgrupoInput = document.getElementById('reg-subgrupo');
+const regDataInput = document.getElementById('reg-data');
+const regDataLancamentoInput = document.getElementById('reg-data-lancamento');
+const regDateWarning = document.getElementById('reg-date-warning');
+const rulesCheckboxContainer = document.getElementById('rules-checkbox-container');
+const regPointsPreview = document.getElementById('reg-points-preview');
+const regFormulaPreview = document.getElementById('reg-formula-preview');
+const registerCompletedSupportForm = document.getElementById('register-completed-support-form');
+
 // --- INICIALIZAÇÃO ---
 function init() {
-  // Carregar dados
   loadData();
 
-  // Adicionar Event Listeners Globais
+  // Configurar data de hoje simulada
+  simCurrentDateInput.value = simulatedCurrentDate;
+  regDataLancamentoInput.value = formatDatePt(simulatedCurrentDate);
+
+  // Listeners de navegação principal
+  tabBtnEscalas.addEventListener('click', () => switchView('escalas'));
+  tabBtnRegistro.addEventListener('click', () => switchView('registro'));
+  tabBtnHistorico.addEventListener('click', () => switchView('historico'));
+
+  // Listeners de simulação
   roleSelect.addEventListener('change', handleRoleChange);
   btnResetDemo.addEventListener('click', resetDemo);
-  
-  // Eventos de Modais
+  simCurrentDateInput.addEventListener('change', handleSimDateChange);
+
+  // Modais - Adicionar
   btnOpenAddModal.addEventListener('click', () => addModal.style.display = 'flex');
   btnCloseAddModal.addEventListener('click', () => addModal.style.display = 'none');
   btnCancelAddModal.addEventListener('click', () => addModal.style.display = 'none');
-  addSlotForm.addEventListener('submit', handleCriarEscala);
+  addSlotForm.addEventListener('submit', handleCriarSolicitacaoSlot);
 
+  // Modais - WhatsApp
   btnOpenWhatsappModal.addEventListener('click', openWhatsappExporter);
   btnCloseWhatsappModal.addEventListener('click', () => whatsappModal.style.display = 'none');
   btnCancelWhatsappModal.addEventListener('click', () => whatsappModal.style.display = 'none');
   btnCopyWhatsapp.addEventListener('click', handleCopyClipboard);
 
-  // Inicializar opções do formulário
+  // Modais - Infração WhatsApp
+  btnOpenInfracaoModal.addEventListener('click', () => infracaoModal.style.display = 'flex');
+  btnCloseInfracaoModal.addEventListener('click', () => infracaoModal.style.display = 'none');
+  btnCancelInfracaoModal.addEventListener('click', () => infracaoModal.style.display = 'none');
+  infracaoForm.addEventListener('submit', handleAplicarInfracao);
+
+  // Formulário de Auto-Registro - Eventos
+  regDataInput.addEventListener('change', checkLateSubmission);
+  registerCompletedSupportForm.addEventListener('submit', handleAutoRegistroApoio);
+
+  // Preencher elementos de formulário
   renderFormGroupsOptions();
+  renderRulesCheckboxes();
 
   // Fechar modais ao clicar fora
   window.addEventListener('click', (e) => {
     if (e.target === addModal) addModal.style.display = 'none';
     if (e.target === whatsappModal) whatsappModal.style.display = 'none';
+    if (e.target === infracaoModal) infracaoModal.style.display = 'none';
   });
 
   // Render inicial
   renderAll();
-  showBanner('Simulação carregada! Altere os perfis no topo para testar as regras.', 'info');
 }
 
 function loadData() {
@@ -80,43 +137,186 @@ function loadData() {
   users = data.users;
   groups = data.groups;
   slots = data.slots;
-  
-  // Carregar usuário ativo
+  history = data.history;
+
   currentUser = users.find(u => u.id === currentUserId) || users[0];
   currentUserId = currentUser.id;
 }
 
 function persistChanges() {
-  saveStoredData({ users, groups, slots });
+  saveStoredData({ users, groups, slots, history });
   renderAll();
 }
 
-// --- RENDERIZADORES ---
+function switchView(view) {
+  currentView = view;
+  
+  // Atualizar abas
+  tabBtnEscalas.classList.toggle('active', view === 'escalas');
+  tabBtnRegistro.classList.toggle('active', view === 'registro');
+  tabBtnHistorico.classList.toggle('active', view === 'historico');
 
-function renderAll() {
-  renderRoleSelect();
-  renderTabs();
-  renderAdminBar();
-  renderSlots();
-  renderMyPanel();
-  renderRanking();
+  // Atualizar contêineres
+  viewEscalas.style.display = view === 'escalas' ? 'block' : 'none';
+  viewRegistro.style.display = view === 'registro' ? 'block' : 'none';
+  viewHistorico.style.display = view === 'historico' ? 'block' : 'none';
+
+  if (view === 'registro') {
+    // Configurar o usuário atual selecionado no formulário
+    regUsuarioSelect.value = currentUser.tipo === 'APOIADOR' ? currentUser.id : users.filter(u => u.tipo === 'APOIADOR')[0].id;
+    updatePointsPreview();
+  }
+
+  if (view === 'historico') {
+    renderHistoryTable();
+  }
 }
+
+// --- CONTROLE DE MUDANÇA DE CONFIGURAÇÃO SIMULADA ---
+
+function handleRoleChange(e) {
+  currentUserId = e.target.value;
+  currentUser = users.find(u => u.id === currentUserId);
+  renderAll();
+  
+  // Se mudar para admin na aba de registros, move para escalas
+  if (currentUser.tipo !== 'APOIADOR' && currentView === 'registro') {
+    switchView('escalas');
+  }
+}
+
+function handleSimDateChange(e) {
+  simulatedCurrentDate = e.target.value;
+  regDataLancamentoInput.value = formatDatePt(simulatedCurrentDate);
+  checkLateSubmission();
+  showBanner(`Data simulada alterada para: ${formatDatePt(simulatedCurrentDate)}`, 'info');
+  renderAll();
+}
+
+function resetDemo() {
+  localStorage.removeItem('rnest_law_users');
+  localStorage.removeItem('rnest_law_groups');
+  localStorage.removeItem('rnest_law_slots');
+  localStorage.removeItem('rnest_law_history');
+
+  candidatos = {
+    's_f1': ['u13', 'u4'],
+    's_f2': ['u7'],
+    's_f3': ['u2', 'u3']
+  };
+
+  currentUserId = 'u1';
+  simulatedCurrentDate = '2026-06-04';
+  simCurrentDateInput.value = simulatedCurrentDate;
+  regDataLancamentoInput.value = formatDatePt(simulatedCurrentDate);
+
+  loadData();
+  renderAll();
+  showBanner('Simulação e histórico resetados!', 'info');
+}
+
+// --- CÁLCULOS DA LEI DE APOIO (FÓRMULAS OFICIAIS) ---
+
+// 1. Calcula a pontuação individual de um apoio: Produto de (Peso / 10)
+function calculateSupportScore(regrasArray) {
+  if (regrasArray.length === 0) return 0.0;
+  
+  let prod = 1.0;
+  regrasArray.forEach(rid => {
+    const rule = SUPPORT_RULES.find(r => r.id === rid);
+    if (rule) {
+      prod *= (rule.peso / 10);
+    }
+  });
+  
+  return parseFloat(prod.toFixed(4));
+}
+
+// 2. Calcula a data do último apoio feito por um usuário (para desempate do Art. 8º)
+function getUserLastSupportDate(userId) {
+  const userHistory = history.filter(h => h.usuarioId === userId);
+  if (userHistory.length === 0) return null;
+  
+  // Ordenar por data decrescente
+  userHistory.sort((a, b) => new Date(b.data) - new Date(a.data));
+  return userHistory[0].data;
+}
+
+// 3. Calcula a pontuação acumulada total do colaborador (Geral = Σ apoios + (infrações * 0.01))
+function calculateUserPointsGeral(userId) {
+  const user = users.find(u => u.id === userId);
+  if (!user) return 0.0;
+
+  // Se for GPI/OPMAN e não classificado
+  if (user.cargo === 'GPI' || user.cargo === 'OPMAN') {
+    return 0.0; // Não entram na classificação geral (Art. 6º)
+  }
+
+  const userHistory = history.filter(h => h.usuarioId === userId);
+  let sum = userHistory.reduce((acc, h) => acc + h.pontuacao, 0.0);
+  
+  // Adicionar multas WhatsApp (+0.01 por infração - Art. 7º)
+  if (user.infracoesWA) {
+    sum += user.infracoesWA * 0.01;
+  }
+
+  return parseFloat(sum.toFixed(4));
+}
+
+// 4. Lógica de desempate e ranking de candidatos para uma vaga
+function getDisputeWinner(slotId) {
+  const candIds = candidatos[slotId] || [];
+  if (candIds.length === 0) return null;
+
+  const candidatesList = candIds.map((uid, index) => {
+    const u = users.find(user => user.id === uid);
+    const score = calculateUserPointsGeral(uid);
+    const lastDate = getUserLastSupportDate(uid);
+    return { id: uid, nome: u.nome, score, lastDate, index };
+  });
+
+  // Ordenação da prioridade (Lei Art. 3º e Art. 8º)
+  candidatesList.sort((a, b) => {
+    // 1. Menor pontuação geral primeiro
+    if (a.score !== b.score) {
+      return a.score - b.score;
+    }
+    
+    // 2. Desempate: quem fez apoio mais antigo primeiro
+    if (a.lastDate === null && b.lastDate !== null) return -1; // A nunca apoiou -> prioridade A
+    if (b.lastDate === null && a.lastDate !== null) return 1;  // B nunca apoiou -> prioridade B
+    if (a.lastDate === null && b.lastDate === null) return a.index - b.index; // Ordem de candidatura
+    
+    const diff = new Date(a.lastDate) - new Date(b.lastDate);
+    if (diff !== 0) return diff; // Data antiga ganha
+    
+    // 3. Ordem de candidatura (Consenso simulado por ordem de inscrição)
+    return a.index - b.index;
+  });
+
+  return candidatesList[0];
+}
+
+// --- RENDERIZADORES DE TELA (HTML DINÂMICO) ---
 
 function renderRoleSelect() {
   let html = '';
   
   html += '<optgroup label="Colaboradores (Apoiadores)">';
   users.filter(u => u.tipo === 'APOIADOR').forEach(u => {
+    const score = calculateUserPointsGeral(u.id);
+    const isExcluido = u.cargo === 'GPI' || u.cargo === 'OPMAN';
+    const scoreLabel = isExcluido ? 'Sem Classif.' : `${score.toFixed(2)} pts`;
     html += `<option value="${u.id}" ${u.id === currentUserId ? 'selected' : ''}>
-      ${u.nome} (Apoios: ${u.apoiosAno} no Ano / ${countUserSupportsInMonth(u.id, '2026-06-01')} no Mês)
+      ${u.nome} (${u.cargo} | ${scoreLabel})
     </option>`;
   });
   html += '</optgroup>';
   
-  html += '<optgroup label="Gestão">';
+  html += '<optgroup label="Gestão (Administradores)">';
   users.filter(u => u.tipo !== 'APOIADOR').forEach(u => {
     html += `<option value="${u.id}" ${u.id === currentUserId ? 'selected' : ''}>
-      ${u.nome} (${u.tipo})
+      ${u.nome}
     </option>`;
   });
   html += '</optgroup>';
@@ -125,16 +325,13 @@ function renderRoleSelect() {
 }
 
 function renderTabs() {
-  let html = `<button class="tab-btn ${activeTab === 'all' ? 'active' : ''}" data-tab="all">Todos os Apoios</button>`;
-  
+  let html = `<button class="tab-btn ${activeTab === 'all' ? 'active' : ''}" data-tab="all">Todas as Escalas</button>`;
   groups.forEach(g => {
     const label = g.nome.replace('Apoios ', '').replace('Apoio ', '');
     html += `<button class="tab-btn ${activeTab === g.id ? 'active' : ''}" data-tab="${g.id}">${label}</button>`;
   });
-  
   tabContainer.innerHTML = html;
 
-  // Add listeners
   tabContainer.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       activeTab = btn.getAttribute('data-tab');
@@ -145,15 +342,8 @@ function renderTabs() {
 }
 
 function renderAdminBar() {
-  if (currentUser.tipo === 'ADMIN' || currentUser.tipo === 'GERENTE') {
+  if (currentUser.tipo === 'ADMIN') {
     adminActionsBar.style.display = 'flex';
-    
-    const btnCreate = document.getElementById('btn-open-add-modal');
-    if (currentUser.tipo === 'ADMIN') {
-      btnCreate.style.display = 'inline-flex';
-    } else {
-      btnCreate.style.display = 'none';
-    }
   } else {
     adminActionsBar.style.display = 'none';
   }
@@ -161,8 +351,6 @@ function renderAdminBar() {
 
 function renderSlots() {
   let filtered = [...slots];
-  
-  // Ordenar por data
   filtered.sort((a, b) => new Date(a.data) - new Date(b.data));
 
   if (activeTab !== 'all') {
@@ -174,7 +362,7 @@ function renderSlots() {
   if (filtered.length === 0) {
     slotsGrid.innerHTML = `
       <div class="glass-panel" style="grid-column: 1 / -1; padding: 40px; text-align: center; color: var(--text-muted);">
-        Nenhum apoio agendado para esta categoria.
+        Nenhuma vaga de apoio cadastrada para esta categoria.
       </div>
     `;
     return;
@@ -184,89 +372,89 @@ function renderSlots() {
   filtered.forEach(slot => {
     const isDisputa = candidatos[slot.id] !== undefined;
     const candList = candidatos[slot.id] || [];
-    const liderDisputa = getDisputeWinner(slot.id);
+    const vencedor = getDisputeWinner(slot.id);
     const apontee = users.find(u => u.id === slot.usuarioId);
-    const userMonthSupports = slot.usuarioId ? countUserSupportsInMonth(slot.usuarioId, slot.data) : 0;
     
+    // Características previstas
+    const regrasPrevistas = slot.regrasPrevistas || [];
+    const pesoPrevisao = calculateSupportScore(regrasPrevistas);
+
     const cardStatusClass = isDisputa ? 'pendente' : slot.status.toLowerCase();
-    
+
     html += `
       <div class="slot-card glass-panel status-${cardStatusClass}">
         <div class="slot-meta">
           <span class="slot-subgrupo">${slot.subgrupo}</span>
           ${isDisputa ? `
-            <span class="badge badge-pending">Janela de Prioridade</span>
+            <span class="badge badge-pending">Em Disputa</span>
           ` : `
             <span class="badge badge-${slot.status.toLowerCase()}">
               ${slot.status === 'LIVRE' ? 'Disponível' : 
-                slot.status === 'PENDENTE_APROVACAO' ? 'Aguardando Gerência' : 
-                slot.status === 'CANCELADO' ? 'Cancelado' : 'Preenchido'}
+                slot.status === 'CANCELADO' ? 'Cancelado' : 'Fechada'}
             </span>
           `}
         </div>
 
         <div class="slot-schedule">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-          <span>${formatDate(slot.data)}</span>
+          <span>${formatDatePt(slot.data)}</span>
           <span>•</span>
           <span>Turno: ${slot.horario}</span>
         </div>
 
-        ${slot.motivo ? `
-          <div class="slot-reason">
-            <strong>Motivo:</strong> ${slot.motivo}
-          </div>
-        ` : ''}
+        <div style="font-size: 0.8rem; color: var(--text-secondary);">
+          <strong>Pontuação Prevista:</strong> <code style="color: var(--info); font-weight: bold;">${pesoPrevisao.toFixed(2)} pts</code> 
+          ${regrasPrevistas.length > 0 ? `(${regrasPrevistas.join(' × ')})` : ''}
+        </div>
 
-        <!-- Candidatos se for Disputa -->
+        <!-- Se estiver em Disputa por Prioridade (Art. 3º e 8º) -->
         ${isDisputa ? `
           <div style="background: hsla(222, 47%, 9%, 0.6); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 8px;">
             <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary);">
-              👥 Candidatos na disputa (${candList.length}):
+              👥 Candidatos na fila (${candList.length}):
             </span>
-            <div style="display: flex; flex-direction: column; gap: 4px;">
+            <div style="display: flex; flex-direction: column; gap: 5px;">
               ${candList.map((cid, i) => {
                 const u = users.find(user => user.id === cid);
-                const eLider = liderDisputa && liderDisputa.id === cid;
+                const score = calculateUserPointsGeral(cid);
+                const lastDate = getUserLastSupportDate(cid);
+                const eLider = vencedor && vencedor.id === cid;
                 return `
-                  <div style="font-size: 0.75rem; display: flex; justify-content: space-between; color: ${eLider ? 'var(--success)' : 'var(--text-secondary)'}; font-weight: ${eLider ? 700 : 400};">
+                  <div style="font-size: 0.72rem; display: flex; justify-content: space-between; align-items: center; color: ${eLider ? 'var(--success)' : 'var(--text-secondary)'}; font-weight: ${eLider ? 700 : 400};">
                     <span>${i+1}. ${u?.nome} ${eLider ? '🏆 (Líder)' : ''}</span>
-                    <span>${u?.apoiosAno} apoios/ano</span>
+                    <span style="font-size: 0.65rem;">
+                      ${score.toFixed(2)} pts | Último: ${lastDate ? formatDatePt(lastDate) : 'Nenhum'}
+                    </span>
                   </div>
                 `;
               }).join('')}
               ${candList.length === 0 ? `
                 <span style="font-size: 0.75rem; color: var(--text-muted); font-style: italic;">
-                  Nenhum inscrito. Seja o primeiro!
+                  Nenhum voluntário inscrito na fila.
                 </span>
               ` : ''}
             </div>
           </div>
         ` : ''}
 
-        <!-- Detalhes do Escalonado se confirmado/pendente -->
+        <!-- Se já estiver preenchido -->
         ${!isDisputa && slot.usuarioId ? `
           <div class="slot-details">
             <div class="slot-assignee">
               <div>
-                <span style="font-size: 0.75rem; color: var(--text-muted); display: block;">Apoiador escalado:</span>
+                <span style="font-size: 0.75rem; color: var(--text-muted); display: block;">Voluntário confirmado:</span>
                 <span class="assignee-name">${apontee?.nome}</span>
               </div>
-              <span class="assignee-count">
-                ${userMonthSupports} apoios no mês
+              <span class="assignee-count" style="font-weight: bold; color: var(--info);">
+                ${calculateUserPointsGeral(slot.usuarioId).toFixed(2)} pts gerais
               </span>
             </div>
-            ${slot.observacao ? `
-              <div class="slot-note">
-                💡 Obs: ${slot.observacao}
-              </div>
-            ` : ''}
           </div>
         ` : ''}
 
-        <!-- AÇÕES -->
+        <!-- Ações do Slot -->
         <div class="slot-actions" data-slot-id="${slot.id}">
-          <!-- Preenchido dinamicamente abaixo -->
+          <!-- Preenchido via listeners -->
         </div>
       </div>
     `;
@@ -286,45 +474,44 @@ function attachSlotActionsListeners(filteredSlots) {
 
     let actionHtml = '';
 
-    // 1. Vaga Livre (Inscrição Imediata)
+    // 1. Inscrição em vaga direta (Livre comum)
     if (slot.status === 'LIVRE' && !isDisputa && currentUser.tipo === 'APOIADOR') {
-      actionHtml = `<button class="btn btn-primary btn-assumir" style="width: 100%;">🟢 Assumir Apoio Rápido</button>`;
+      const isExcluido = currentUser.cargo === 'GPI' || currentUser.cargo === 'OPMAN';
+      if (isExcluido) {
+        actionHtml = `<button class="btn btn-secondary btn-assumir" style="width: 100%;">🟢 Assumir Apoio (Função Administrativa)</button>`;
+      } else {
+        actionHtml = `<button class="btn btn-primary btn-assumir" style="width: 100%;">🟢 Assumir Apoio Rápido</button>`;
+      }
     }
-    // 2. Fila de Prioridade ativa
+    // 2. Fila de Candidatura por Prioridade (Art. 3º)
     else if (isDisputa && currentUser.tipo === 'APOIADOR') {
       const jaInscrito = candList.includes(currentUser.id);
-      actionHtml = `
-        <button class="btn btn-secondary btn-candidatar" style="width: 100%; border-color: var(--warning); color: var(--warning);" ${jaInscrito ? 'disabled' : ''}>
-          ${jaInscrito ? '✓ Candidatado' : '⏳ Candidatar-se (Entrar na Fila)'}
-        </button>
-      `;
+      const isExcluido = currentUser.cargo === 'GPI' || currentUser.cargo === 'OPMAN';
+      
+      if (isExcluido) {
+        actionHtml = `<button class="btn btn-secondary" style="width: 100%; cursor: not-allowed;" disabled>⚠️ GPI/OPMAN não disputam prioridade</button>`;
+      } else {
+        actionHtml = `
+          <button class="btn btn-secondary btn-candidatar" style="width: 100%; border-color: var(--warning); color: var(--warning);" ${jaInscrito ? 'disabled' : ''}>
+            ${jaInscrito ? '✓ Candidatado na Fila' : '⏳ Candidatar-se à Vaga'}
+          </button>
+        `;
+      }
     }
-    // 3. Fechar disputa (Admin)
-    if (isDisputa && currentUser.tipo === 'ADMIN') {
-      actionHtml += `
-        <button class="btn btn-primary btn-resolver-disputa" style="width: 100%; background: var(--warning); color: black; margin-top: 8px;">
-          🔒 Fechar Janela e Atribuir Vencedor
-        </button>
-      `;
-    }
-    // 4. Desistir de vaga própria
-    if (slot.status === 'ATRIBUIDO' && slot.usuarioId === currentUser.id) {
-      actionHtml = `<button class="btn btn-danger btn-desistir" style="width: 100%;">🔴 Desistir do Apoio</button>`;
-    }
-    // 5. Decisão do Gerente
-    if (slot.status === 'PENDENTE_APROVACAO' && currentUser.tipo === 'GERENTE') {
-      actionHtml = `
-        <div style="display: flex; gap: 8px; width: 100%;">
-          <button class="btn btn-primary btn-aprovar" style="flex: 1; background: var(--success);">✓ Aprovar</button>
-          <button class="btn btn-danger btn-recusar" style="flex: 1;">✕ Recusar</button>
-        </div>
-      `;
-    }
-    // 6. Cancelar escala (Admin)
+
+    // Ações de Administrador
     if (currentUser.tipo === 'ADMIN') {
+      if (isDisputa && candList.length > 0) {
+        actionHtml += `
+          <button class="btn btn-primary btn-resolver-disputa" style="width: 100%; background: var(--warning); color: black; margin-top: 8px;">
+            🔒 Fechar Janela e Atribuir ao Líder
+          </button>
+        `;
+      }
+      
       actionHtml += `
         <div style="margin-top: 8px; display: flex; justify-content: flex-end;">
-          <button class="btn btn-secondary btn-icon-only btn-cancelar-escala" style="font-size: 0.75rem; padding: 4px 8px; color: var(--danger);">
+          <button class="btn btn-secondary btn-icon-only btn-cancelar-escala" style="font-size: 0.72rem; padding: 4px 8px; color: var(--danger);">
             ⚠️ ${slot.status === 'CANCELADO' ? 'Reativar Slot' : 'Cancelar Slot'}
           </button>
         </div>
@@ -333,7 +520,7 @@ function attachSlotActionsListeners(filteredSlots) {
 
     actionContainer.innerHTML = actionHtml;
 
-    // Attach local events
+    // Conectar eventos
     const btnAssumir = actionContainer.querySelector('.btn-assumir');
     if (btnAssumir) btnAssumir.addEventListener('click', () => handleAssumirVagaDireta(slot.id));
 
@@ -343,15 +530,6 @@ function attachSlotActionsListeners(filteredSlots) {
     const btnResolver = actionContainer.querySelector('.btn-resolver-disputa');
     if (btnResolver) btnResolver.addEventListener('click', () => handleEncerrarDisputa(slot.id));
 
-    const btnDesistir = actionContainer.querySelector('.btn-desistir');
-    if (btnDesistir) btnDesistir.addEventListener('click', () => handleDesistirVaga(slot.id));
-
-    const btnAprovar = actionContainer.querySelector('.btn-aprovar');
-    if (btnAprovar) btnAprovar.addEventListener('click', () => handleDecisaoGerencial(slot.id, true));
-
-    const btnRecusar = actionContainer.querySelector('.btn-recusar');
-    if (btnRecusar) btnRecusar.addEventListener('click', () => handleDecisaoGerencial(slot.id, false));
-
     const btnCancelEscala = actionContainer.querySelector('.btn-cancelar-escala');
     if (btnCancelEscala) btnCancelEscala.addEventListener('click', () => handleCancelarVagaAdmin(slot.id));
   });
@@ -360,35 +538,43 @@ function attachSlotActionsListeners(filteredSlots) {
 function renderMyPanel() {
   if (currentUser && currentUser.tipo === 'APOIADOR') {
     myPanelWidget.style.display = 'block';
-    const mesSupports = countUserSupportsInMonth(currentUser.id, '2026-06-01');
-    const atingiuLimite = mesSupports >= 3;
     
+    const score = calculateUserPointsGeral(currentUser.id);
+    const lastDate = getUserLastSupportDate(currentUser.id);
+    const isExcluido = currentUser.cargo === 'GPI' || currentUser.cargo === 'OPMAN';
+
     myPanelWidget.innerHTML = `
       <h3 class="widget-title">👤 Meu Painel</h3>
       <div style="display: flex; flex-direction: column; gap: 10px; font-size: 0.9rem;">
         <div>
-          <span style="color: var(--text-muted); display: block;">Nome:</span>
-          <strong>${currentUser.nome}</strong>
+          <span style="color: var(--text-muted); display: block;">Nome / Cargo:</span>
+          <strong>${currentUser.nome} (${currentUser.cargo})</strong>
         </div>
         
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+        <div style="display: grid; grid-template-columns: 1fr 1.2fr; gap: 10px;">
           <div>
-            <span style="color: var(--text-muted); display: block;">Apoios no Mês:</span>
-            <strong style="font-size: 1.25rem; color: ${atingiuLimite ? 'var(--warning)' : 'var(--success)'}">
-              ${mesSupports} / 3
+            <span style="color: var(--text-muted); display: block;">Pontuação Geral:</span>
+            <strong style="font-size: 1.2rem; color: ${isExcluido ? 'var(--text-muted)' : 'var(--info)'}">
+              ${isExcluido ? 'Sem Classif.' : score.toFixed(4) + ' pts'}
             </strong>
           </div>
           <div>
-            <span style="color: var(--text-muted); display: block;">Apoios no Ano:</span>
-            <strong style="font-size: 1.25rem; color: var(--text-primary)">
-              ${currentUser.apoiosAno}
+            <span style="color: var(--text-muted); display: block;">Último Apoio:</span>
+            <strong style="font-size: 0.85rem; color: var(--text-primary)">
+              ${lastDate ? formatDatePt(lastDate) : 'Nenhum realizado'}
             </strong>
           </div>
         </div>
 
-        ${atingiuLimite ? `
-          <div style="font-size: 0.75rem; color: var(--warning); background: var(--warning-glow); padding: 8px; border-radius: 4px; border: 1px solid hsla(38, 92%, 50%, 0.2)">
-            ⚠️ Você atingiu o limite de 3 apoios. Próximas vagas exigirão aprovação de gerente!
+        ${currentUser.infracoesWA > 0 ? `
+          <div style="font-size: 0.72rem; color: var(--danger); background: var(--danger-glow); padding: 8px; border-radius: 4px; border: 1px solid hsla(0, 84%, 60%, 0.2)">
+            ⚠️ Infrações WhatsApp: <strong>${currentUser.infracoesWA}</strong> (+${(currentUser.infracoesWA * 0.01).toFixed(2)} pts aplicados no Geral)
+          </div>
+        ` : ''}
+
+        ${isExcluido ? `
+          <div style="font-size: 0.72rem; color: var(--text-muted); background: hsla(222, 47%, 20%, 0.4); padding: 8px; border-radius: 4px; border: 1px solid var(--border-color)">
+            💡 Conforme o <strong>Art. 6º</strong>, as funções de GPI/OPMAN não entram no ranking de prioridade.
           </div>
         ` : ''}
       </div>
@@ -401,68 +587,275 @@ function renderMyPanel() {
 function renderRanking() {
   let html = '';
   
-  const sorted = [...users]
-    .filter(u => u.tipo === 'APOIADOR')
-    .sort((a, b) => a.apoiosAno - b.apoiosAno);
+  // Apoiadores válidos para classificação (Filtrando GPI/OPMAN conforme Art. 6º)
+  const classificados = users
+    .filter(u => u.tipo === 'APOIADOR' && u.cargo !== 'GPI' && u.cargo !== 'OPMAN')
+    .map(u => {
+      return {
+        ...u,
+        score: calculateUserPointsGeral(u.id),
+        lastDate: getUserLastSupportDate(u.id)
+      };
+    });
+
+  // Ordenação do Ranking de Prioridade (Art. 3º e Art. 8º)
+  classificados.sort((a, b) => {
+    // 1. Menor pontuação
+    if (a.score !== b.score) {
+      return a.score - b.score;
+    }
+    // 2. Data mais antiga (tiebreaker)
+    if (a.lastDate === null && b.lastDate !== null) return -1;
+    if (b.lastDate === null && a.lastDate !== null) return 1;
+    if (a.lastDate === null && b.lastDate === null) return 0;
     
-  sorted.forEach((u, index) => {
+    return new Date(a.lastDate) - new Date(b.lastDate);
+  });
+
+  classificados.forEach((u, index) => {
     const rank = index + 1;
     let rankClass = 'rank-other';
     if (rank === 1) rankClass = 'rank-1';
     if (rank === 2) rankClass = 'rank-2';
     if (rank === 3) rankClass = 'rank-3';
-    
+
     const isCurrentUser = u.id === currentUserId;
-    
+
     html += `
       <tr class="ranking-row ${isCurrentUser ? 'current-user' : ''}">
         <td>
           <span class="rank-badge ${rankClass}">${rank}</span>
         </td>
-        <td>${u.nome} ${isCurrentUser ? '(Você)' : ''}</td>
-        <td style="text-align: right; font-weight: bold;">${u.apoiosAno}</td>
+        <td>
+          <span style="font-weight: 600;">${u.nome}</span>
+          ${u.infracoesWA > 0 ? ` <span style="font-size: 0.65rem; color: var(--danger);" title="Infrações WhatsApp">⚠️ ${u.infracoesWA}</span>` : ''}
+          ${isCurrentUser ? ' <small>(Você)</small>' : ''}
+        </td>
+        <td style="text-align: center; font-size: 0.75rem; color: var(--text-secondary);">
+          ${u.lastDate ? formatDatePt(u.lastDate) : '<span style="color: var(--text-muted);">Nenhum</span>'}
+        </td>
+        <td style="text-align: right; font-weight: bold; color: var(--info);">
+          ${u.score.toFixed(4)}
+        </td>
       </tr>
     `;
   });
-  
+
+  // Mostrar também os não-classificados no rodapé da tabela com aviso
+  const naoClassificados = users.filter(u => u.tipo === 'APOIADOR' && (u.cargo === 'GPI' || u.cargo === 'OPMAN'));
+  if (naoClassificados.length > 0) {
+    html += `
+      <tr style="background: hsla(222, 47%, 5%, 0.5);"><td colspan="4" style="font-size: 0.7rem; color: var(--text-muted); text-align: center; border-bottom: none; padding: 6px;">Excluídos da Classificação (Art. 6º)</td></tr>
+    `;
+    naoClassificados.forEach(u => {
+      const isCurrentUser = u.id === currentUserId;
+      html += `
+        <tr class="ranking-row ${isCurrentUser ? 'current-user' : ''}" style="opacity: 0.6;">
+          <td><span class="rank-badge rank-other">-</span></td>
+          <td>${u.nome} (${u.cargo})</td>
+          <td style="text-align: center; font-size: 0.75rem;">Sem Classif.</td>
+          <td style="text-align: right;">-</td>
+        </tr>
+      `;
+    });
+  }
+
   rankingTableBody.innerHTML = html;
 }
 
+function renderHistoryTable() {
+  const historyTableBody = document.getElementById('history-table-body');
+  let html = '';
+
+  const sortedHistory = [...history];
+  sortedHistory.sort((a, b) => new Date(b.data) - new Date(a.data)); // Mais recente primeiro
+
+  sortedHistory.forEach(h => {
+    const user = users.find(u => u.id === h.usuarioId);
+    const regBy = users.find(u => u.id === h.registradoPorId);
+    
+    html += `
+      <tr>
+        <td><strong>${formatDatePt(h.data)}</strong></td>
+        <td>${user?.nome || 'Desconhecido'}</td>
+        <td>${h.subgrupo}</td>
+        <td>
+          ${h.regras.map(rid => {
+            const rule = SUPPORT_RULES.find(r => r.id === rid);
+            const color = rid === 'R13' ? 'var(--danger)' : 'var(--primary)';
+            return `<code style="font-size: 0.7rem; padding: 2px 4px; border-radius: 4px; background: hsla(222, 47%, 20%, 0.5); color: ${color}; margin-right: 4px;" title="${rule?.descricao}">${rid}</code>`;
+          }).join('')}
+        </td>
+        <td>
+          <span style="font-size: 0.72rem; color: var(--text-muted);">
+            Em: ${formatDatePt(h.dataRegistro.split('T')[0])} por ${regBy?.nome || 'Sistema'}
+          </span>
+        </td>
+        <td style="text-align: right; font-weight: bold; color: var(--info);">${h.pontuacao.toFixed(4)} pts</td>
+        <td style="text-align: center;">
+          ${currentUser.tipo === 'ADMIN' ? `
+            <button class="btn btn-secondary btn-icon-only btn-excluir-historico" data-id="${h.id}" title="Excluir Registro" style="color: var(--danger); padding: 2px 6px;">✕</button>
+          ` : '-'}
+        </td>
+      </tr>
+    `;
+  });
+
+  if (sortedHistory.length === 0) {
+    html = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 20px;">Nenhum apoio registrado no histórico de 2026.</td></tr>`;
+  }
+
+  historyTableBody.innerHTML = html;
+
+  // Listeners de exclusão (Admin)
+  if (currentUser.tipo === 'ADMIN') {
+    historyTableBody.querySelectorAll('.btn-excluir-historico').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const hid = btn.getAttribute('data-id');
+        handleExcluirHistorico(hid);
+      });
+    });
+  }
+}
+
 function renderFormGroupsOptions() {
-  const select = document.getElementById('form-grupo');
+  const selectGrupo = document.getElementById('form-grupo');
   let html = '';
   groups.forEach(g => {
     html += `<option value="${g.id}">${g.nome}</option>`;
   });
-  select.innerHTML = html;
+  selectGrupo.innerHTML = html;
+
+  // Preencher usuários aptos no formulário de auto-registro
+  const selectRegUsuario = document.getElementById('reg-usuario');
+  let userHtml = '';
+  users.filter(u => u.tipo === 'APOIADOR').forEach(u => {
+    userHtml += `<option value="${u.id}">${u.nome} (${u.cargo})</option>`;
+  });
+  selectRegUsuario.innerHTML = userHtml;
+  selectRegUsuario.addEventListener('change', () => {
+    checkLateSubmission();
+    updatePointsPreview();
+  });
+
+  // Preencher usuários na modal de infrações
+  const selectInfUsuario = document.getElementById('inf-usuario');
+  let infHtml = '';
+  users.filter(u => u.tipo === 'APOIADOR').forEach(u => {
+    infHtml += `<option value="${u.id}">${u.nome} (${u.cargo})</option>`;
+  });
+  selectInfUsuario.innerHTML = infHtml;
 }
 
-// --- EVENT HANDLERS DE SIMULAÇÃO ---
+function renderRulesCheckboxes() {
+  // Checkboxes na view de registro (R1 a R12)
+  let html = '';
+  SUPPORT_RULES.filter(r => r.id !== 'R13').forEach(r => {
+    html += `
+      <label class="rules-checkbox-item">
+        <input type="checkbox" name="reg-regras" value="${r.id}" data-peso="${r.peso}">
+        <div>
+          <strong>${r.id}</strong> - ${r.descricao} 
+          <small style="color: var(--info);">(Peso ${r.peso})</small>
+        </div>
+      </label>
+    `;
+  });
+  rulesCheckboxContainer.innerHTML = html;
 
-function handleRoleChange(e) {
-  currentUserId = e.target.value;
-  currentUser = users.find(u => u.id === currentUserId);
-  renderAll();
+  // Checkboxes na modal de criação de escala
+  let modalHtml = '';
+  SUPPORT_RULES.filter(r => r.id !== 'R13').forEach(r => {
+    modalHtml += `
+      <label style="display: flex; align-items: flex-start; gap: 8px; font-size: 0.8rem; color: var(--text-secondary); cursor: pointer; padding: 4px;">
+        <input type="checkbox" name="modal-prev-regras" value="${r.id}">
+        <span><strong>${r.id}</strong> - ${r.descricao}</span>
+      </label>
+    `;
+  });
+  modalRulesCheckboxes.innerHTML = modalHtml;
+
+  // Listeners de mudança no form de registro para atualizar a prévia de pontos
+  rulesCheckboxContainer.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+    cb.addEventListener('change', updatePointsPreview);
+  });
 }
 
-function resetDemo() {
-  localStorage.removeItem('rnest_users');
-  localStorage.removeItem('rnest_groups');
-  localStorage.removeItem('rnest_slots');
+// --- LÓGICA DE PRÉ-VISUALIZAÇÃO DE CÁLCULO ---
+
+function updatePointsPreview() {
+  const selectedCbs = rulesCheckboxContainer.querySelectorAll('input[name="reg-regras"]:checked');
+  const regras = Array.from(selectedCbs).map(cb => cb.value);
+
+  const isLate = isSubmissionLate();
   
-  candidatos = {
-    's3': ['8', '10'],
-    's5': ['7'],
-    's17': ['1', '9']
-  };
-  
-  currentUserId = '1';
-  loadData();
-  renderAll();
-  showBanner('Dados da simulação restaurados com sucesso!', 'info');
+  if (isLate) {
+    // Se estiver atrasado, a penalidade R13 é aplicada automaticamente, desabilitando/ignorando as outras
+    regPointsPreview.textContent = '2.00';
+    regPointsPreview.style.color = 'var(--danger)';
+    regFormulaPreview.textContent = 'R13 Penalidade (Peso 20 / 10 = 2.0)';
+    
+    // Desabilitar visualmente outros checkboxes
+    rulesCheckboxContainer.querySelectorAll('input[name="reg-regras"]').forEach(cb => {
+      cb.disabled = true;
+    });
+  } else {
+    // Re-habilitar outros checkboxes
+    rulesCheckboxContainer.querySelectorAll('input[name="reg-regras"]').forEach(cb => {
+      cb.disabled = false;
+    });
+
+    if (regras.length === 0) {
+      regPointsPreview.textContent = '0.00';
+      regPointsPreview.style.color = 'var(--text-muted)';
+      regFormulaPreview.textContent = 'Nenhuma característica selecionada';
+      return;
+    }
+
+    let prod = 1.0;
+    let formulaText = '';
+    regras.forEach((rid, index) => {
+      const rule = SUPPORT_RULES.find(r => r.id === rid);
+      prod *= (rule.peso / 10);
+      formulaText += `${index > 0 ? ' × ' : ''}(${rule.peso}/10)`;
+    });
+
+    const score = parseFloat(prod.toFixed(4));
+    regPointsPreview.textContent = score.toFixed(4);
+    regPointsPreview.style.color = 'var(--info)';
+    regFormulaPreview.textContent = `${formulaText} = ${score.toFixed(4)}`;
+  }
 }
 
-// --- CANDIDATURA DIRETA ---
+function isSubmissionLate() {
+  const supportDateVal = regDataInput.value;
+  if (!supportDateVal) return false;
+
+  const supportDate = new Date(supportDateVal + 'T23:59:59'); // Fim do dia do apoio
+  const simDate = new Date(simulatedCurrentDate + 'T00:00:00'); // Começo do dia simulado lançamento
+
+  // Diferença em milissegundos
+  const diffTime = simDate - supportDate;
+  
+  // 72 horas = 3 dias
+  const limitMs = 3 * 24 * 60 * 60 * 1000;
+  
+  return diffTime > limitMs;
+}
+
+function checkLateSubmission() {
+  const isLate = isSubmissionLate();
+  if (isLate) {
+    regDateWarning.style.display = 'block';
+  } else {
+    regDateWarning.style.display = 'none';
+  }
+  updatePointsPreview();
+}
+
+// --- EVENT HANDLERS ---
+
+// 1. Assumir vaga direta (Escala Livre)
 function handleAssumirVagaDireta(slotId) {
   if (!currentUser || currentUser.tipo !== 'APOIADOR') {
     showBanner('Apenas apoiadores podem assumir escalas.', 'danger');
@@ -470,43 +863,44 @@ function handleAssumirVagaDireta(slotId) {
   }
 
   const slot = slots.find(s => s.id === slotId);
-  const apoiosNoMes = countUserSupportsInMonth(currentUser.id, slot.data);
 
-  let novoStatus = 'ATRIBUIDO';
-  let requerAprovacao = false;
-
-  if (apoiosNoMes >= 3) {
-    novoStatus = 'PENDENTE_APROVACAO';
-    requerAprovacao = true;
-  }
-
+  // Atribuir o apoio
   slots = slots.map(s => {
     if (s.id === slotId) {
-      return { ...s, status: novoStatus, usuarioId: currentUser.id, requerAprovacao };
+      return { ...s, status: 'ATRIBUIDO', usuarioId: currentUser.id };
     }
     return s;
   });
 
-  if (novoStatus === 'ATRIBUIDO') {
-    users = users.map(u => {
-      if (u.id === currentUser.id) {
-        return {
-          ...u,
-          apoiosMes: u.apoiosMes + 1,
-          apoiosAno: u.apoiosAno + 1
-        };
-      }
-      return u;
-    });
-    showBanner(`Apoio assumido com sucesso para ${formatDate(slot.data)}!`, 'success');
-  } else {
-    showBanner(`Inscrição enviada! Como você já tem ${apoiosNoMes} apoios no mês, requer aprovação do gerente.`, 'warning');
-  }
+  // Também criar um registro concluído imediatamente no histórico
+  const historyId = 'h_' + Date.now();
+  const regras = slot.regrasPrevistas || ['R1']; // Usa regras previstas ou R1 como padrão
+  
+  const supportDate = new Date(slot.data + 'T00:00:00');
+  const simDate = new Date(simulatedCurrentDate + 'T00:00:00');
+  const eAtrasado = (simDate - supportDate) > (3 * 24 * 60 * 60 * 1000);
+  
+  const finalRegras = eAtrasado ? ['R13'] : regras;
+  const score = calculateSupportScore(finalRegras);
 
+  const novoHistorico = {
+    id: historyId,
+    usuarioId: currentUser.id,
+    data: slot.data,
+    subgrupo: slot.subgrupo,
+    regras: finalRegras,
+    pontuacao: score,
+    dataRegistro: new Date(simulatedCurrentDate + 'T12:00:00').toISOString(),
+    registradoPorId: currentUser.id
+  };
+
+  history = [...history, novoHistorico];
+
+  showBanner(`Vaga de apoio confirmada e registrada no histórico para ${formatDatePt(slot.data)} (${score.toFixed(2)} pts)!`, 'success');
   persistChanges();
 }
 
-// --- DISPUTA E PRIORIDADE ---
+// 2. Candidatar-se na Fila de Prioridade (Art. 3º)
 function handleCandidatarDisputa(slotId) {
   if (!currentUser || currentUser.tipo !== 'APOIADOR') {
     showBanner('Apenas apoiadores podem se candidatar.', 'danger');
@@ -515,17 +909,18 @@ function handleCandidatarDisputa(slotId) {
 
   const slot = slots.find(s => s.id === slotId);
   const list = candidatos[slotId] || [];
-  
+
   if (list.includes(currentUser.id)) {
-    showBanner('Você já está inscrito nesta disputa.', 'warning');
+    showBanner('Você já está inscrito nesta vaga.', 'warning');
     return;
   }
 
   candidatos[slotId] = [...list, currentUser.id];
-  showBanner(`Inscrito na disputa para a vaga do dia ${formatDate(slot.data)}!`, 'success');
+  showBanner(`Candidatura na fila registrada para a vaga de ${formatDatePt(slot.data)}!`, 'success');
   renderSlots();
 }
 
+// 3. Encerrar disputa e atribuir por prioridade
 function handleEncerrarDisputa(slotId) {
   const slot = slots.find(s => s.id === slotId);
   const list = candidatos[slotId] || [];
@@ -535,111 +930,105 @@ function handleEncerrarDisputa(slotId) {
     return;
   }
 
-  const vencedor = getDisputeWinner(slot.id);
-  const apoiosNoMes = countUserSupportsInMonth(vencedor.id, slot.data);
-  const novoStatus = apoiosNoMes >= 3 ? 'PENDENTE_APROVACAO' : 'ATRIBUIDO';
+  const vencedor = getDisputeWinner(slotId);
+  const userVencedor = users.find(u => u.id === vencedor.id);
 
+  // Atribuir na escala
   slots = slots.map(s => {
     if (s.id === slotId) {
-      return {
-        ...s,
-        status: novoStatus,
-        usuarioId: vencedor.id,
-        requerAprovacao: apoiosNoMes >= 3
-      };
+      return { ...s, status: 'ATRIBUIDO', usuarioId: vencedor.id };
     }
     return s;
   });
 
-  if (novoStatus === 'ATRIBUIDO') {
-    users = users.map(u => {
-      if (u.id === vencedor.id) {
-        return {
-          ...u,
-          apoiosMes: u.apoiosMes + 1,
-          apoiosAno: u.apoiosAno + 1
-        };
-      }
-      return u;
-    });
-    showBanner(`Disputa encerrada! Vaga atribuída a ${vencedor.nome} (Prioridade: ${vencedor.apoiosAno} apoios no ano).`, 'success');
-  } else {
-    showBanner(`Disputa encerrada! Vencedor: ${vencedor.nome}, mas requer aprovação gerencial (> 3 apoios no mês).`, 'warning');
-  }
+  // Registrar no histórico
+  const historyId = 'h_' + Date.now();
+  const regras = slot.regrasPrevistas || ['R1'];
+  
+  const supportDate = new Date(slot.data + 'T00:00:00');
+  const simDate = new Date(simulatedCurrentDate + 'T00:00:00');
+  const eAtrasado = (simDate - supportDate) > (3 * 24 * 60 * 60 * 1000);
+  
+  const finalRegras = eAtrasado ? ['R13'] : regras;
+  const score = calculateSupportScore(finalRegras);
 
+  const novoHistorico = {
+    id: historyId,
+    usuarioId: vencedor.id,
+    data: slot.data,
+    subgrupo: slot.subgrupo,
+    regras: finalRegras,
+    pontuacao: score,
+    dataRegistro: new Date(simulatedCurrentDate + 'T12:00:00').toISOString(),
+    registradoPorId: currentUser.id // Admin registrou
+  };
+
+  history = [...history, novoHistorico];
+
+  showBanner(`Disputa encerrada! Vaga atribuída ao líder ${userVencedor.nome} (${vencedor.score.toFixed(2)} pts gerais)`, 'success');
+  
   delete candidatos[slotId];
   persistChanges();
 }
 
-// --- DESISTÊNCIA ---
-function handleDesistirVaga(slotId) {
-  const slot = slots.find(s => s.id === slotId);
-  if (slot.usuarioId !== currentUser.id && currentUser.tipo !== 'ADMIN') {
-    showBanner('Você só pode desistir de escalas atribuídas a você.', 'danger');
+// 4. Auto-registro manual de Apoio Concluído (Art. 9º)
+function handleAutoRegistroApoio(e) {
+  e.preventDefault();
+
+  const regUserId = regUsuarioSelect.value;
+  const regSubgrupo = regSubgrupoInput.value;
+  const regData = regDataInput.value;
+
+  if (!regSubgrupo || !regData) {
+    showBanner('Preencha os campos obrigatórios.', 'danger');
     return;
   }
 
-  const apontee = users.find(u => u.id === slot.usuarioId);
+  const isLate = isSubmissionLate();
+  let regras = [];
 
-  slots = slots.map(s => {
-    if (s.id === slotId) {
-      return { ...s, status: 'LIVRE', usuarioId: null, requerAprovacao: false };
-    }
-    return s;
-  });
-
-  if (slot.status === 'ATRIBUIDO' && apontee) {
-    users = users.map(u => {
-      if (u.id === apontee.id) {
-        return {
-          ...u,
-          apoiosMes: Math.max(0, u.apoiosMes - 1),
-          apoiosAno: Math.max(0, u.apoiosAno - 1)
-        };
-      }
-      return u;
-    });
-  }
-
-  showBanner('Você desistiu da vaga de apoio.', 'info');
-  persistChanges();
-}
-
-// --- GERENTE ---
-function handleDecisaoGerencial(slotId, aprovado) {
-  const slot = slots.find(s => s.id === slotId);
-  const user = users.find(u => u.id === slot.usuarioId);
-
-  if (aprovado) {
-    slots = slots.map(s => {
-      if (s.id === slotId) return { ...s, status: 'ATRIBUIDO', requerAprovacao: false };
-      return s;
-    });
-    if (user) {
-      users = users.map(u => {
-        if (u.id === user.id) {
-          return {
-            ...u,
-            apoiosMes: u.apoiosMes + 1,
-            apoiosAno: u.apoiosAno + 1
-          };
-        }
-        return u;
-      });
-    }
-    showBanner(`Apoio de ${user?.nome} aprovado pelo gerente.`, 'success');
+  if (isLate) {
+    regras = ['R13'];
   } else {
-    slots = slots.map(s => {
-      if (s.id === slotId) return { ...s, status: 'LIVRE', usuarioId: null, requerAprovacao: false };
-      return s;
-    });
-    showBanner(`Apoio de ${user?.nome} rejeitado pelo gerente. A vaga está livre novamente.`, 'danger');
+    const checkedRules = rulesCheckboxContainer.querySelectorAll('input[name="reg-regras"]:checked');
+    regras = Array.from(checkedRules).map(cb => cb.value);
   }
 
+  if (regras.length === 0) {
+    showBanner('Selecione pelo menos uma característica para o apoio.', 'danger');
+    return;
+  }
+
+  const score = calculateSupportScore(regras);
+  const historyId = 'h_' + Date.now();
+
+  const novoHistorico = {
+    id: historyId,
+    usuarioId: regUserId,
+    data: regData,
+    subgrupo: regSubgrupo,
+    regras: regras,
+    pontuacao: score,
+    dataRegistro: new Date(simulatedCurrentDate + 'T12:00:00').toISOString(),
+    registradoPorId: currentUser.id
+  };
+
+  history = [...history, novoHistorico];
+
+  const user = users.find(u => u.id === regUserId);
+  showBanner(`Apoio registrado para ${user.nome}! Pontuação calculada: ${score.toFixed(4)} pts.`, 'success');
+
+  // Reset do form
+  regSubgrupoInput.value = '';
+  regDataInput.value = '';
+  rulesCheckboxContainer.querySelectorAll('input[name="reg-regras"]').forEach(cb => cb.checked = false);
+  checkLateSubmission();
+
   persistChanges();
+  switchView('historico'); // Mostra a tabela de histórico
 }
 
-// --- ADMIN CANCELA ESCALA ---
+// 5. Cancelar / Reativar Vaga (Admin)
 function handleCancelarVagaAdmin(slotId) {
   const slot = slots.find(s => s.id === slotId);
   const statusAtual = slot.status;
@@ -649,34 +1038,20 @@ function handleCancelarVagaAdmin(slotId) {
       return {
         ...s,
         status: statusAtual === 'CANCELADO' ? 'LIVRE' : 'CANCELADO',
-        usuarioId: null,
-        requerAprovacao: false
+        usuarioId: null
       };
     }
     return s;
   });
 
-  if (statusAtual === 'ATRIBUIDO' && slot.usuarioId) {
-    users = users.map(u => {
-      if (u.id === slot.usuarioId) {
-        return {
-          ...u,
-          apoiosMes: Math.max(0, u.apoiosMes - 1),
-          apoiosAno: Math.max(0, u.apoiosAno - 1)
-        };
-      }
-      return u;
-    });
-  }
-
-  showBanner(statusAtual === 'CANCELADO' ? 'Slot reativado.' : 'Escala de apoio cancelada.', 'info');
+  showBanner(statusAtual === 'CANCELADO' ? 'Slot de escala reativado.' : 'Solicitação de apoio cancelada.', 'info');
   persistChanges();
 }
 
-// --- ADMIN CRIA ESCALA ---
-function handleCriarEscala(e) {
+// 6. Criar nova solicitação de slot de escala (Admin)
+function handleCriarSolicitacaoSlot(e) {
   e.preventDefault();
-  
+
   const formGrupo = document.getElementById('form-grupo').value;
   const formSubgrupo = document.getElementById('form-subgrupo').value;
   const formData = document.getElementById('form-data').value;
@@ -684,8 +1059,11 @@ function handleCriarEscala(e) {
   const formMotivo = document.getElementById('form-motivo').value;
   const formPrioridade = document.querySelector('input[name="prioridade"]:checked').value;
 
+  const modalCbs = modalRulesCheckboxes.querySelectorAll('input[name="modal-prev-regras"]:checked');
+  const regrasPrevistas = Array.from(modalCbs).map(cb => cb.value);
+
   if (!formSubgrupo || !formData) {
-    showBanner('Por favor preencha todos os campos.', 'danger');
+    showBanner('Preencha os campos obrigatórios.', 'danger');
     return;
   }
 
@@ -699,7 +1077,8 @@ function handleCriarEscala(e) {
     status: 'LIVRE',
     usuarioId: null,
     observacao: '',
-    requerAprovacao: false
+    requerAprovacao: false,
+    regrasPrevistas: regrasPrevistas
   };
 
   if (formMotivo) {
@@ -707,26 +1086,57 @@ function handleCriarEscala(e) {
   }
 
   slots = [...slots, novoSlot];
-  
+
   if (formPrioridade === 'disputa') {
     candidatos[slotId] = [];
   }
 
   addModal.style.display = 'none';
-  showBanner('Novo apoio criado na escala!', 'success');
-  
+  showBanner('Nova escala de apoio cadastrada!', 'success');
+
   // Reset form
   document.getElementById('form-subgrupo').value = '';
   document.getElementById('form-data').value = '';
   document.getElementById('form-motivo').value = '';
+  modalRulesCheckboxes.querySelectorAll('input[name="modal-prev-regras"]').forEach(cb => cb.checked = false);
+
+  persistChanges();
+}
+
+// 7. Aplicar Infração de WhatsApp (Art. 7º - Admin)
+function handleAplicarInfracao(e) {
+  e.preventDefault();
+
+  const infUserId = document.getElementById('inf-usuario').value;
+  const user = users.find(u => u.id === infUserId);
+
+  users = users.map(u => {
+    if (u.id === infUserId) {
+      return { ...u, infracoesWA: (u.infracoesWA || 0) + 1 };
+    }
+    return u;
+  });
+
+  infracaoModal.style.display = 'none';
+  showBanner(`Penalidade aplicada a ${user.nome}! (+0.01 somado à classificação geral)`, 'warning');
   
   persistChanges();
 }
 
-// --- WHATSAPP TEMPLATE EXPORTER ---
+// 8. Excluir Lançamento do Histórico (Admin)
+function handleExcluirHistorico(historyId) {
+  const item = history.find(h => h.id === historyId);
+  const user = users.find(u => u.id === item.usuarioId);
+
+  history = history.filter(h => h.id !== historyId);
+  showBanner(`Registro do dia ${formatDatePt(item.data)} de ${user?.nome || 'colaborador'} excluído do histórico.`, 'info');
+  
+  persistChanges();
+}
+
+// --- INTEGRÇÃO WHATSAPP ---
 function openWhatsappExporter() {
-  const textarea = document.getElementById('whatsapp-export-area');
-  textarea.value = generateWhatsappTemplate();
+  whatsappExportArea.value = generateWhatsappTemplate();
   whatsappModal.style.display = 'flex';
 }
 
@@ -739,7 +1149,6 @@ function generateWhatsappTemplate() {
 
     output += `🚦*${group.nome}*\n\n`;
 
-    // Agrupar slots por subgrupo
     const slotsBySubgrupo = {};
     groupSlots.forEach(s => {
       if (!slotsBySubgrupo[s.subgrupo]) {
@@ -755,22 +1164,16 @@ function generateWhatsappTemplate() {
         const u = users.find(user => user.id === s.usuarioId);
         let userText = '';
         const isDisp = candidatos[s.id] !== undefined;
-        
+
         if (s.status === 'CANCELADO') {
           userText = '*CANCELADO*';
         } else if (isDisp) {
-          userText = ''; // Vazia, aguardando disputa
-        } else if (s.status === 'PENDENTE_APROVACAO') {
-          userText = `${u?.nome || ''} (Aguardando Aprovação Gerencial)`;
+          userText = ''; // Mostra vazio para preencherem
         } else if (s.status === 'ATRIBUIDO') {
-          const userMonthCount = countUserSupportsInMonth(s.usuarioId, s.data);
-          userText = `${u?.nome || ''} (${userMonthCount})`;
-          if (s.observacao) {
-            userText += ` (${s.observacao})`;
-          }
+          userText = `${u?.nome || ''}`;
         }
 
-        output += `${formatDate(s.data)} - ${s.horario}: ${userText}\n`;
+        output += `${formatDatePt(s.data)} - ${s.horario}: ${userText}\n`;
       });
       
       output += `\n`;
@@ -797,37 +1200,13 @@ function handleCopyClipboard() {
 
 // --- UTILS ---
 
-function formatDate(dateStr) {
+function formatDatePt(dateStr) {
   if (!dateStr) return '';
   const parts = dateStr.split('-');
   if (parts.length === 3) {
     return `${parts[2]}/${parts[1]}`;
   }
   return dateStr;
-}
-
-function countUserSupportsInMonth(userId, dateStr) {
-  const month = dateStr.split('-')[1]; // Ex: "06"
-  return slots.filter(s => s.usuarioId === userId && s.status === 'ATRIBUIDO' && s.data.split('-')[1] === month).length;
-}
-
-function getDisputeWinner(slotId) {
-  const list = candidatos[slotId] || [];
-  if (list.length === 0) return null;
-
-  const listWithDetails = list.map((uid, index) => {
-    const u = users.find(user => user.id === uid);
-    return { id: uid, nome: u.nome, apoiosAno: u.apoiosAno, index };
-  });
-
-  listWithDetails.sort((a, b) => {
-    if (a.apoiosAno !== b.apoiosAno) {
-      return a.apoiosAno - b.apoiosAno; // menos apoios ganha
-    }
-    return a.index - b.index; // mais antigo ganha
-  });
-
-  return listWithDetails[0];
 }
 
 function showBanner(message, type = 'success') {
@@ -840,12 +1219,11 @@ function showBanner(message, type = 'success') {
   
   notificationContainer.appendChild(banner);
   
-  // Fade out
   setTimeout(() => {
     banner.style.opacity = '0';
     banner.style.transition = 'opacity 0.5s ease';
     setTimeout(() => banner.remove(), 500);
-  }, 4000);
+  }, 5000);
 
   banner.querySelector('button').addEventListener('click', () => {
     banner.remove();
@@ -854,7 +1232,6 @@ function showBanner(message, type = 'success') {
 
 // Rodar na carga
 document.addEventListener('DOMContentLoaded', init);
-// Se já estiver carregado (módulos às vezes disparam após DOMContentLoaded)
 if (document.readyState === 'interactive' || document.readyState === 'complete') {
   init();
 }
