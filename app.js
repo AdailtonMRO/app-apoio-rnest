@@ -13,6 +13,7 @@ let currentUser = null;
 // Abas de visualização principal e escalas
 let currentView = 'escalas'; // 'escalas', 'registro', 'historico', 'usuarios'
 let activeTab = 'all';
+let editingHistoryId = null;
 
 // Data simulada atual (para testes da regra de 72h)
 let simulatedCurrentDate = '2026-06-04';
@@ -97,6 +98,9 @@ const rulesCheckboxContainer = document.getElementById('rules-checkbox-container
 const regPointsPreview = document.getElementById('reg-points-preview');
 const regFormulaPreview = document.getElementById('reg-formula-preview');
 const registerCompletedSupportForm = document.getElementById('register-completed-support-form');
+const regFormTitle = document.getElementById('reg-form-title');
+const btnCancelEditReg = document.getElementById('btn-cancel-edit-reg');
+const btnSubmitReg = document.getElementById('btn-submit-reg');
 
 // --- INICIALIZAÇÃO ---
 function init() {
@@ -145,7 +149,9 @@ function init() {
   // Formulário de Auto-Registro - Eventos
   regDataInput.addEventListener('change', checkLateSubmission);
   regBypassLimit.addEventListener('change', updatePointsPreview);
+  btnCancelEditReg.addEventListener('click', handleCancelarEdicaoApoio);
   registerCompletedSupportForm.addEventListener('submit', handleAutoRegistroApoio);
+  document.getElementById('history-filter-user').addEventListener('change', renderHistoryTable);
 
   // Preencher elementos de formulário
   renderFormGroupsOptions();
@@ -197,10 +203,12 @@ function switchView(view) {
   if (view === 'registro') {
     const isGestor = currentUser.tipo === 'ADMINISTRADOR' || currentUser.tipo === 'GERENTE' || currentUser.tipo === 'SUPERVISOR';
     
-    // Configurar o usuário atual selecionado no formulário
-    const apoiadores = users.filter(u => u.tipo === 'OPERADOR');
-    if (apoiadores.length > 0) {
-      regUsuarioSelect.value = currentUser.tipo === 'OPERADOR' ? currentUser.id : apoiadores[0].id;
+    // Configurar o usuário atual selecionado no formulário se não estiver em edição
+    if (!editingHistoryId) {
+      const apoiadores = users.filter(u => u.tipo === 'OPERADOR');
+      if (apoiadores.length > 0) {
+        regUsuarioSelect.value = currentUser.tipo === 'OPERADOR' ? currentUser.id : apoiadores[0].id;
+      }
     }
     
     if (isGestor) {
@@ -211,6 +219,12 @@ function switchView(view) {
     }
     
     updatePointsPreview();
+  } else {
+    // Limpar estado de edição ao sair da aba de registro
+    editingHistoryId = null;
+    regFormTitle.textContent = 'Registrar Apoio Concluído (Dobra Efetuada)';
+    btnCancelEditReg.style.display = 'none';
+    btnSubmitReg.textContent = '💾 Gravar Apoio e Atualizar Ranking';
   }
 
   if (view === 'historico') {
@@ -220,6 +234,126 @@ function switchView(view) {
   if (view === 'usuarios') {
     renderUsersTable();
   }
+}
+
+function populateHistoryFilterUsers() {
+  const filterSelect = document.getElementById('history-filter-user');
+  if (!filterSelect) return;
+  
+  const currentValue = filterSelect.value || 'all';
+  
+  const sortedOperators = users
+    .filter(u => u.tipo === 'OPERADOR')
+    .sort((a, b) => a.nome.localeCompare(b.nome));
+    
+  let html = '<option value="all">-- Todos os Colaboradores --</option>';
+  sortedOperators.forEach(u => {
+    html += `<option value="${u.id}">${u.nome} (${u.id.toUpperCase()})</option>`;
+  });
+  
+  filterSelect.innerHTML = html;
+  filterSelect.value = currentValue;
+}
+
+function verHistoricoUsuario(userId) {
+  const filterSelect = document.getElementById('history-filter-user');
+  if (filterSelect) {
+    filterSelect.value = userId;
+  }
+  switchView('historico');
+}
+
+function hasHigherPriority(userAId, userBId) {
+  const scoreA = calculateUserPointsGeral(userAId);
+  const scoreB = calculateUserPointsGeral(userBId);
+  
+  if (scoreA !== scoreB) {
+    return scoreA < scoreB;
+  }
+  
+  const dateA = getUserLastSupportDate(userAId);
+  const dateB = getUserLastSupportDate(userBId);
+  
+  if (dateA === null && dateB !== null) return true;
+  if (dateB === null && dateA !== null) return false;
+  if (dateA === null && dateB === null) return false;
+  
+  return new Date(dateA) < new Date(dateB);
+}
+
+function handleSubstituirVaga(slotId) {
+  const slot = slots.find(s => s.id === slotId);
+  if (!slot) return;
+
+  const oldAssigneeId = slot.usuarioId;
+  const oldUser = users.find(u => u.id === oldAssigneeId);
+
+  // 1. Remover histórico do antigo
+  const indexToRemove = history.findIndex(h => h.usuarioId === oldAssigneeId && h.data === slot.data);
+  if (indexToRemove !== -1) {
+    history.splice(indexToRemove, 1);
+  }
+
+  // 2. Reatribuir
+  slot.usuarioId = currentUser.id;
+
+  // 3. Novo histórico
+  const historyId = 'h_' + Date.now();
+  const regras = slot.regrasPrevistas || ['R1'];
+  
+  const supportDate = new Date(slot.data + 'T00:00:00');
+  const simDate = new Date(simulatedCurrentDate + 'T00:00:00');
+  const eAtrasado = (simDate - supportDate) > (3 * 24 * 60 * 60 * 1000);
+  const finalRegras = eAtrasado ? ['R13'] : regras;
+  const score = calculateSupportScore(finalRegras);
+
+  const novoHistorico = {
+    id: historyId,
+    usuarioId: currentUser.id,
+    data: slot.data,
+    subgrupo: slot.subgrupo,
+    regras: finalRegras,
+    pontuacao: score,
+    dataRegistro: new Date(simulatedCurrentDate + 'T12:00:00').toISOString(),
+    registradoPorId: currentUser.id
+  };
+
+  history.push(novoHistorico);
+
+  showBanner(`Você assumiu a vaga de ${oldUser?.nome || 'colaborador'} por possuir maior prioridade!`, 'success');
+  persistChanges();
+}
+
+function handleIniciarEdicaoHistorico(historyId) {
+  const item = history.find(h => h.id === historyId);
+  if (!item) return;
+
+  editingHistoryId = historyId;
+  switchView('registro');
+
+  regUsuarioSelect.value = item.usuarioId;
+  regSubgrupoInput.value = item.subgrupo;
+  regDataInput.value = item.data;
+
+  rulesCheckboxContainer.querySelectorAll('input[name="reg-regras"]').forEach(cb => {
+    cb.checked = item.regras.includes(cb.value);
+  });
+
+  regFormTitle.textContent = 'Editar Apoio Concluído';
+  btnCancelEditReg.style.display = 'inline-flex';
+  btnSubmitReg.textContent = '💾 Salvar Alterações e Recalcular Ranking';
+
+  checkLateSubmission();
+}
+
+function handleCancelarEdicaoApoio() {
+  editingHistoryId = null;
+  regSubgrupoInput.value = '';
+  regDataInput.value = '';
+  rulesCheckboxContainer.querySelectorAll('input[name="reg-regras"]').forEach(cb => cb.checked = false);
+  if (regBypassLimit) regBypassLimit.checked = false;
+  
+  switchView('historico');
 }
 
 // --- CONTROLE DE MUDANÇA DE CONFIGURAÇÃO SIMULADA ---
@@ -250,10 +384,10 @@ function handleSimDateChange(e) {
 }
 
 function resetDemo() {
-  localStorage.removeItem('rnest_law_users_v4');
-  localStorage.removeItem('rnest_law_groups_v4');
-  localStorage.removeItem('rnest_law_slots_v4');
-  localStorage.removeItem('rnest_law_history_v4');
+  localStorage.removeItem('rnest_law_users_v5');
+  localStorage.removeItem('rnest_law_groups_v5');
+  localStorage.removeItem('rnest_law_slots_v5');
+  localStorage.removeItem('rnest_law_history_v5');
 
   candidatos = {
     's_f1': ['Ab5a', 'Kbvx'],
@@ -352,6 +486,7 @@ function renderAll() {
   renderMyPanel();
   renderRanking();
   renderFormGroupsOptions();
+  populateHistoryFilterUsers();
 }
 
 function renderRoleSelect() {
@@ -582,6 +717,21 @@ function attachSlotActionsListeners(filteredSlots) {
         `;
       }
     }
+    // 3. Substituição/Deslocamento de voluntário por prioridade (bumping)
+    else if (slot.status === 'ATRIBUIDO' && !isDisputa && currentUser.tipo === 'OPERADOR') {
+      const isExcluido = currentUser.cargo === 'GPI' || currentUser.cargo === 'OPMAN';
+      if (slot.usuarioId !== currentUser.id && !isExcluido) {
+        const occupant = users.find(u => u.id === slot.usuarioId);
+        const occupantIsExcluido = occupant && (occupant.cargo === 'GPI' || occupant.cargo === 'OPMAN');
+        const hasPriority = occupantIsExcluido || hasHigherPriority(currentUser.id, slot.usuarioId);
+        
+        if (hasPriority) {
+          actionHtml = `<button class="btn btn-primary btn-substituir" style="width: 100%;">🔄 Substituir (Maior Prioridade)</button>`;
+        } else {
+          actionHtml = `<button class="btn btn-secondary" style="width: 100%; cursor: not-allowed;" disabled>🔒 Ocupado (Maior Prioridade)</button>`;
+        }
+      }
+    }
 
     // Ações de Gestão (Fechar Disputa, Cancelar Vaga)
     if (isGestor) {
@@ -613,6 +763,9 @@ function attachSlotActionsListeners(filteredSlots) {
 
     const btnCandidatar = actionContainer.querySelector('.btn-candidatar');
     if (btnCandidatar) btnCandidatar.addEventListener('click', () => handleCandidatarDisputa(slot.id));
+
+    const btnSubstituir = actionContainer.querySelector('.btn-substituir');
+    if (btnSubstituir) btnSubstituir.addEventListener('click', () => handleSubstituirVaga(slot.id));
 
     const btnResolver = actionContainer.querySelector('.btn-resolver-disputa');
     if (btnResolver) btnResolver.addEventListener('click', () => handleEncerrarDisputa(slot.id));
@@ -674,7 +827,7 @@ function renderMyPanel() {
 function renderRanking() {
   let html = '';
   
-  // Apoiadores válidos para classificação
+  // Apoiadores válidos para classificação (filtra quem tem score > 0.0 de acordo com o pedido 9)
   const classificados = users
     .filter(u => u.tipo === 'OPERADOR' && u.cargo !== 'GPI' && u.cargo !== 'OPMAN')
     .map(u => {
@@ -683,7 +836,8 @@ function renderRanking() {
         score: calculateUserPointsGeral(u.id),
         lastDate: getUserLastSupportDate(u.id)
       };
-    });
+    })
+    .filter(u => u.score > 0.0);
 
   classificados.sort((a, b) => {
     if (a.score !== b.score) {
@@ -711,7 +865,7 @@ function renderRanking() {
           <span class="rank-badge ${rankClass}">${rank}</span>
         </td>
         <td>
-          <span style="font-weight: 600;">${u.nome}</span>
+          <span class="user-link-history" data-id="${u.id}" style="font-weight: 600; cursor: pointer; text-decoration: underline dotted;" title="Clique para ver o histórico de apoios">${u.nome}</span>
           ${u.infracoesWA > 0 ? ` <span style="font-size: 0.65rem; color: var(--danger);" title="Infrações WhatsApp">⚠️ ${u.infracoesWA}</span>` : ''}
           ${isCurrentUser ? ' <small>(Você)</small>' : ''}
         </td>
@@ -736,7 +890,9 @@ function renderRanking() {
       html += `
         <tr class="ranking-row ${isCurrentUser ? 'current-user' : ''}" style="opacity: 0.6;">
           <td><span class="rank-badge rank-other">-</span></td>
-          <td>${u.nome} (${u.cargo})</td>
+          <td>
+            <span class="user-link-history" data-id="${u.id}" style="font-weight: 600; cursor: pointer; text-decoration: underline dotted;" title="Clique para ver o histórico de apoios">${u.nome}</span> (${u.cargo})
+          </td>
           <td style="text-align: center; font-size: 0.75rem;">Sem Classif.</td>
           <td style="text-align: right;">-</td>
         </tr>
@@ -745,19 +901,69 @@ function renderRanking() {
   }
 
   rankingTableBody.innerHTML = html;
+
+  // Bind click listeners on links
+  rankingTableBody.querySelectorAll('.user-link-history').forEach(el => {
+    el.addEventListener('click', () => {
+      const uid = el.getAttribute('data-id');
+      verHistoricoUsuario(uid);
+    });
+  });
 }
 
 function renderHistoryTable() {
   const historyTableBody = document.getElementById('history-table-body');
   let html = '';
 
-  const sortedHistory = [...history];
-  sortedHistory.sort((a, b) => new Date(b.data) - new Date(a.data));
+  const filterSelect = document.getElementById('history-filter-user');
+  const selectedUserId = filterSelect ? filterSelect.value : 'all';
 
-  sortedHistory.forEach(h => {
+  // 1. Filtrar histórico
+  let filteredHistory = [...history];
+  if (selectedUserId !== 'all') {
+    filteredHistory = filteredHistory.filter(h => h.usuarioId === selectedUserId);
+  }
+
+  // 2. Ordenar histórico
+  filteredHistory.sort((a, b) => new Date(b.data) - new Date(a.data));
+
+  // 3. Atualizar painel de sumário individual
+  const summaryContainer = document.getElementById('history-user-summary');
+  if (selectedUserId === 'all') {
+    if (summaryContainer) summaryContainer.style.display = 'none';
+  } else {
+    if (summaryContainer) {
+      const totalSupports = history.filter(h => h.usuarioId === selectedUserId).length;
+      const points = calculateUserPointsGeral(selectedUserId);
+      const lastSupportDate = getUserLastSupportDate(selectedUserId);
+      
+      summaryContainer.style.display = 'block';
+      summaryContainer.innerHTML = `
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1.2fr; gap: 12px; font-size: 0.82rem;">
+          <div>
+            <span style="color: var(--text-muted); display: block;">Apoios no Ano:</span>
+            <strong style="font-size: 1.1rem; color: var(--text-primary);">${totalSupports}</strong>
+          </div>
+          <div>
+            <span style="color: var(--text-muted); display: block;">Pontuação Acumulada:</span>
+            <strong style="font-size: 1.1rem; color: var(--info);">${points.toFixed(4)} pts</strong>
+          </div>
+          <div>
+            <span style="color: var(--text-muted); display: block;">Último Apoio:</span>
+            <strong style="font-size: 1.1rem; color: var(--success);">${lastSupportDate ? formatDatePt(lastSupportDate) : 'Nenhum'}</strong>
+          </div>
+        </div>
+      `;
+    }
+  }
+
+  filteredHistory.forEach(h => {
     const user = users.find(u => u.id === h.usuarioId);
     const regBy = users.find(u => u.id === h.registradoPorId);
     
+    const canEdit = currentUser.tipo === 'ADMINISTRADOR' || currentUser.tipo === 'GERENTE' || currentUser.tipo === 'SUPERVISOR' || h.usuarioId === currentUser.id || h.registradoPorId === currentUser.id;
+    const canDelete = currentUser.tipo === 'ADMINISTRADOR';
+
     html += `
       <tr>
         <td><strong>${formatDatePt(h.data)}</strong></td>
@@ -777,28 +983,39 @@ function renderHistoryTable() {
         </td>
         <td style="text-align: right; font-weight: bold; color: var(--info);">${h.pontuacao.toFixed(4)} pts</td>
         <td style="text-align: center;">
-          ${currentUser.tipo === 'ADMINISTRADOR' ? `
-            <button class="btn btn-secondary btn-icon-only btn-excluir-historico" data-id="${h.id}" title="Excluir Registro" style="color: var(--danger); padding: 2px 6px;">✕</button>
-          ` : '-'}
+          <div style="display: inline-flex; gap: 4px; justify-content: center; align-items: center;">
+            ${canEdit ? `
+              <button class="btn btn-secondary btn-icon-only btn-editar-historico" data-id="${h.id}" title="Editar Registro" style="color: var(--info); padding: 2px 6px;">✏️</button>
+            ` : ''}
+            ${canDelete ? `
+              <button class="btn btn-secondary btn-icon-only btn-excluir-historico" data-id="${h.id}" title="Excluir Registro" style="color: var(--danger); padding: 2px 6px;">✕</button>
+            ` : ''}
+            ${!canEdit && !canDelete ? '-' : ''}
+          </div>
         </td>
       </tr>
     `;
   });
 
-  if (sortedHistory.length === 0) {
-    html = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 20px;">Nenhum apoio registrado no histórico de 2026.</td></tr>`;
+  if (filteredHistory.length === 0) {
+    html = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 20px;">Nenhum apoio registrado para a seleção no histórico de 2026.</td></tr>`;
   }
 
   historyTableBody.innerHTML = html;
 
-  if (currentUser.tipo === 'ADMINISTRADOR') {
-    historyTableBody.querySelectorAll('.btn-excluir-historico').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const hid = btn.getAttribute('data-id');
-        handleExcluirHistorico(hid);
-      });
+  historyTableBody.querySelectorAll('.btn-editar-historico').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const hid = btn.getAttribute('data-id');
+      handleIniciarEdicaoHistorico(hid);
     });
-  }
+  });
+
+  historyTableBody.querySelectorAll('.btn-excluir-historico').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const hid = btn.getAttribute('data-id');
+      handleExcluirHistorico(hid);
+    });
+  });
 }
 
 // --- VIEW DE USUÁRIOS E GERENCIAMENTO DE CADASTROS (NOVO) ---
@@ -843,22 +1060,33 @@ function renderUsersTable() {
         <td style="font-size: 0.8rem; color: var(--text-secondary); font-family: var(--font-mono);">${u.email}</td>
         <td style="text-align: right; font-weight: bold; color: var(--info);">${scoreText}</td>
         <td style="text-align: center;">
-          ${isOnlyAdmin ? `
-            <button class="btn btn-secondary btn-icon-only btn-editar-usuario" data-id="${u.id}" style="padding: 2px 6px; color: var(--info);">✏️</button>
-            <button class="btn btn-secondary btn-icon-only btn-excluir-usuario" data-id="${u.id}" style="padding: 2px 6px; color: var(--danger);" ${hasHistory ? 'title="Não é possível excluir usuário com histórico de apoios" disabled style="opacity: 0.4;"' : ''}>✕</button>
-          ` : '-'}
+          <div style="display: inline-flex; gap: 4px; justify-content: center; align-items: center;">
+            <button class="btn btn-secondary btn-icon-only btn-ver-historico-usuario" data-id="${u.id}" title="Ver Histórico de Apoios" style="padding: 2px 6px; color: var(--success);">📜</button>
+            ${isOnlyAdmin ? `
+              <button class="btn btn-secondary btn-icon-only btn-editar-usuario" data-id="${u.id}" style="padding: 2px 6px; color: var(--info);">✏️</button>
+              <button class="btn btn-secondary btn-icon-only btn-excluir-usuario" data-id="${u.id}" style="padding: 2px 6px; color: var(--danger);" ${hasHistory ? 'title="Não é possível excluir usuário com histórico de apoios" disabled style="opacity: 0.4;"' : ''}>✕</button>
+            ` : ''}
+          </div>
         </td>
       </tr>
     `;
   });
-
+ 
   if (filteredUsers.length === 0) {
     html = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 20px;">Nenhum usuário correspondente à pesquisa.</td></tr>`;
   }
-
+ 
   usersTableBody.innerHTML = html;
-
-  // Ligar eventos
+ 
+  // Ligar eventos comuns
+  usersTableBody.querySelectorAll('.btn-ver-historico-usuario').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const uid = btn.getAttribute('data-id');
+      verHistoricoUsuario(uid);
+    });
+  });
+ 
+  // Ligar eventos de Admin
   if (isOnlyAdmin) {
     usersTableBody.querySelectorAll('.btn-editar-usuario').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -866,7 +1094,7 @@ function renderUsersTable() {
         openUserModal('edit', id);
       });
     });
-
+ 
     usersTableBody.querySelectorAll('.btn-excluir-usuario').forEach(btn => {
       btn.addEventListener('click', () => {
         const id = btn.getAttribute('data-id');
@@ -1289,23 +1517,45 @@ function handleAutoRegistroApoio(e) {
   }
 
   const score = calculateSupportScore(regras);
-  const historyId = 'h_' + Date.now();
 
-  const novoHistorico = {
-    id: historyId,
-    usuarioId: regUserId,
-    data: regData,
-    subgrupo: regSubgrupo,
-    regras: regras,
-    pontuacao: score,
-    dataRegistro: new Date(simulatedCurrentDate + 'T12:00:00').toISOString(),
-    registradoPorId: currentUser.id
-  };
+  if (editingHistoryId) {
+    history = history.map(h => {
+      if (h.id === editingHistoryId) {
+        return {
+          ...h,
+          usuarioId: regUserId,
+          data: regData,
+          subgrupo: regSubgrupo,
+          regras: regras,
+          pontuacao: score,
+          dataRegistro: new Date(simulatedCurrentDate + 'T12:00:00').toISOString(),
+          registradoPorId: currentUser.id
+        };
+      }
+      return h;
+    });
 
-  history = [...history, novoHistorico];
+    const user = users.find(u => u.id === regUserId);
+    showBanner(`Lançamento de apoio de ${user.nome} atualizado com sucesso! Nova pontuação: ${score.toFixed(4)} pts.`, 'success');
+    editingHistoryId = null;
+  } else {
+    const historyId = 'h_' + Date.now();
+    const novoHistorico = {
+      id: historyId,
+      usuarioId: regUserId,
+      data: regData,
+      subgrupo: regSubgrupo,
+      regras: regras,
+      pontuacao: score,
+      dataRegistro: new Date(simulatedCurrentDate + 'T12:00:00').toISOString(),
+      registradoPorId: currentUser.id
+    };
 
-  const user = users.find(u => u.id === regUserId);
-  showBanner(`Apoio registrado para ${user.nome}! Pontuação calculada: ${score.toFixed(4)} pts.`, 'success');
+    history = [...history, novoHistorico];
+
+    const user = users.find(u => u.id === regUserId);
+    showBanner(`Apoio registrado para ${user.nome}! Pontuação calculada: ${score.toFixed(4)} pts.`, 'success');
+  }
 
   regSubgrupoInput.value = '';
   regDataInput.value = '';
