@@ -1,6 +1,6 @@
 // Banco de dados simulado para controle de apoios - Lei de Apoio RNEST 2025
+// ATUALIZADO AUTOMATICAMENTE A PARTIR DA PLANILHA GOOGLE SHEETS
 
-// Regras e Pesos oficiais conforme Art. 4º da Lei Nº 0001/2025
 export const SUPPORT_RULES = [
   { id: 'R1', descricao: 'TURNO - Carga Horária Doze Horas', peso: 10 },
   { id: 'R2', descricao: 'ADM - Carga Horária Oito Horas', peso: 7 },
@@ -17,139 +17,9 @@ export const SUPPORT_RULES = [
   { id: 'R13', descricao: 'Não Lançamento dentro do prazo (72h)', peso: 20 }
 ];
 
-export const INITIAL_USERS = [
-  { id: 'u1', nome: 'Syan Addi', email: 'syan@rnest.com.br', tipo: 'APOIADOR', cargo: 'Operador', infracoesWA: 0 },
-  { id: 'u2', nome: 'Javã', email: 'java@rnest.com.br', tipo: 'APOIADOR', cargo: 'Operador', infracoesWA: 0 },
-  { id: 'u3', nome: 'Max', email: 'max@rnest.com.br', tipo: 'APOIADOR', cargo: 'Operador', infracoesWA: 0 },
-  { id: 'u4', nome: 'George Rnest', email: 'george@rnest.com.br', tipo: 'APOIADOR', cargo: 'Operador', infracoesWA: 0 },
-  { id: 'u5', nome: 'Carlos André', email: 'carlos@rnest.com.br', tipo: 'APOIADOR', cargo: 'Operador', infracoesWA: 0 },
-  { id: 'u6', nome: 'Joelma', email: 'joelma@rnest.com.br', tipo: 'APOIADOR', cargo: 'Operador', infracoesWA: 0 },
-  { id: 'u7', nome: 'Adailton', email: 'adailton@rnest.com.br', tipo: 'APOIADOR', cargo: 'Operador', infracoesWA: 1 }, // 1 infração (+0.01)
-  { id: 'u8', nome: 'Eudes', email: 'eudes@rnest.com.br', tipo: 'APOIADOR', cargo: 'Operador', infracoesWA: 0 },
-  { id: 'u9', nome: 'Wagner Vidal', email: 'wagner@rnest.com.br', tipo: 'APOIADOR', cargo: 'Operador', infracoesWA: 0 },
-  { id: 'u10', nome: 'Isaias Moura', email: 'isaias@rnest.com.br', tipo: 'APOIADOR', cargo: 'Operador', infracoesWA: 0 },
-  { id: 'u11', nome: 'Felipe Barbosa', email: 'barbosa@rnest.com.br', tipo: 'APOIADOR', cargo: 'Operador', infracoesWA: 0 },
-  { id: 'u12', nome: 'Luciano Cafor', email: 'luciano@rnest.com.br', tipo: 'APOIADOR', cargo: 'Operador', infracoesWA: 0 },
-  { id: 'u13', nome: 'Alan Bernardino', email: 'alan@rnest.com.br', tipo: 'APOIADOR', cargo: 'Operador', infracoesWA: 0 },
-  
-  // Cargos Administrativos Permanentes (Excluídos da Classificação conforme Art. 6º)
-  { id: 'u14', nome: 'Douglas (GPI)', email: 'douglas@rnest.com.br', tipo: 'APOIADOR', cargo: 'GPI', infracoesWA: 0 },
-  { id: 'u15', nome: 'Vila (OPMAN)', email: 'vila@rnest.com.br', tipo: 'APOIADOR', cargo: 'OPMAN', infracoesWA: 0 },
-  
-  // Gestão / Administradores
-  { id: 'u16', nome: 'Georgio Polari', email: 'polari@rnest.com.br', tipo: 'ADMIN', cargo: 'Supervisor', infracoesWA: 0 },
-  { id: 'u17', nome: 'Leonam (Supervisor)', email: 'leonam@rnest.com.br', tipo: 'GERENTE', cargo: 'Supervisor', infracoesWA: 0 }
-];
+export const INITIAL_USERS = [{"id": "ejp9", "nome": "Arnaldo Rodrigues da Silva", "email": "ejp9@rnest.com.br", "tipo": "APOIADOR", "cargo": "Operador", "infracoesWA": 0}, {"id": "Ab3u", "nome": "Cicero Aristoteles de Araujo Neto", "email": "ab3u@rnest.com.br", "tipo": "APOIADOR", "cargo": "Operador", "infracoesWA": 0}, {"id": "Kb3q", "nome": "Uislei Damasceno dos Santos Batista", "email": "kb3q@rnest.com.br", "tipo": "APOIADOR", "cargo": "Operador", "infracoesWA": 0}, {"id": "Aby7", "nome": "Kassio Marques e Silva", "email": "aby7@rnest.com.br", "tipo": "APOIADOR", "cargo": "Operador", "infracoesWA": 0}, {"id": "tq8l", "nome": "Cleydson Silveira da Cruz", "email": "tq8l@rnest.com.br", "tipo": "APOIADOR", "cargo": "Operador", "infracoesWA": 0}, {"id": "ab2i", "nome": "Georgio Barros Polari", "email": "ab2i@rnest.com.br", "tipo": "ADMIN", "cargo": "Supervisor", "infracoesWA": 0}, {"id": "ab2f", "nome": "Rafael Sales de Araujo", "email": "ab2f@rnest.com.br", "tipo": "APOIADOR", "cargo": "Operador", "infracoesWA": 0}, {"id": "N2ad", "nome": "Murilo Velloso da Silveira", "email": "n2ad@rnest.com.br", "tipo": "APOIADOR", "cargo": "Operador", "infracoesWA": 0}, {"id": "AB2U", "nome": "Syan Addy Vasconcellos", "email": "ab2u@rnest.com.br", "tipo": "APOIADOR", "cargo": "Operador", "infracoesWA": 0}, {"id": "XHB8", "nome": "Felipe Barbosa Ponte", "email": "xhb8@rnest.com.br", "tipo": "APOIADOR", "cargo": "Operador", "infracoesWA": 0}, {"id": "ABY7", "nome": "Kassio Marques e Silva", "email": "aby7@rnest.com.br", "tipo": "APOIADOR", "cargo": "Operador", "infracoesWA": 0}, {"id": "AB7L", "nome": "Laerson Martins Soares", "email": "ab7l@rnest.com.br", "tipo": "APOIADOR", "cargo": "Operador", "infracoesWA": 0}, {"id": "Tqz7", "nome": "Ronival Leite Santos", "email": "tqz7@rnest.com.br", "tipo": "APOIADOR", "cargo": "Operador", "infracoesWA": 0}, {"id": "Eg7v", "nome": "Eudes Carvalho dos Santos", "email": "eg7v@rnest.com.br", "tipo": "APOIADOR", "cargo": "Operador", "infracoesWA": 0}, {"id": "Ab5d", "nome": "Carlo Rannyêr Lopes Monteiro", "email": "ab5d@rnest.com.br", "tipo": "APOIADOR", "cargo": "Operador", "infracoesWA": 0}, {"id": "AB7L", "nome": "Laerson Martins Soares", "email": "ab7l@rnest.com.br", "tipo": "APOIADOR", "cargo": "Operador", "infracoesWA": 0}, {"id": "Ab5n", "nome": "Jean dos Santos Brasil", "email": "ab5n@rnest.com.br", "tipo": "APOIADOR", "cargo": "Operador", "infracoesWA": 0}, {"id": "Ab1u", "nome": "Rafael Sales de Araujo", "email": "ab1u@rnest.com.br", "tipo": "APOIADOR", "cargo": "Operador", "infracoesWA": 0}, {"id": "Kbip", "nome": "Edivan Maximo de Oliveira", "email": "kbip@rnest.com.br", "tipo": "APOIADOR", "cargo": "Operador", "infracoesWA": 0}, {"id": "AB2K", "nome": "Jose Vanderson de Lima Almeida", "email": "ab2k@rnest.com.br", "tipo": "APOIADOR", "cargo": "Operador", "infracoesWA": 0}, {"id": "AB5Y", "nome": "Alex Guerra Alves do Amaral", "email": "ab5y@rnest.com.br", "tipo": "APOIADOR", "cargo": "Operador", "infracoesWA": 0}, {"id": "TQ8P", "nome": "Erick Vila Nova", "email": "tq8p@rnest.com.br", "tipo": "APOIADOR", "cargo": "OPMAN", "infracoesWA": 0}, {"id": "Xha2", "nome": "Thibério Raniere Rebouças Tavares", "email": "xha2@rnest.com.br", "tipo": "APOIADOR", "cargo": "Operador", "infracoesWA": 0}, {"id": "Xhj8", "nome": "Tiago Macedo Velame", "email": "xhj8@rnest.com.br", "tipo": "APOIADOR", "cargo": "Operador", "infracoesWA": 0}, {"id": "Ab6y", "nome": "Adilton José da Silva", "email": "ab6y@rnest.com.br", "tipo": "APOIADOR", "cargo": "Operador", "infracoesWA": 0}, {"id": "Uo33", "nome": "Anderson de Jesus Queiroz", "email": "uo33@rnest.com.br", "tipo": "APOIADOR", "cargo": "Operador", "infracoesWA": 0}, {"id": "Emi6", "nome": "SILNEY MELO DE BRITO", "email": "emi6@rnest.com.br", "tipo": "APOIADOR", "cargo": "Operador", "infracoesWA": 0}, {"id": "AB54", "nome": "Rodrigo Januario Lima", "email": "ab54@rnest.com.br", "tipo": "APOIADOR", "cargo": "Operador", "infracoesWA": 0}, {"id": "Bpe6", "nome": "Adriano Santos Daltro", "email": "bpe6@rnest.com.br", "tipo": "APOIADOR", "cargo": "Operador", "infracoesWA": 0}, {"id": "Ab8f", "nome": "Renan Alves Silva de Oliveira", "email": "ab8f@rnest.com.br", "tipo": "APOIADOR", "cargo": "Operador", "infracoesWA": 0}, {"id": "ab2p", "nome": "Nilton de Franca Wanderley Junior", "email": "ab2p@rnest.com.br", "tipo": "APOIADOR", "cargo": "Operador", "infracoesWA": 0}, {"id": "ABF5", "nome": "Joelma Barros da Silva", "email": "abf5@rnest.com.br", "tipo": "APOIADOR", "cargo": "Operador", "infracoesWA": 0}, {"id": "Faaw", "nome": "Tiane Ferreira Cabral Dosea", "email": "faaw@rnest.com.br", "tipo": "APOIADOR", "cargo": "Operador", "infracoesWA": 0}, {"id": "Zm4z", "nome": "Janderson", "email": "zm4z@rnest.com.br", "tipo": "APOIADOR", "cargo": "Operador", "infracoesWA": 0}, {"id": "Ab6d", "nome": "Diogo Marinho de Barros Leite", "email": "ab6d@rnest.com.br", "tipo": "APOIADOR", "cargo": "Operador", "infracoesWA": 0}, {"id": "xhj3", "nome": "Leonam Franklim Avelino da Silva", "email": "xhj3@rnest.com.br", "tipo": "GERENTE", "cargo": "Supervisor", "infracoesWA": 0}, {"id": "e5qu", "nome": "Jander Rodrigo de Santana Vieira", "email": "e5qu@rnest.com.br", "tipo": "APOIADOR", "cargo": "Operador", "infracoesWA": 0}, {"id": "Ab1o", "nome": "Luciano Henrique Bezerra Melo de Matos", "email": "ab1o@rnest.com.br", "tipo": "APOIADOR", "cargo": "Operador", "infracoesWA": 0}, {"id": "Kbvx", "nome": "George Lima Santos", "email": "kbvx@rnest.com.br", "tipo": "APOIADOR", "cargo": "Operador", "infracoesWA": 0}, {"id": "Eg7t", "nome": "Demetrios Gomes Litsas", "email": "eg7t@rnest.com.br", "tipo": "APOIADOR", "cargo": "Operador", "infracoesWA": 0}, {"id": "Ab1s", "nome": "Paulo Sergio Gomes", "email": "ab1s@rnest.com.br", "tipo": "APOIADOR", "cargo": "Operador", "infracoesWA": 0}, {"id": "AF2C", "nome": "Wagner Luz Vidal", "email": "af2c@rnest.com.br", "tipo": "APOIADOR", "cargo": "Operador", "infracoesWA": 0}, {"id": "AB6P", "nome": "Luiz Flavio Farias de Melo", "email": "ab6p@rnest.com.br", "tipo": "APOIADOR", "cargo": "Operador", "infracoesWA": 0}, {"id": "Ab5a", "nome": "Alan Bernardino de Oliveira", "email": "ab5a@rnest.com.br", "tipo": "APOIADOR", "cargo": "Operador", "infracoesWA": 0}, {"id": "Xha3", "nome": "Rafael de Morais Lima", "email": "xha3@rnest.com.br", "tipo": "APOIADOR", "cargo": "Operador", "infracoesWA": 0}, {"id": "ab1j", "nome": "Isaias Moura de Moraes Silva", "email": "ab1j@rnest.com.br", "tipo": "APOIADOR", "cargo": "Operador", "infracoesWA": 0}, {"id": "Ab3r", "nome": "Adailton Medeiros Rodrigues de Oliveira", "email": "ab3r@rnest.com.br", "tipo": "APOIADOR", "cargo": "Operador", "infracoesWA": 0}, {"id": "Ejhv", "nome": "Carlos André Rodrigues do Nascimento", "email": "ejhv@rnest.com.br", "tipo": "APOIADOR", "cargo": "Operador", "infracoesWA": 0}, {"id": "zmu4", "nome": "Francisco de Paula da Costa França", "email": "zmu4@rnest.com.br", "tipo": "APOIADOR", "cargo": "Operador", "infracoesWA": 0}, {"id": "A0IC", "nome": "Edvaldo Wagner Ferreira do Nascimento", "email": "a0ic@rnest.com.br", "tipo": "APOIADOR", "cargo": "Operador", "infracoesWA": 0}, {"id": "N1eo", "nome": "Claudio Paulo Santana de Lima Cruz", "email": "n1eo@rnest.com.br", "tipo": "APOIADOR", "cargo": "Operador", "infracoesWA": 0}, {"id": "AINM", "nome": "Yasmin Mendonça de Farias", "email": "ainm@rnest.com.br", "tipo": "APOIADOR", "cargo": "Operador", "infracoesWA": 0}, {"id": "Kbge", "nome": "Marcelo Matos Pereira", "email": "kbge@rnest.com.br", "tipo": "APOIADOR", "cargo": "Operador", "infracoesWA": 0}, {"id": "AB8G", "nome": "Rodrigo Max Ferreira dos Santos Bezerra", "email": "ab8g@rnest.com.br", "tipo": "APOIADOR", "cargo": "Operador", "infracoesWA": 0}, {"id": "Kva8", "nome": "Java Lauriano da Silva", "email": "kva8@rnest.com.br", "tipo": "APOIADOR", "cargo": "Operador", "infracoesWA": 0}];
 
-// Histórico de Apoios Realizados (para pontuação acumulada)
-export const INITIAL_HISTORY = [
-  // Javã: 1 apoio em 15/05/2026 (R1 + R3 -> Turno 12h no Fim de Semana = 1.0 * 0.8 = 0.8 pontos)
-  {
-    id: 'h1',
-    usuarioId: 'u2', // Javã
-    data: '2026-05-15',
-    subgrupo: 'Painel Térmico',
-    regras: ['R1', 'R3'],
-    pontuacao: 0.8,
-    dataRegistro: '2026-05-16T10:00:00Z',
-    registradoPorId: 'u2'
-  },
-  // Max: 1 apoio em 10/05/2026 (R1 + R3 -> 0.8 pontos). Empatado com Javã, mas com data mais antiga (10/05 vs 15/05)
-  {
-    id: 'h2',
-    usuarioId: 'u3', // Max
-    data: '2026-05-10',
-    subgrupo: 'Auxiliares Térmica',
-    regras: ['R1', 'R3'],
-    pontuacao: 0.8,
-    dataRegistro: '2026-05-11T09:00:00Z',
-    registradoPorId: 'u3'
-  },
-  // George Rnest: 2 apoios (R1 e R2 -> 1.0 e 0.7. Total = 1.7)
-  {
-    id: 'h3',
-    usuarioId: 'u4', // George
-    data: '2026-05-10',
-    subgrupo: 'Auxiliares Térmica',
-    regras: ['R1'],
-    pontuacao: 1.0,
-    dataRegistro: '2026-05-11T12:00:00Z',
-    registradoPorId: 'u4'
-  },
-  {
-    id: 'h4',
-    usuarioId: 'u4', // George
-    data: '2026-05-25',
-    subgrupo: 'Alarmes e Lógicas',
-    regras: ['R2'],
-    pontuacao: 0.7,
-    dataRegistro: '2026-05-26T14:00:00Z',
-    registradoPorId: 'u4'
-  },
-  // Carlos André: 2 apoios (R1+R3 e R1+R4 -> 0.8 e 0.8. Total = 1.6)
-  {
-    id: 'h5',
-    usuarioId: 'u5', // Carlos André
-    data: '2026-05-12',
-    subgrupo: 'Painel Térmico',
-    regras: ['R1', 'R3'],
-    pontuacao: 0.8,
-    dataRegistro: '2026-05-13T08:00:00Z',
-    registradoPorId: 'u5'
-  },
-  {
-    id: 'h6',
-    usuarioId: 'u5', // Carlos André
-    data: '2026-05-22',
-    subgrupo: 'Turno Noturno',
-    regras: ['R1', 'R4'],
-    pontuacao: 0.8,
-    dataRegistro: '2026-05-23T08:00:00Z',
-    registradoPorId: 'u5'
-  },
-  // Adailton: 3 apoios (R1, R2, R12 -> 1.0, 0.7, 0.5. Total = 2.2. E tem 1 infração WA: +0.01 = 2.21)
-  {
-    id: 'h7',
-    usuarioId: 'u7', // Adailton
-    data: '2026-05-02',
-    subgrupo: 'Painel Elétrico',
-    regras: ['R1'],
-    pontuacao: 1.0,
-    dataRegistro: '2026-05-03T10:00:00Z',
-    registradoPorId: 'u7'
-  },
-  {
-    id: 'h8',
-    usuarioId: 'u7', // Adailton
-    data: '2026-05-18',
-    subgrupo: 'Reunião de Supervisão',
-    regras: ['R2'],
-    pontuacao: 0.7,
-    dataRegistro: '2026-05-19T09:00:00Z',
-    registradoPorId: 'u7'
-  },
-  {
-    id: 'h9',
-    usuarioId: 'u7', // Adailton
-    data: '2026-05-28',
-    subgrupo: 'Meio Apoio',
-    regras: ['R12'],
-    pontuacao: 0.5,
-    dataRegistro: '2026-05-29T11:00:00Z',
-    registradoPorId: 'u7'
-  },
-  // Joelma: 1 apoio lançado atrasado (R13 penalidade -> 2.0 pontos)
-  {
-    id: 'h10',
-    usuarioId: 'u6', // Joelma
-    data: '2026-05-15',
-    subgrupo: 'Painel Térmico',
-    regras: ['R13'],
-    pontuacao: 2.0,
-    dataRegistro: '2026-05-22T10:00:00Z', // 7 dias depois
-    registradoPorId: 'u16' // Lançado por outro supervisor
-  }
-];
+export const INITIAL_HISTORY = [{"id": "h_ejp9", "usuarioId": "ejp9", "data": "2025-01-05", "subgrupo": "Saldo Anterior (Planilha)", "regras": [], "pontuacao": 0.64, "dataRegistro": "2025-01-05T12:00:00Z", "registradoPorId": "ab2i"}, {"id": "h_Ab3u", "usuarioId": "Ab3u", "data": "2025-02-01", "subgrupo": "Saldo Anterior (Planilha)", "regras": [], "pontuacao": 0.7, "dataRegistro": "2025-02-01T12:00:00Z", "registradoPorId": "ab2i"}, {"id": "h_Kb3q", "usuarioId": "Kb3q", "data": "2025-01-29", "subgrupo": "Saldo Anterior (Planilha)", "regras": [], "pontuacao": 0.7, "dataRegistro": "2025-01-29T12:00:00Z", "registradoPorId": "ab2i"}, {"id": "h_Aby7", "usuarioId": "Aby7", "data": "2025-07-21", "subgrupo": "Saldo Anterior (Planilha)", "regras": [], "pontuacao": 1.0, "dataRegistro": "2025-07-21T12:00:00Z", "registradoPorId": "ab2i"}, {"id": "h_tq8l", "usuarioId": "tq8l", "data": "2025-12-28", "subgrupo": "Saldo Anterior (Planilha)", "regras": [], "pontuacao": 1.0, "dataRegistro": "2025-12-28T12:00:00Z", "registradoPorId": "ab2i"}, {"id": "h_ab2i", "usuarioId": "ab2i", "data": "2025-01-04", "subgrupo": "Saldo Anterior (Planilha)", "regras": [], "pontuacao": 1.28, "dataRegistro": "2025-01-04T12:00:00Z", "registradoPorId": "ab2i"}, {"id": "h_ab2f", "usuarioId": "ab2f", "data": "2025-09-22", "subgrupo": "Saldo Anterior (Planilha)", "regras": [], "pontuacao": 1.4, "dataRegistro": "2025-09-22T12:00:00Z", "registradoPorId": "ab2i"}, {"id": "h_N2ad", "usuarioId": "N2ad", "data": "2025-09-08", "subgrupo": "Saldo Anterior (Planilha)", "regras": [], "pontuacao": 1.4, "dataRegistro": "2025-09-08T12:00:00Z", "registradoPorId": "ab2i"}, {"id": "h_AB2U", "usuarioId": "AB2U", "data": "2025-01-02", "subgrupo": "Saldo Anterior (Planilha)", "regras": [], "pontuacao": 1.8, "dataRegistro": "2025-01-02T12:00:00Z", "registradoPorId": "ab2i"}, {"id": "h_XHB8", "usuarioId": "XHB8", "data": "2025-02-25", "subgrupo": "Saldo Anterior (Planilha)", "regras": [], "pontuacao": 1.9, "dataRegistro": "2025-02-25T12:00:00Z", "registradoPorId": "ab2i"}, {"id": "h_ABY7", "usuarioId": "ABY7", "data": "2025-05-19", "subgrupo": "Saldo Anterior (Planilha)", "regras": [], "pontuacao": 2.0, "dataRegistro": "2025-05-19T12:00:00Z", "registradoPorId": "ab2i"}, {"id": "h_AB7L", "usuarioId": "AB7L", "data": "2025-04-25", "subgrupo": "Saldo Anterior (Planilha)", "regras": [], "pontuacao": 2.2, "dataRegistro": "2025-04-25T12:00:00Z", "registradoPorId": "ab2i"}, {"id": "h_Tqz7", "usuarioId": "Tqz7", "data": "2025-01-18", "subgrupo": "Saldo Anterior (Planilha)", "regras": [], "pontuacao": 2.2, "dataRegistro": "2025-01-18T12:00:00Z", "registradoPorId": "ab2i"}, {"id": "h_Eg7v", "usuarioId": "Eg7v", "data": "2025-02-23", "subgrupo": "Saldo Anterior (Planilha)", "regras": [], "pontuacao": 3.5, "dataRegistro": "2025-02-23T12:00:00Z", "registradoPorId": "ab2i"}, {"id": "h_Ab5d", "usuarioId": "Ab5d", "data": "2025-02-15", "subgrupo": "Saldo Anterior (Planilha)", "regras": [], "pontuacao": 4.14, "dataRegistro": "2025-02-15T12:00:00Z", "registradoPorId": "ab2i"}, {"id": "h_AB7L", "usuarioId": "AB7L", "data": "2025-04-07", "subgrupo": "Saldo Anterior (Planilha)", "regras": [], "pontuacao": 4.2, "dataRegistro": "2025-04-07T12:00:00Z", "registradoPorId": "ab2i"}, {"id": "h_Ab5n", "usuarioId": "Ab5n", "data": "2025-11-13", "subgrupo": "Saldo Anterior (Planilha)", "regras": [], "pontuacao": 4.4, "dataRegistro": "2025-11-13T12:00:00Z", "registradoPorId": "ab2i"}, {"id": "h_Ab1u", "usuarioId": "Ab1u", "data": "2025-05-24", "subgrupo": "Saldo Anterior (Planilha)", "regras": [], "pontuacao": 4.9, "dataRegistro": "2025-05-24T12:00:00Z", "registradoPorId": "ab2i"}, {"id": "h_Kbip", "usuarioId": "Kbip", "data": "2025-05-10", "subgrupo": "Saldo Anterior (Planilha)", "regras": [], "pontuacao": 5.22, "dataRegistro": "2025-05-10T12:00:00Z", "registradoPorId": "ab2i"}, {"id": "h_AB2K", "usuarioId": "AB2K", "data": "2025-11-11", "subgrupo": "Saldo Anterior (Planilha)", "regras": [], "pontuacao": 5.33, "dataRegistro": "2025-11-11T12:00:00Z", "registradoPorId": "ab2i"}, {"id": "h_AB5Y", "usuarioId": "AB5Y", "data": "2025-10-18", "subgrupo": "Saldo Anterior (Planilha)", "regras": [], "pontuacao": 5.4, "dataRegistro": "2025-10-18T12:00:00Z", "registradoPorId": "ab2i"}, {"id": "h_TQ8P", "usuarioId": "TQ8P", "data": "2025-12-26", "subgrupo": "Saldo Anterior (Planilha)", "regras": [], "pontuacao": 5.6, "dataRegistro": "2025-12-26T12:00:00Z", "registradoPorId": "ab2i"}, {"id": "h_Xha2", "usuarioId": "Xha2", "data": "2025-09-08", "subgrupo": "Saldo Anterior (Planilha)", "regras": [], "pontuacao": 6.4, "dataRegistro": "2025-09-08T12:00:00Z", "registradoPorId": "ab2i"}, {"id": "h_Xhj8", "usuarioId": "Xhj8", "data": "2025-02-11", "subgrupo": "Saldo Anterior (Planilha)", "regras": [], "pontuacao": 7.0, "dataRegistro": "2025-02-11T12:00:00Z", "registradoPorId": "ab2i"}, {"id": "h_Ab6y", "usuarioId": "Ab6y", "data": "2025-06-06", "subgrupo": "Saldo Anterior (Planilha)", "regras": [], "pontuacao": 7.2, "dataRegistro": "2025-06-06T12:00:00Z", "registradoPorId": "ab2i"}, {"id": "h_Uo33", "usuarioId": "Uo33", "data": "2025-09-28", "subgrupo": "Saldo Anterior (Planilha)", "regras": [], "pontuacao": 9.4, "dataRegistro": "2025-09-28T12:00:00Z", "registradoPorId": "ab2i"}, {"id": "h_Emi6", "usuarioId": "Emi6", "data": "2025-10-28", "subgrupo": "Saldo Anterior (Planilha)", "regras": [], "pontuacao": 9.49, "dataRegistro": "2025-10-28T12:00:00Z", "registradoPorId": "ab2i"}, {"id": "h_AB54", "usuarioId": "AB54", "data": "2025-11-19", "subgrupo": "Saldo Anterior (Planilha)", "regras": [], "pontuacao": 10.9, "dataRegistro": "2025-11-19T12:00:00Z", "registradoPorId": "ab2i"}, {"id": "h_Bpe6", "usuarioId": "Bpe6", "data": "2025-11-07", "subgrupo": "Saldo Anterior (Planilha)", "regras": [], "pontuacao": 11.04, "dataRegistro": "2025-11-07T12:00:00Z", "registradoPorId": "ab2i"}, {"id": "h_Ab8f", "usuarioId": "Ab8f", "data": "2025-11-14", "subgrupo": "Saldo Anterior (Planilha)", "regras": [], "pontuacao": 12.9, "dataRegistro": "2025-11-14T12:00:00Z", "registradoPorId": "ab2i"}, {"id": "h_ab2p", "usuarioId": "ab2p", "data": "2025-10-29", "subgrupo": "Saldo Anterior (Planilha)", "regras": [], "pontuacao": 14.2, "dataRegistro": "2025-10-29T12:00:00Z", "registradoPorId": "ab2i"}, {"id": "h_ABF5", "usuarioId": "ABF5", "data": "2025-10-28", "subgrupo": "Saldo Anterior (Planilha)", "regras": [], "pontuacao": 14.6, "dataRegistro": "2025-10-28T12:00:00Z", "registradoPorId": "ab2i"}, {"id": "h_Faaw", "usuarioId": "Faaw", "data": "2025-12-28", "subgrupo": "Saldo Anterior (Planilha)", "regras": [], "pontuacao": 15.0, "dataRegistro": "2025-12-28T12:00:00Z", "registradoPorId": "ab2i"}, {"id": "h_Zm4z", "usuarioId": "Zm4z", "data": "2025-11-19", "subgrupo": "Saldo Anterior (Planilha)", "regras": [], "pontuacao": 15.0, "dataRegistro": "2025-11-19T12:00:00Z", "registradoPorId": "ab2i"}, {"id": "h_Ab6d", "usuarioId": "Ab6d", "data": "2025-12-30", "subgrupo": "Saldo Anterior (Planilha)", "regras": [], "pontuacao": 16.0, "dataRegistro": "2025-12-30T12:00:00Z", "registradoPorId": "ab2i"}, {"id": "h_xhj3", "usuarioId": "xhj3", "data": "2025-12-04", "subgrupo": "Saldo Anterior (Planilha)", "regras": [], "pontuacao": 16.7, "dataRegistro": "2025-12-04T12:00:00Z", "registradoPorId": "ab2i"}, {"id": "h_e5qu", "usuarioId": "e5qu", "data": "2025-11-18", "subgrupo": "Saldo Anterior (Planilha)", "regras": [], "pontuacao": 20.2, "dataRegistro": "2025-11-18T12:00:00Z", "registradoPorId": "ab2i"}, {"id": "h_Ab1o", "usuarioId": "Ab1o", "data": "2025-11-21", "subgrupo": "Saldo Anterior (Planilha)", "regras": [], "pontuacao": 21.23, "dataRegistro": "2025-11-21T12:00:00Z", "registradoPorId": "ab2i"}, {"id": "h_Kbvx", "usuarioId": "Kbvx", "data": "2025-11-24", "subgrupo": "Saldo Anterior (Planilha)", "regras": [], "pontuacao": 21.3, "dataRegistro": "2025-11-24T12:00:00Z", "registradoPorId": "ab2i"}, {"id": "h_Eg7t", "usuarioId": "Eg7t", "data": "2025-11-02", "subgrupo": "Saldo Anterior (Planilha)", "regras": [], "pontuacao": 23.5, "dataRegistro": "2025-11-02T12:00:00Z", "registradoPorId": "ab2i"}, {"id": "h_Ab1s", "usuarioId": "Ab1s", "data": "2025-12-11", "subgrupo": "Saldo Anterior (Planilha)", "regras": [], "pontuacao": 24.86, "dataRegistro": "2025-12-11T12:00:00Z", "registradoPorId": "ab2i"}, {"id": "h_AF2C", "usuarioId": "AF2C", "data": "2025-12-07", "subgrupo": "Saldo Anterior (Planilha)", "regras": [], "pontuacao": 25.5, "dataRegistro": "2025-12-07T12:00:00Z", "registradoPorId": "ab2i"}, {"id": "h_AB6P", "usuarioId": "AB6P", "data": "2025-11-28", "subgrupo": "Saldo Anterior (Planilha)", "regras": [], "pontuacao": 25.8, "dataRegistro": "2025-11-28T12:00:00Z", "registradoPorId": "ab2i"}, {"id": "h_Ab5a", "usuarioId": "Ab5a", "data": "2025-11-13", "subgrupo": "Saldo Anterior (Planilha)", "regras": [], "pontuacao": 27.6, "dataRegistro": "2025-11-13T12:00:00Z", "registradoPorId": "ab2i"}, {"id": "h_Xha3", "usuarioId": "Xha3", "data": "2025-12-30", "subgrupo": "Saldo Anterior (Planilha)", "regras": [], "pontuacao": 28.12, "dataRegistro": "2025-12-30T12:00:00Z", "registradoPorId": "ab2i"}, {"id": "h_ab1j", "usuarioId": "ab1j", "data": "2025-12-06", "subgrupo": "Saldo Anterior (Planilha)", "regras": [], "pontuacao": 28.13, "dataRegistro": "2025-12-06T12:00:00Z", "registradoPorId": "ab2i"}, {"id": "h_Ab3r", "usuarioId": "Ab3r", "data": "2025-12-24", "subgrupo": "Saldo Anterior (Planilha)", "regras": [], "pontuacao": 29.31, "dataRegistro": "2025-12-24T12:00:00Z", "registradoPorId": "ab2i"}, {"id": "h_Ejhv", "usuarioId": "Ejhv", "data": "2025-11-30", "subgrupo": "Saldo Anterior (Planilha)", "regras": [], "pontuacao": 29.48, "dataRegistro": "2025-11-30T12:00:00Z", "registradoPorId": "ab2i"}, {"id": "h_zmu4", "usuarioId": "zmu4", "data": "2025-12-05", "subgrupo": "Saldo Anterior (Planilha)", "regras": [], "pontuacao": 29.57, "dataRegistro": "2025-12-05T12:00:00Z", "registradoPorId": "ab2i"}, {"id": "h_A0IC", "usuarioId": "A0IC", "data": "2025-12-09", "subgrupo": "Saldo Anterior (Planilha)", "regras": [], "pontuacao": 32.81, "dataRegistro": "2025-12-09T12:00:00Z", "registradoPorId": "ab2i"}, {"id": "h_N1eo", "usuarioId": "N1eo", "data": "2025-11-20", "subgrupo": "Saldo Anterior (Planilha)", "regras": [], "pontuacao": 32.84, "dataRegistro": "2025-11-20T12:00:00Z", "registradoPorId": "ab2i"}, {"id": "h_AINM", "usuarioId": "AINM", "data": "2025-12-30", "subgrupo": "Saldo Anterior (Planilha)", "regras": [], "pontuacao": 32.85, "dataRegistro": "2025-12-30T12:00:00Z", "registradoPorId": "ab2i"}, {"id": "h_Kbge", "usuarioId": "Kbge", "data": "2025-11-17", "subgrupo": "Saldo Anterior (Planilha)", "regras": [], "pontuacao": 33.77, "dataRegistro": "2025-11-17T12:00:00Z", "registradoPorId": "ab2i"}, {"id": "h_AB8G", "usuarioId": "AB8G", "data": "2025-12-29", "subgrupo": "Saldo Anterior (Planilha)", "regras": [], "pontuacao": 33.91, "dataRegistro": "2025-12-29T12:00:00Z", "registradoPorId": "ab2i"}, {"id": "h_Kva8", "usuarioId": "Kva8", "data": "2025-12-11", "subgrupo": "Saldo Anterior (Planilha)", "regras": [], "pontuacao": 37.26, "dataRegistro": "2025-12-11T12:00:00Z", "registradoPorId": "ab2i"}];
 
 export const INITIAL_GROUPS = [
   { id: 'g1', nome: 'Apoios Grupo B - Composição de Grupo' },
@@ -159,14 +29,13 @@ export const INITIAL_GROUPS = [
 ];
 
 export const INITIAL_SLOTS = [
-  // Slots futuros/abertos para teste de inscrição
   {
     id: 's_f1',
     grupoId: 'g1',
     subgrupo: 'Painel Térmico',
     data: '2026-06-10',
     horario: '07x19',
-    status: 'LIVRE', // Max (na simulação original ele já tinha pego, mas aqui vamos deixar livre para simular)
+    status: 'LIVRE',
     usuarioId: null,
     observacao: '',
     requerAprovacao: false,
@@ -194,7 +63,7 @@ export const INITIAL_SLOTS = [
     usuarioId: null,
     observacao: '',
     requerAprovacao: false,
-    regrasPrevistas: ['R1', 'R3'] // Turno 12h Fim de Semana
+    regrasPrevistas: ['R1', 'R3']
   },
   {
     id: 's_f4',
@@ -206,7 +75,7 @@ export const INITIAL_SLOTS = [
     usuarioId: null,
     observacao: '',
     requerAprovacao: false,
-    regrasPrevistas: ['R1', 'R3', 'R4'] // Turno 12h Feriado/Fim de semana Noturno
+    regrasPrevistas: ['R1', 'R3', 'R4']
   }
 ];
 

@@ -7,7 +7,7 @@ let slots = [];
 let history = [];
 
 // Perfil simulado ativo
-let currentUserId = 'u1'; // Syan Addi por padrão
+let currentUserId = 'AB2U'; // Syan Addy Vasconcellos por padrão
 let currentUser = null;
 
 // Abas de visualização principal e escalas
@@ -20,9 +20,9 @@ let simulatedCurrentDate = '2026-06-04';
 // Candidaturas a vagas em disputa
 // { slotId: [userId1, userId2] }
 let candidatos = {
-  's_f1': ['u13', 'u4'], // Alan (6.0), George (1.7)
-  's_f2': ['u7'],        // Adailton (2.21)
-  's_f3': ['u2', 'u3']   // Javã (0.8, último 15/05), Max (0.8, último 10/05)
+  's_f1': ['Ab5a', 'Kbvx'], // Alan Bernardino (27.60), George Lima (21.30)
+  's_f2': ['Ab3r'],        // Adailton Medeiros (29.31)
+  's_f3': ['Kva8 ', 'ab1j']   // Java Lauriano (37.26), Isaias Moura (28.13)
 };
 
 // --- ELEMENTOS DO DOM ---
@@ -200,12 +200,12 @@ function resetDemo() {
   localStorage.removeItem('rnest_law_history');
 
   candidatos = {
-    's_f1': ['u13', 'u4'],
-    's_f2': ['u7'],
-    's_f3': ['u2', 'u3']
+    's_f1': ['Ab5a', 'Kbvx'],
+    's_f2': ['Ab3r'],
+    's_f3': ['Kva8 ', 'ab1j']
   };
 
-  currentUserId = 'u1';
+  currentUserId = 'AB2U';
   simulatedCurrentDate = '2026-06-04';
   simCurrentDateInput.value = simulatedCurrentDate;
   regDataLancamentoInput.value = formatDatePt(simulatedCurrentDate);
