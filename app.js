@@ -177,12 +177,18 @@ function loadData() {
   slots = data.slots;
   history = data.history;
 
+  const storedCands = localStorage.getItem('rnest_law_candidatos_v5');
+  if (storedCands) {
+    candidatos = JSON.parse(storedCands);
+  }
+
   currentUser = users.find(u => u.id === currentUserId) || users[0];
   currentUserId = currentUser.id;
 }
 
 function persistChanges() {
   saveStoredData({ users, groups, slots, history });
+  localStorage.setItem('rnest_law_candidatos_v5', JSON.stringify(candidatos));
   renderAll();
 }
 
@@ -389,6 +395,7 @@ function resetDemo() {
   localStorage.removeItem('rnest_law_groups_v5');
   localStorage.removeItem('rnest_law_slots_v5');
   localStorage.removeItem('rnest_law_history_v5');
+  localStorage.removeItem('rnest_law_candidatos_v5');
 
   candidatos = {
     's_f1': ['Ab5a', 'Kbvx'],
@@ -711,11 +718,20 @@ function attachSlotActionsListeners(filteredSlots) {
       if (isExcluido) {
         actionHtml = `<button class="btn btn-secondary" style="width: 100%; cursor: not-allowed;" disabled>⚠️ GPI/OPMAN não disputam prioridade</button>`;
       } else {
-        actionHtml = `
-          <button class="btn btn-secondary btn-candidatar" style="width: 100%; border-color: var(--warning); color: var(--warning);" ${jaInscrito ? 'disabled' : ''}>
-            ${jaInscrito ? '✓ Candidatado na Fila' : '⏳ Candidatar-se à Vaga'}
-          </button>
-        `;
+        if (jaInscrito) {
+          actionHtml = `
+            <div style="display: flex; flex-direction: column; gap: 6px; width: 100%;">
+              <span style="font-size: 0.85rem; color: var(--success); font-weight: bold; text-align: center;">✓ Você está na fila</span>
+              <button class="btn btn-danger btn-candidatar-sair" style="width: 100%;">❌ Sair da Fila</button>
+            </div>
+          `;
+        } else {
+          actionHtml = `
+            <button class="btn btn-secondary btn-candidatar" style="width: 100%; border-color: var(--warning); color: var(--warning);">
+              ⏳ Candidatar-se à Vaga
+            </button>
+          `;
+        }
       }
     }
     // 3. Substituição/Deslocamento de voluntário por prioridade (bumping)
@@ -767,6 +783,9 @@ function attachSlotActionsListeners(filteredSlots) {
 
     const btnCandidatar = actionContainer.querySelector('.btn-candidatar');
     if (btnCandidatar) btnCandidatar.addEventListener('click', () => handleCandidatarDisputa(slot.id));
+
+    const btnCandidatarSair = actionContainer.querySelector('.btn-candidatar-sair');
+    if (btnCandidatarSair) btnCandidatarSair.addEventListener('click', () => handleSairDisputa(slot.id));
 
     const btnSubstituir = actionContainer.querySelector('.btn-substituir');
     if (btnSubstituir) btnSubstituir.addEventListener('click', () => handleSubstituirVaga(slot.id));
@@ -1424,7 +1443,20 @@ function handleCandidatarDisputa(slotId) {
 
   candidatos[slotId] = [...list, currentUser.id];
   showBanner(`Candidatura na fila registrada para a vaga de ${formatDatePt(slot.data)}!`, 'success');
-  renderSlots();
+  persistChanges();
+}
+
+function handleSairDisputa(slotId) {
+  if (!currentUser || currentUser.tipo !== 'OPERADOR') {
+    return;
+  }
+
+  const slot = slots.find(s => s.id === slotId);
+  const list = candidatos[slotId] || [];
+
+  candidatos[slotId] = list.filter(cid => cid !== currentUser.id);
+  showBanner(`Você saiu da fila de prioridade para a vaga de ${formatDatePt(slot?.data || '')}.`, 'info');
+  persistChanges();
 }
 
 function handleEncerrarDisputa(slotId) {
