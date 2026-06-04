@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%236366f1'%3E%3Cpath d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z'/%3E%3C/svg%3E" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Apoio RNEST - Gestão de Escalas</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./style.css">
+  </head>
+  <body>
+    <div class="app-container">
+      
+      <!-- BANNER DE NOTIFICAÇÕES -->
+      <div id="notification-container"></div>
+
+      <!-- HEADER E SELETOR DE PERFIL -->
+      <header class="app-header glass-panel">
+        <div class="brand">
+          <div class="logo-icon">🚦</div>
+          <div>
+            <h1>Apoio RNEST</h1>
+            <p>Controle de Solicitações & Escalas em Tempo Real</p>
+          </div>
+        </div>
+
+        <div class="role-switcher">
+          <span>Simular como:</span>
+          <select id="role-select" class="role-select">
+            <!-- Preenchido via JS -->
+          </select>
+          <button id="btn-reset-demo" class="btn btn-secondary btn-icon-only" title="Resetar Dados">
+            🔄
+          </button>
+        </div>
+      </header>
+
+      <!-- SINCRO DA PLANILHA GOOGLE SHEETS -->
+      <div class="sheets-sync-bar">
+        <div class="sync-status">
+          <div class="sync-dot"></div>
+          <span>Planilha Google Sheets <strong>"RNEST_Controle_Apoios_2026"</strong> integrada</span>
+        </div>
+        <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Último Sync: hoje, agora mesmo (Via API)</span>
+      </div>
+
+      <!-- CORPO DO DASHBOARD -->
+      <div class="dashboard-grid">
+        
+        <!-- CONTEÚDO PRINCIPAL (ESCALAS) -->
+        <main class="main-content">
+          
+          <!-- Tabs para filtrar Categorias -->
+          <div id="tab-container" class="tab-container">
+            <!-- Preenchido via JS -->
+          </div>
+
+          <!-- Seção Administrativa Rápida -->
+          <div id="admin-actions-bar" class="glass-panel" style="padding: 16px 20px; display: none; gap: 12px;">
+            <button id="btn-open-add-modal" class="btn btn-primary">
+              ✚ Criar Nova Escala
+            </button>
+            <button id="btn-open-whatsapp-modal" class="btn btn-secondary">
+              💬 Gerar Template WhatsApp
+            </button>
+          </div>
+
+          <!-- Grid de Escalas -->
+          <div class="group-section">
+            <div class="group-header">
+              <h2>Quadro Geral de Escalas - Junho 2026</h2>
+              <span id="slots-count" style="font-size: 0.85rem; color: var(--text-muted);">
+                0 vaga(s) encontrada(s)
+              </span>
+            </div>
+
+            <div id="slots-grid" class="slots-grid">
+              <!-- Preenchido via JS -->
+            </div>
+          </div>
+        </main>
+
+        <!-- SIDEBAR DIREITA (PLANILHA GOOGLE / RANKING) -->
+        <aside class="sidebar">
+          
+          <!-- Widget de Informações do Usuário Atual -->
+          <div id="my-panel-widget" class="widget glass-panel" style="border-left: 4px solid var(--info);">
+            <!-- Preenchido via JS -->
+          </div>
+
+          <!-- Widget do Ranking Google Sheets -->
+          <div class="widget glass-panel">
+            <h3 class="widget-title">
+              📊 Ranking de Prioridade (Ano)
+            </h3>
+            <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 14px;">
+              Quanto <strong>menor</strong> o número de apoios no ano, maior a prioridade para preencher novas vagas.
+            </p>
+
+            <table class="ranking-table">
+              <thead>
+                <tr>
+                  <th>Pos</th>
+                  <th>Colaborador</th>
+                  <th style="text-align: right;">Apoios (Ano)</th>
+                </tr>
+              </thead>
+              <tbody id="ranking-table-body">
+                <!-- Preenchido via JS -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Info Box -->
+          <div class="widget glass-panel" style="background: var(--bg-input); font-size: 0.8rem; color: var(--text-muted);">
+            <strong>💡 Como simular:</strong>
+            <ol style="padding-left: 16px; margin-top: 8px; display: flex; flex-direction: column; gap: 6px;">
+              <li>Altere o perfil no topo (ex: escolha <strong>Syan</strong> - 0 apoios, ou <strong>Adailton</strong> - 8 apoios).</li>
+              <li>Tente assumir ou candidatar-se a vagas livres.</li>
+              <li>Mude para <strong>Gerente Administrativo</strong> para aprovar as vagas excedentes pendentes.</li>
+              <li>Mude para <strong>Admin Operações</strong> para criar escalas ou cancelar vagas.</li>
+            </ol>
+          </div>
+
+        </aside>
+      </div>
+
+      <!-- MODAL: CRIAR NOVA ESCALA (ADMIN) -->
+      <div id="add-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content glass-panel">
+          <div class="modal-header">
+            <h2 class="modal-title">Criar Nova Escala de Apoio</h2>
+            <button id="btn-close-add-modal" style="background: transparent; border: none; color: #fff; fontSize: 1.25rem; cursor: pointer;">✕</button>
+          </div>
+          
+          <form id="add-slot-form" style="display: flex; flex-direction: column; gap: 16px;">
+            
+            <div class="form-group">
+              <label class="form-label">Grupo / Categoria:</label>
+              <select id="form-grupo" class="input-field">
+                <!-- Preenchido via JS -->
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Atividade / Subgrupo (Obrigatório):</label>
+              <input 
+                type="text" 
+                id="form-subgrupo"
+                class="input-field"
+                placeholder="Ex: Painel Térmico, TAF Oficinas"
+                required
+              />
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+              <div class="form-group">
+                <label class="form-label">Data (Obrigatório):</label>
+                <input 
+                  type="date" 
+                  id="form-data"
+                  class="input-field"
+                  required
+                />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Turno / Horário:</label>
+                <input 
+                  type="text" 
+                  id="form-horario"
+                  class="input-field"
+                  placeholder="Ex: 07x19, 19x07, 07x18"
+                  value="07x19"
+                  required
+                />
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Motivo (Opcional):</label>
+              <input 
+                type="text" 
+                id="form-motivo"
+                class="input-field"
+                placeholder="Ex: liberação sindical, cobrir folga"
+              />
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Regra de Candidatura:</label>
+              <div style="display: flex; gap: 16px; margin-top: 4px;">
+                <label style="display: flex; align-items: center; gap: 6px; font-size: 0.9rem; cursor: pointer;">
+                  <input 
+                    type="radio" 
+                    name="prioridade" 
+                    value="imediata"
+                    checked
+                  />
+                  Imediata (Quem clicar primeiro assume)
+                </label>
+                <label style="display: flex; align-items: center; gap: 6px; font-size: 0.9rem; cursor: pointer;">
+                  <input 
+                    type="radio" 
+                    name="prioridade" 
+                    value="disputa"
+                  />
+                  Fila de Prioridade (Menor pontuação ganha)
+                </label>
+              </div>
+            </div>
+
+            <div class="modal-footer">
+              <button type="button" id="btn-cancel-add-modal" class="btn btn-secondary">Cancelar</button>
+              <button type="submit" class="btn btn-primary">Criar Vaga</button>
+            </div>
+
+          </form>
+        </div>
+      </div>
+
+      <!-- MODAL: EXPORTAR TEMPLATE WHATSAPP -->
+      <div id="whatsapp-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content glass-panel" style="max-width: 600px;">
+          <div class="modal-header">
+            <h2 class="modal-title">Gerador de Template para WhatsApp</h2>
+            <button id="btn-close-whatsapp-modal" style="background: transparent; border: none; color: #fff; fontSize: 1.25rem; cursor: pointer;">✕</button>
+          </div>
+          
+          <p style="font-size: 0.85rem; color: var(--text-secondary);">
+            Copie o texto formatado abaixo para postar no grupo do WhatsApp da equipe. Os dados estão sincronizados em tempo real com o estado atual do App.
+          </p>
+
+          <textarea 
+            id="whatsapp-export-area"
+            class="whatsapp-export-area"
+            readonly
+          ></textarea>
+
+          <div class="modal-footer">
+            <button id="btn-cancel-whatsapp-modal" class="btn btn-secondary">Fechar</button>
+            <button id="btn-copy-whatsapp" class="btn btn-primary">
+              📋 Copiar Texto Formatado
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- FOOTER -->
+      <footer style="margin-top: auto; padding-top: 40px; padding-bottom: 10px; text-align: center; font-size: 0.75rem; color: var(--text-muted);">
+        <p>© 2026 Apoio RNEST. Feito para gerenciamento de equipes de operação e painel.</p>
+      </footer>
+
+    </div>
+
+    <!-- DATA & LOGIC SCRIPTS -->
+    <script type="module" src="./data.js"></script>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
