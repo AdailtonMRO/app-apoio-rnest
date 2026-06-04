@@ -250,10 +250,10 @@ function handleSimDateChange(e) {
 }
 
 function resetDemo() {
-  localStorage.removeItem('rnest_law_users');
-  localStorage.removeItem('rnest_law_groups');
-  localStorage.removeItem('rnest_law_slots');
-  localStorage.removeItem('rnest_law_history');
+  localStorage.removeItem('rnest_law_users_v4');
+  localStorage.removeItem('rnest_law_groups_v4');
+  localStorage.removeItem('rnest_law_slots_v4');
+  localStorage.removeItem('rnest_law_history_v4');
 
   candidatos = {
     's_f1': ['Ab5a', 'Kbvx'],
