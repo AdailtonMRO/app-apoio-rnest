@@ -65,6 +65,7 @@
             <button id="tab-btn-escalas" class="view-tab-btn active">📅 Escalas (Vagas de Apoio)</button>
             <button id="tab-btn-registro" class="view-tab-btn">✍️ Registrar Meu Apoio</button>
             <button id="tab-btn-historico" class="view-tab-btn">📜 Histórico de Lançamentos</button>
+            <button id="tab-btn-usuarios" class="view-tab-btn" style="display: none;">👥 Usuários</button>
           </div>
 
           <!-- 1. VIEW DE ESCALAS (VAGAS DISPONÍVEIS) -->
@@ -141,6 +142,14 @@
                   </div>
                 </div>
 
+                <!-- Checkbox de Ajuste Administrativo (Bypass de 72h) -->
+                <div id="reg-bypass-container" class="form-group" style="display: none; align-items: center; gap: 8px;">
+                  <label style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--warning); cursor: pointer;">
+                    <input type="checkbox" id="reg-bypass-limit" style="width: auto;">
+                    <span>Ignorar prazo de 72h (Ajuste Administrativo sem penalidade R13)</span>
+                  </label>
+                </div>
+
                 <div class="form-group">
                   <label class="form-label">Selecione todas as características aplicáveis ao apoio (Art. 4º):</label>
                   <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 8px;">
@@ -197,6 +206,45 @@
                     </tr>
                   </thead>
                   <tbody id="history-table-body">
+                    <!-- Preenchido via JS -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- 4. VIEW DE GERENCIAMENTO DE USUÁRIOS (ADMIN/SUPERVISOR/GERENTE) -->
+          <div id="view-usuarios" class="app-view-section" style="display: none;">
+            <div class="glass-panel" style="padding: 24px;">
+              <div class="group-header" style="margin-bottom: 20px; align-items: flex-start; flex-direction: column; gap: 12px;">
+                <div>
+                  <h2>Gerenciamento de Usuários e Hierarquia</h2>
+                  <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;">
+                    Cadastre novos colaboradores e configure seus níveis hierárquicos: Operador (Apoiador), Supervisor, Gerente ou Administrador.
+                  </p>
+                </div>
+                <div style="display: flex; gap: 12px; width: 100%; justify-content: space-between; flex-wrap: wrap;">
+                  <input type="text" id="user-search-input" class="input-field" placeholder="🔎 Buscar por nome ou chave..." style="max-width: 300px;">
+                  <button id="btn-open-user-modal" class="btn btn-primary" style="display: none;">
+                    ✚ Cadastrar Novo Usuário
+                  </button>
+                </div>
+              </div>
+
+              <div class="table-responsive">
+                <table class="ranking-table" style="width: 100%;">
+                  <thead>
+                    <tr>
+                      <th>Chave (ID)</th>
+                      <th>Nome Completo</th>
+                      <th>Cargo / Função</th>
+                      <th>Nível Hierárquico</th>
+                      <th>E-mail</th>
+                      <th style="text-align: right;">Apoios (Ano)</th>
+                      <th style="text-align: center;">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody id="users-table-body">
                     <!-- Preenchido via JS -->
                   </tbody>
                 </table>
@@ -362,6 +410,52 @@
               <button type="submit" class="btn btn-primary" style="background: var(--danger);">
                 ⚠️ Aplicar Penalidade (+0.01)
               </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- MODAL: CADASTRAR/EDITAR USUÁRIO -->
+      <div id="user-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content glass-panel" style="max-width: 480px;">
+          <div class="modal-header">
+            <h2 id="user-modal-title" class="modal-title">Cadastrar Novo Usuário</h2>
+            <button id="btn-close-user-modal" style="background: transparent; border: none; color: #fff; font-size: 1.25rem; cursor: pointer;">✕</button>
+          </div>
+          
+          <form id="user-form" style="display: flex; flex-direction: column; gap: 16px; margin-top: 10px;">
+            <input type="hidden" id="user-form-mode" value="add"> <!-- 'add' ou 'edit' -->
+            <input type="hidden" id="user-form-old-chave" value="">
+            
+            <div class="form-group">
+              <label class="form-label">Chave / ID do Usuário (Obrigatório, 4 caracteres):</label>
+              <input type="text" id="user-form-chave" class="input-field" placeholder="Ex: AB2U, zmuu" required maxlength="6" style="text-transform: uppercase;">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Nome Completo (Obrigatório):</label>
+              <input type="text" id="user-form-nome" class="input-field" placeholder="Ex: Syan Addy Vasconcellos" required>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+              <div class="form-group">
+                <label class="form-label">Cargo / Função:</label>
+                <input type="text" id="user-form-cargo" class="input-field" placeholder="Ex: Operador, Supervisor" value="Operador" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Nível Hierárquico:</label>
+                <select id="user-form-nivel" class="input-field">
+                  <option value="OPERADOR">Operador (Apoiador)</option>
+                  <option value="SUPERVISOR">Supervisor</option>
+                  <option value="GERENTE">Gerente</option>
+                  <option value="ADMINISTRADOR">Administrador</option>
+                </select>
+              </div>
+            </div>
+            
+            <div class="modal-footer">
+              <button type="button" id="btn-cancel-user-modal" class="btn btn-secondary">Cancelar</button>
+              <button type="submit" id="btn-submit-user" class="btn btn-primary">Salvar Usuário</button>
             </div>
           </form>
         </div>

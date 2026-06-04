@@ -7,18 +7,17 @@ let slots = [];
 let history = [];
 
 // Perfil simulado ativo
-let currentUserId = 'AB2U'; // Syan Addy Vasconcellos por padrão
+let currentUserId = 'AB2U'; // Syan Addy Vasconcellos por padrão (Operador)
 let currentUser = null;
 
 // Abas de visualização principal e escalas
-let currentView = 'escalas'; // 'escalas', 'registro', 'historico'
+let currentView = 'escalas'; // 'escalas', 'registro', 'historico', 'usuarios'
 let activeTab = 'all';
 
 // Data simulada atual (para testes da regra de 72h)
 let simulatedCurrentDate = '2026-06-04';
 
-// Candidaturas a vagas em disputa
-// { slotId: [userId1, userId2] }
+// Candidaturas a vagas em disputa (Chaves reais correspondentes ao novo seed)
 let candidatos = {
   's_f1': ['Ab5a', 'Kbvx'], // Alan Bernardino (27.60), George Lima (21.30)
   's_f2': ['Ab3r'],        // Adailton Medeiros (29.31)
@@ -41,11 +40,13 @@ const adminActionsBar = document.getElementById('admin-actions-bar');
 const tabBtnEscalas = document.getElementById('tab-btn-escalas');
 const tabBtnRegistro = document.getElementById('tab-btn-registro');
 const tabBtnHistorico = document.getElementById('tab-btn-historico');
+const tabBtnUsuarios = document.getElementById('tab-btn-usuarios');
 const viewEscalas = document.getElementById('view-escalas');
 const viewRegistro = document.getElementById('view-registro');
 const viewHistorico = document.getElementById('view-historico');
+const viewUsuarios = document.getElementById('view-usuarios');
 
-// Modais
+// Modais - Escalas
 const addModal = document.getElementById('add-modal');
 const btnOpenAddModal = document.getElementById('btn-open-add-modal');
 const btnCloseAddModal = document.getElementById('btn-close-add-modal');
@@ -53,6 +54,7 @@ const btnCancelAddModal = document.getElementById('btn-cancel-add-modal');
 const addSlotForm = document.getElementById('add-slot-form');
 const modalRulesCheckboxes = document.getElementById('modal-rules-checkboxes');
 
+// Modais - WhatsApp
 const whatsappModal = document.getElementById('whatsapp-modal');
 const btnOpenWhatsappModal = document.getElementById('btn-open-whatsapp-modal');
 const btnCloseWhatsappModal = document.getElementById('btn-close-whatsapp-modal');
@@ -60,11 +62,28 @@ const btnCancelWhatsappModal = document.getElementById('btn-cancel-whatsapp-moda
 const whatsappExportArea = document.getElementById('whatsapp-export-area');
 const btnCopyWhatsapp = document.getElementById('btn-copy-whatsapp');
 
+// Modais - Infração WhatsApp
 const infracaoModal = document.getElementById('infracao-modal');
 const btnOpenInfracaoModal = document.getElementById('btn-open-infracao-modal');
 const btnCloseInfracaoModal = document.getElementById('btn-close-infracao-modal');
 const btnCancelInfracaoModal = document.getElementById('btn-cancel-infracao-modal');
 const infracaoForm = document.getElementById('infracao-form');
+
+// Modais - Usuários
+const userModal = document.getElementById('user-modal');
+const userModalTitle = document.getElementById('user-modal-title');
+const btnOpenUserModal = document.getElementById('btn-open-user-modal');
+const btnCloseUserModal = document.getElementById('btn-close-user-modal');
+const btnCancelUserModal = document.getElementById('btn-cancel-user-modal');
+const userForm = document.getElementById('user-form');
+const userFormMode = document.getElementById('user-form-mode');
+const userFormOldChave = document.getElementById('user-form-old-chave');
+const userFormChave = document.getElementById('user-form-chave');
+const userFormNome = document.getElementById('user-form-nome');
+const userFormCargo = document.getElementById('user-form-cargo');
+const userFormNivel = document.getElementById('user-form-nivel');
+const userSearchInput = document.getElementById('user-search-input');
+const usersTableBody = document.getElementById('users-table-body');
 
 // Formulário de Auto-Registro
 const regUsuarioSelect = document.getElementById('reg-usuario');
@@ -72,6 +91,8 @@ const regSubgrupoInput = document.getElementById('reg-subgrupo');
 const regDataInput = document.getElementById('reg-data');
 const regDataLancamentoInput = document.getElementById('reg-data-lancamento');
 const regDateWarning = document.getElementById('reg-date-warning');
+const regBypassContainer = document.getElementById('reg-bypass-container');
+const regBypassLimit = document.getElementById('reg-bypass-limit');
 const rulesCheckboxContainer = document.getElementById('rules-checkbox-container');
 const regPointsPreview = document.getElementById('reg-points-preview');
 const regFormulaPreview = document.getElementById('reg-formula-preview');
@@ -89,13 +110,14 @@ function init() {
   tabBtnEscalas.addEventListener('click', () => switchView('escalas'));
   tabBtnRegistro.addEventListener('click', () => switchView('registro'));
   tabBtnHistorico.addEventListener('click', () => switchView('historico'));
+  tabBtnUsuarios.addEventListener('click', () => switchView('usuarios'));
 
   // Listeners de simulação
   roleSelect.addEventListener('change', handleRoleChange);
   btnResetDemo.addEventListener('click', resetDemo);
   simCurrentDateInput.addEventListener('change', handleSimDateChange);
 
-  // Modais - Adicionar
+  // Modais - Adicionar Escala
   btnOpenAddModal.addEventListener('click', () => addModal.style.display = 'flex');
   btnCloseAddModal.addEventListener('click', () => addModal.style.display = 'none');
   btnCancelAddModal.addEventListener('click', () => addModal.style.display = 'none');
@@ -113,8 +135,16 @@ function init() {
   btnCancelInfracaoModal.addEventListener('click', () => infracaoModal.style.display = 'none');
   infracaoForm.addEventListener('submit', handleAplicarInfracao);
 
+  // Modais - Usuários
+  btnOpenUserModal.addEventListener('click', () => openUserModal('add'));
+  btnCloseUserModal.addEventListener('click', () => userModal.style.display = 'none');
+  btnCancelUserModal.addEventListener('click', () => userModal.style.display = 'none');
+  userForm.addEventListener('submit', handleSaveUser);
+  userSearchInput.addEventListener('keyup', renderUsersTable);
+
   // Formulário de Auto-Registro - Eventos
   regDataInput.addEventListener('change', checkLateSubmission);
+  regBypassLimit.addEventListener('change', updatePointsPreview);
   registerCompletedSupportForm.addEventListener('submit', handleAutoRegistroApoio);
 
   // Preencher elementos de formulário
@@ -126,6 +156,7 @@ function init() {
     if (e.target === addModal) addModal.style.display = 'none';
     if (e.target === whatsappModal) whatsappModal.style.display = 'none';
     if (e.target === infracaoModal) infracaoModal.style.display = 'none';
+    if (e.target === userModal) userModal.style.display = 'none';
   });
 
   // Render inicial
@@ -155,20 +186,39 @@ function switchView(view) {
   tabBtnEscalas.classList.toggle('active', view === 'escalas');
   tabBtnRegistro.classList.toggle('active', view === 'registro');
   tabBtnHistorico.classList.toggle('active', view === 'historico');
+  tabBtnUsuarios.classList.toggle('active', view === 'usuarios');
 
   // Atualizar contêineres
   viewEscalas.style.display = view === 'escalas' ? 'block' : 'none';
   viewRegistro.style.display = view === 'registro' ? 'block' : 'none';
   viewHistorico.style.display = view === 'historico' ? 'block' : 'none';
+  viewUsuarios.style.display = view === 'usuarios' ? 'block' : 'none';
 
   if (view === 'registro') {
+    const isGestor = currentUser.tipo === 'ADMINISTRADOR' || currentUser.tipo === 'GERENTE' || currentUser.tipo === 'SUPERVISOR';
+    
     // Configurar o usuário atual selecionado no formulário
-    regUsuarioSelect.value = currentUser.tipo === 'APOIADOR' ? currentUser.id : users.filter(u => u.tipo === 'APOIADOR')[0].id;
+    const apoiadores = users.filter(u => u.tipo === 'OPERADOR');
+    if (apoiadores.length > 0) {
+      regUsuarioSelect.value = currentUser.tipo === 'OPERADOR' ? currentUser.id : apoiadores[0].id;
+    }
+    
+    if (isGestor) {
+      regBypassContainer.style.display = 'block';
+    } else {
+      regBypassContainer.style.display = 'none';
+      regBypassLimit.checked = false;
+    }
+    
     updatePointsPreview();
   }
 
   if (view === 'historico') {
     renderHistoryTable();
+  }
+
+  if (view === 'usuarios') {
+    renderUsersTable();
   }
 }
 
@@ -179,9 +229,15 @@ function handleRoleChange(e) {
   currentUser = users.find(u => u.id === currentUserId);
   renderAll();
   
-  // Se mudar para admin na aba de registros, move para escalas
-  if (currentUser.tipo !== 'APOIADOR' && currentView === 'registro') {
+  // Se mudar para operador na aba de usuários, move para escalas
+  const isGestor = currentUser.tipo === 'ADMINISTRADOR' || currentUser.tipo === 'GERENTE' || currentUser.tipo === 'SUPERVISOR';
+  if (!isGestor && currentView === 'usuarios') {
     switchView('escalas');
+  }
+
+  // Atualiza a aba de registro se for nela para ajustar os campos
+  if (currentView === 'registro') {
+    switchView('registro');
   }
 }
 
@@ -205,7 +261,7 @@ function resetDemo() {
     's_f3': ['Kva8 ', 'ab1j']
   };
 
-  currentUserId = 'AB2U';
+  currentUserId = 'AB2U'; // Syan Addy
   simulatedCurrentDate = '2026-06-04';
   simCurrentDateInput.value = simulatedCurrentDate;
   regDataLancamentoInput.value = formatDatePt(simulatedCurrentDate);
@@ -217,7 +273,6 @@ function resetDemo() {
 
 // --- CÁLCULOS DA LEI DE APOIO (FÓRMULAS OFICIAIS) ---
 
-// 1. Calcula a pontuação individual de um apoio: Produto de (Peso / 10)
 function calculateSupportScore(regrasArray) {
   if (regrasArray.length === 0) return 0.0;
   
@@ -232,22 +287,18 @@ function calculateSupportScore(regrasArray) {
   return parseFloat(prod.toFixed(4));
 }
 
-// 2. Calcula a data do último apoio feito por um usuário (para desempate do Art. 8º)
 function getUserLastSupportDate(userId) {
   const userHistory = history.filter(h => h.usuarioId === userId);
   if (userHistory.length === 0) return null;
   
-  // Ordenar por data decrescente
   userHistory.sort((a, b) => new Date(b.data) - new Date(a.data));
   return userHistory[0].data;
 }
 
-// 3. Calcula a pontuação acumulada total do colaborador (Geral = Σ apoios + (infrações * 0.01))
 function calculateUserPointsGeral(userId) {
   const user = users.find(u => u.id === userId);
   if (!user) return 0.0;
 
-  // Se for GPI/OPMAN e não classificado
   if (user.cargo === 'GPI' || user.cargo === 'OPMAN') {
     return 0.0; // Não entram na classificação geral (Art. 6º)
   }
@@ -255,7 +306,6 @@ function calculateUserPointsGeral(userId) {
   const userHistory = history.filter(h => h.usuarioId === userId);
   let sum = userHistory.reduce((acc, h) => acc + h.pontuacao, 0.0);
   
-  // Adicionar multas WhatsApp (+0.01 por infração - Art. 7º)
   if (user.infracoesWA) {
     sum += user.infracoesWA * 0.01;
   }
@@ -263,7 +313,6 @@ function calculateUserPointsGeral(userId) {
   return parseFloat(sum.toFixed(4));
 }
 
-// 4. Lógica de desempate e ranking de candidatos para uma vaga
 function getDisputeWinner(slotId) {
   const candIds = candidatos[slotId] || [];
   if (candIds.length === 0) return null;
@@ -272,25 +321,21 @@ function getDisputeWinner(slotId) {
     const u = users.find(user => user.id === uid);
     const score = calculateUserPointsGeral(uid);
     const lastDate = getUserLastSupportDate(uid);
-    return { id: uid, nome: u.nome, score, lastDate, index };
+    return { id: uid, nome: u?.nome || 'Desconhecido', score, lastDate, index };
   });
 
-  // Ordenação da prioridade (Lei Art. 3º e Art. 8º)
   candidatesList.sort((a, b) => {
-    // 1. Menor pontuação geral primeiro
     if (a.score !== b.score) {
       return a.score - b.score;
     }
     
-    // 2. Desempate: quem fez apoio mais antigo primeiro
-    if (a.lastDate === null && b.lastDate !== null) return -1; // A nunca apoiou -> prioridade A
-    if (b.lastDate === null && a.lastDate !== null) return 1;  // B nunca apoiou -> prioridade B
-    if (a.lastDate === null && b.lastDate === null) return a.index - b.index; // Ordem de candidatura
+    if (a.lastDate === null && b.lastDate !== null) return -1;
+    if (b.lastDate === null && a.lastDate !== null) return 1;
+    if (a.lastDate === null && b.lastDate === null) return a.index - b.index;
     
     const diff = new Date(a.lastDate) - new Date(b.lastDate);
-    if (diff !== 0) return diff; // Data antiga ganha
+    if (diff !== 0) return diff;
     
-    // 3. Ordem de candidatura (Consenso simulado por ordem de inscrição)
     return a.index - b.index;
   });
 
@@ -299,24 +344,34 @@ function getDisputeWinner(slotId) {
 
 // --- RENDERIZADORES DE TELA (HTML DINÂMICO) ---
 
+function renderAll() {
+  renderRoleSelect();
+  renderTabs();
+  renderAdminBar();
+  renderSlots();
+  renderMyPanel();
+  renderRanking();
+  renderFormGroupsOptions();
+}
+
 function renderRoleSelect() {
   let html = '';
   
   html += '<optgroup label="Colaboradores (Apoiadores)">';
-  users.filter(u => u.tipo === 'APOIADOR').forEach(u => {
+  users.filter(u => u.tipo === 'OPERADOR').forEach(u => {
     const score = calculateUserPointsGeral(u.id);
     const isExcluido = u.cargo === 'GPI' || u.cargo === 'OPMAN';
     const scoreLabel = isExcluido ? 'Sem Classif.' : `${score.toFixed(2)} pts`;
     html += `<option value="${u.id}" ${u.id === currentUserId ? 'selected' : ''}>
-      ${u.nome} (${u.cargo} | ${scoreLabel})
+      ${u.nome} (${u.cargo} | ${scoreLabel} | ${u.tipo})
     </option>`;
   });
   html += '</optgroup>';
   
-  html += '<optgroup label="Gestão (Administradores)">';
-  users.filter(u => u.tipo !== 'APOIADOR').forEach(u => {
+  html += '<optgroup label="Gestão (Administradores/Supervisores)">';
+  users.filter(u => u.tipo !== 'OPERADOR').forEach(u => {
     html += `<option value="${u.id}" ${u.id === currentUserId ? 'selected' : ''}>
-      ${u.nome}
+      ${u.nome} (${u.cargo} | ${u.tipo})
     </option>`;
   });
   html += '</optgroup>';
@@ -325,6 +380,15 @@ function renderRoleSelect() {
 }
 
 function renderTabs() {
+  const isGestor = currentUser.tipo === 'ADMINISTRADOR' || currentUser.tipo === 'GERENTE' || currentUser.tipo === 'SUPERVISOR';
+  
+  // Mostrar/esconder aba de usuários com base na hierarquia
+  if (isGestor) {
+    tabBtnUsuarios.style.display = 'inline-flex';
+  } else {
+    tabBtnUsuarios.style.display = 'none';
+  }
+
   let html = `<button class="tab-btn ${activeTab === 'all' ? 'active' : ''}" data-tab="all">Todas as Escalas</button>`;
   groups.forEach(g => {
     const label = g.nome.replace('Apoios ', '').replace('Apoio ', '');
@@ -342,8 +406,27 @@ function renderTabs() {
 }
 
 function renderAdminBar() {
-  if (currentUser.tipo === 'ADMIN') {
+  const isGestor = currentUser.tipo === 'ADMINISTRADOR' || currentUser.tipo === 'GERENTE' || currentUser.tipo === 'SUPERVISOR';
+  
+  if (isGestor) {
     adminActionsBar.style.display = 'flex';
+    
+    // Configurar botões específicos conforme cargo
+    const btnCreate = document.getElementById('btn-open-add-modal');
+    // Admin, Gerente e Supervisor criam escala
+    if (currentUser.tipo === 'ADMINISTRADOR' || currentUser.tipo === 'GERENTE' || currentUser.tipo === 'SUPERVISOR') {
+      btnCreate.style.display = 'inline-flex';
+    } else {
+      btnCreate.style.display = 'none';
+    }
+
+    // Apenas Admin e Gerente aplicam multas de WhatsApp
+    const btnInfracao = document.getElementById('btn-open-infracao-modal');
+    if (currentUser.tipo === 'ADMINISTRADOR' || currentUser.tipo === 'GERENTE') {
+      btnInfracao.style.display = 'inline-flex';
+    } else {
+      btnInfracao.style.display = 'none';
+    }
   } else {
     adminActionsBar.style.display = 'none';
   }
@@ -421,7 +504,7 @@ function renderSlots() {
                 const eLider = vencedor && vencedor.id === cid;
                 return `
                   <div style="font-size: 0.72rem; display: flex; justify-content: space-between; align-items: center; color: ${eLider ? 'var(--success)' : 'var(--text-secondary)'}; font-weight: ${eLider ? 700 : 400};">
-                    <span>${i+1}. ${u?.nome} ${eLider ? '🏆 (Líder)' : ''}</span>
+                    <span>${i+1}. ${u?.nome || 'Desconhecido'} ${eLider ? '🏆 (Líder)' : ''}</span>
                     <span style="font-size: 0.65rem;">
                       ${score.toFixed(2)} pts | Último: ${lastDate ? formatDatePt(lastDate) : 'Nenhum'}
                     </span>
@@ -443,7 +526,7 @@ function renderSlots() {
             <div class="slot-assignee">
               <div>
                 <span style="font-size: 0.75rem; color: var(--text-muted); display: block;">Voluntário confirmado:</span>
-                <span class="assignee-name">${apontee?.nome}</span>
+                <span class="assignee-name">${apontee?.nome || 'Desconhecido'}</span>
               </div>
               <span class="assignee-count" style="font-weight: bold; color: var(--info);">
                 ${calculateUserPointsGeral(slot.usuarioId).toFixed(2)} pts gerais
@@ -471,11 +554,12 @@ function attachSlotActionsListeners(filteredSlots) {
 
     const isDisputa = candidatos[slot.id] !== undefined;
     const candList = candidatos[slot.id] || [];
+    const isGestor = currentUser.tipo === 'ADMINISTRADOR' || currentUser.tipo === 'GERENTE' || currentUser.tipo === 'SUPERVISOR';
 
     let actionHtml = '';
 
     // 1. Inscrição em vaga direta (Livre comum)
-    if (slot.status === 'LIVRE' && !isDisputa && currentUser.tipo === 'APOIADOR') {
+    if (slot.status === 'LIVRE' && !isDisputa && currentUser.tipo === 'OPERADOR') {
       const isExcluido = currentUser.cargo === 'GPI' || currentUser.cargo === 'OPMAN';
       if (isExcluido) {
         actionHtml = `<button class="btn btn-secondary btn-assumir" style="width: 100%;">🟢 Assumir Apoio (Função Administrativa)</button>`;
@@ -484,7 +568,7 @@ function attachSlotActionsListeners(filteredSlots) {
       }
     }
     // 2. Fila de Candidatura por Prioridade (Art. 3º)
-    else if (isDisputa && currentUser.tipo === 'APOIADOR') {
+    else if (isDisputa && currentUser.tipo === 'OPERADOR') {
       const jaInscrito = candList.includes(currentUser.id);
       const isExcluido = currentUser.cargo === 'GPI' || currentUser.cargo === 'OPMAN';
       
@@ -499,8 +583,8 @@ function attachSlotActionsListeners(filteredSlots) {
       }
     }
 
-    // Ações de Administrador
-    if (currentUser.tipo === 'ADMIN') {
+    // Ações de Gestão (Fechar Disputa, Cancelar Vaga)
+    if (isGestor) {
       if (isDisputa && candList.length > 0) {
         actionHtml += `
           <button class="btn btn-primary btn-resolver-disputa" style="width: 100%; background: var(--warning); color: black; margin-top: 8px;">
@@ -509,13 +593,16 @@ function attachSlotActionsListeners(filteredSlots) {
         `;
       }
       
-      actionHtml += `
-        <div style="margin-top: 8px; display: flex; justify-content: flex-end;">
-          <button class="btn btn-secondary btn-icon-only btn-cancelar-escala" style="font-size: 0.72rem; padding: 4px 8px; color: var(--danger);">
-            ⚠️ ${slot.status === 'CANCELADO' ? 'Reativar Slot' : 'Cancelar Slot'}
-          </button>
-        </div>
-      `;
+      // Cancelar Escala (Somente Admin, Gerente e Supervisor)
+      if (currentUser.tipo === 'ADMINISTRADOR' || currentUser.tipo === 'GERENTE' || currentUser.tipo === 'SUPERVISOR') {
+        actionHtml += `
+          <div style="margin-top: 8px; display: flex; justify-content: flex-end;">
+            <button class="btn btn-secondary btn-icon-only btn-cancelar-escala" style="font-size: 0.72rem; padding: 4px 8px; color: var(--danger);">
+              ⚠️ ${slot.status === 'CANCELADO' ? 'Reativar Slot' : 'Cancelar Slot'}
+            </button>
+          </div>
+        `;
+      }
     }
 
     actionContainer.innerHTML = actionHtml;
@@ -536,7 +623,7 @@ function attachSlotActionsListeners(filteredSlots) {
 }
 
 function renderMyPanel() {
-  if (currentUser && currentUser.tipo === 'APOIADOR') {
+  if (currentUser && currentUser.tipo === 'OPERADOR') {
     myPanelWidget.style.display = 'block';
     
     const score = calculateUserPointsGeral(currentUser.id);
@@ -587,9 +674,9 @@ function renderMyPanel() {
 function renderRanking() {
   let html = '';
   
-  // Apoiadores válidos para classificação (Filtrando GPI/OPMAN conforme Art. 6º)
+  // Apoiadores válidos para classificação
   const classificados = users
-    .filter(u => u.tipo === 'APOIADOR' && u.cargo !== 'GPI' && u.cargo !== 'OPMAN')
+    .filter(u => u.tipo === 'OPERADOR' && u.cargo !== 'GPI' && u.cargo !== 'OPMAN')
     .map(u => {
       return {
         ...u,
@@ -598,13 +685,10 @@ function renderRanking() {
       };
     });
 
-  // Ordenação do Ranking de Prioridade (Art. 3º e Art. 8º)
   classificados.sort((a, b) => {
-    // 1. Menor pontuação
     if (a.score !== b.score) {
       return a.score - b.score;
     }
-    // 2. Data mais antiga (tiebreaker)
     if (a.lastDate === null && b.lastDate !== null) return -1;
     if (b.lastDate === null && a.lastDate !== null) return 1;
     if (a.lastDate === null && b.lastDate === null) return 0;
@@ -641,8 +725,8 @@ function renderRanking() {
     `;
   });
 
-  // Mostrar também os não-classificados no rodapé da tabela com aviso
-  const naoClassificados = users.filter(u => u.tipo === 'APOIADOR' && (u.cargo === 'GPI' || u.cargo === 'OPMAN'));
+  // Mostrar não-classificados no rodapé
+  const naoClassificados = users.filter(u => u.tipo === 'OPERADOR' && (u.cargo === 'GPI' || u.cargo === 'OPMAN'));
   if (naoClassificados.length > 0) {
     html += `
       <tr style="background: hsla(222, 47%, 5%, 0.5);"><td colspan="4" style="font-size: 0.7rem; color: var(--text-muted); text-align: center; border-bottom: none; padding: 6px;">Excluídos da Classificação (Art. 6º)</td></tr>
@@ -668,7 +752,7 @@ function renderHistoryTable() {
   let html = '';
 
   const sortedHistory = [...history];
-  sortedHistory.sort((a, b) => new Date(b.data) - new Date(a.data)); // Mais recente primeiro
+  sortedHistory.sort((a, b) => new Date(b.data) - new Date(a.data));
 
   sortedHistory.forEach(h => {
     const user = users.find(u => u.id === h.usuarioId);
@@ -693,7 +777,7 @@ function renderHistoryTable() {
         </td>
         <td style="text-align: right; font-weight: bold; color: var(--info);">${h.pontuacao.toFixed(4)} pts</td>
         <td style="text-align: center;">
-          ${currentUser.tipo === 'ADMIN' ? `
+          ${currentUser.tipo === 'ADMINISTRADOR' ? `
             <button class="btn btn-secondary btn-icon-only btn-excluir-historico" data-id="${h.id}" title="Excluir Registro" style="color: var(--danger); padding: 2px 6px;">✕</button>
           ` : '-'}
         </td>
@@ -707,14 +791,203 @@ function renderHistoryTable() {
 
   historyTableBody.innerHTML = html;
 
-  // Listeners de exclusão (Admin)
-  if (currentUser.tipo === 'ADMIN') {
+  if (currentUser.tipo === 'ADMINISTRADOR') {
     historyTableBody.querySelectorAll('.btn-excluir-historico').forEach(btn => {
       btn.addEventListener('click', () => {
         const hid = btn.getAttribute('data-id');
         handleExcluirHistorico(hid);
       });
     });
+  }
+}
+
+// --- VIEW DE USUÁRIOS E GERENCIAMENTO DE CADASTROS (NOVO) ---
+
+function renderUsersTable() {
+  const query = userSearchInput.value.toLowerCase().trim();
+  let html = '';
+
+  const filteredUsers = users.filter(u => {
+    return u.nome.toLowerCase().includes(query) || u.id.toLowerCase().includes(query) || u.cargo.toLowerCase().includes(query);
+  });
+
+  const isOnlyAdmin = currentUser.tipo === 'ADMINISTRADOR';
+
+  // Mostrar ou esconder botão de cadastrar novo usuário com base no perfil de Admin
+  const btnCreate = document.getElementById('btn-open-user-modal');
+  if (isOnlyAdmin) {
+    btnCreate.style.display = 'inline-flex';
+  } else {
+    btnCreate.style.display = 'none';
+  }
+
+  filteredUsers.forEach(u => {
+    const score = calculateUserPointsGeral(u.id);
+    const hasHistory = history.some(h => h.usuarioId === u.id);
+    const scoreText = (u.cargo === 'GPI' || u.cargo === 'OPMAN') ? 'Isento' : `${score.toFixed(4)} pts`;
+
+    html += `
+      <tr>
+        <td><strong style="color: var(--primary);">${u.id.toUpperCase()}</strong></td>
+        <td><span style="font-weight: 600;">${u.nome}</span></td>
+        <td>${u.cargo}</td>
+        <td>
+          <span class="badge ${
+            u.tipo === 'ADMINISTRADOR' ? 'badge-cancelled' : 
+            u.tipo === 'GERENTE' ? 'badge-pending' : 
+            u.tipo === 'SUPERVISOR' ? 'badge-assigned' : 'badge-open'
+          }">
+            ${u.tipo}
+          </span>
+        </td>
+        <td style="font-size: 0.8rem; color: var(--text-secondary); font-family: var(--font-mono);">${u.email}</td>
+        <td style="text-align: right; font-weight: bold; color: var(--info);">${scoreText}</td>
+        <td style="text-align: center;">
+          ${isOnlyAdmin ? `
+            <button class="btn btn-secondary btn-icon-only btn-editar-usuario" data-id="${u.id}" style="padding: 2px 6px; color: var(--info);">✏️</button>
+            <button class="btn btn-secondary btn-icon-only btn-excluir-usuario" data-id="${u.id}" style="padding: 2px 6px; color: var(--danger);" ${hasHistory ? 'title="Não é possível excluir usuário com histórico de apoios" disabled style="opacity: 0.4;"' : ''}>✕</button>
+          ` : '-'}
+        </td>
+      </tr>
+    `;
+  });
+
+  if (filteredUsers.length === 0) {
+    html = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 20px;">Nenhum usuário correspondente à pesquisa.</td></tr>`;
+  }
+
+  usersTableBody.innerHTML = html;
+
+  // Ligar eventos
+  if (isOnlyAdmin) {
+    usersTableBody.querySelectorAll('.btn-editar-usuario').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-id');
+        openUserModal('edit', id);
+      });
+    });
+
+    usersTableBody.querySelectorAll('.btn-excluir-usuario').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-id');
+        handleDeleteUser(id);
+      });
+    });
+  }
+}
+
+function openUserModal(mode, id = '') {
+  userForm.reset();
+  userFormMode.value = mode;
+
+  if (mode === 'add') {
+    userModalTitle.textContent = 'Cadastrar Novo Colaborador';
+    userFormChave.disabled = false;
+    userFormOldChave.value = '';
+    userFormNivel.value = 'OPERADOR';
+    userFormCargo.value = 'Operador';
+  } else if (mode === 'edit') {
+    userModalTitle.textContent = 'Editar Colaborador';
+    const user = users.find(u => u.id === id);
+    if (user) {
+      userFormChave.value = user.id.toUpperCase();
+      // Não permitir alterar a chave chave primária se tiver histórico para evitar bugs,
+      // mas vamos deixar habilitado ou preencher
+      userFormChave.disabled = true; // Chave não se edita
+      userFormOldChave.value = user.id;
+      userFormNome.value = user.nome;
+      userFormCargo.value = user.cargo;
+      userFormNivel.value = user.tipo;
+    }
+  }
+
+  userModal.style.display = 'flex';
+}
+
+function handleSaveUser(e) {
+  e.preventDefault();
+
+  if (currentUser.tipo !== 'ADMINISTRADOR') {
+    showBanner('Apenas administradores podem cadastrar ou editar usuários.', 'danger');
+    return;
+  }
+
+  const mode = userFormMode.value;
+  const oldChave = userFormOldChave.value;
+  const newChave = userFormChave.value.trim().toUpperCase(); // Normaliza chaves em caixa alta
+  const nome = userFormNome.value.trim();
+  const cargo = userFormCargo.value.trim();
+  const nivel = userFormNivel.value;
+
+  if (!newChave || !nome) {
+    showBanner('Preencha os campos obrigatórios.', 'danger');
+    return;
+  }
+
+  if (mode === 'add') {
+    // Verificar se a chave já existe
+    const existe = users.some(u => u.id.toUpperCase() === newChave.toUpperCase());
+    if (existe) {
+      showBanner(`A chave "${newChave}" já está cadastrada para outro colaborador.`, 'danger');
+      return;
+    }
+
+    const novoUser = {
+      id: newChave,
+      nome: nome,
+      email: `${newChave.toLowerCase()}@rnest.com.br`,
+      tipo: nivel,
+      cargo: cargo,
+      infracoesWA: 0
+    };
+
+    users = [...users, novoUser];
+    showBanner(`Colaborador ${nome} cadastrado com sucesso!`, 'success');
+  } else {
+    // Edit mode
+    users = users.map(u => {
+      if (u.id === oldChave) {
+        return {
+          ...u,
+          nome: nome,
+          cargo: cargo,
+          tipo: nivel
+        };
+      }
+      return u;
+    });
+
+    showBanner(`Dados de ${nome} atualizados com sucesso!`, 'success');
+  }
+
+  userModal.style.display = 'none';
+  persistChanges();
+  renderUsersTable();
+}
+
+function handleDeleteUser(chave) {
+  if (currentUser.tipo !== 'ADMINISTRADOR') {
+    showBanner('Apenas administradores podem excluir usuários.', 'danger');
+    return;
+  }
+
+  if (chave === currentUserId) {
+    showBanner('Você não pode excluir o usuário que está simulando atualmente no topo.', 'danger');
+    return;
+  }
+
+  const user = users.find(u => u.id === chave);
+  const temHistorico = history.some(h => h.usuarioId === chave);
+  if (temHistorico) {
+    showBanner('Não é possível excluir colaboradores que possuem histórico de apoios.', 'danger');
+    return;
+  }
+
+  if (confirm(`Tem certeza que deseja excluir o usuário ${user.nome} (${chave.toUpperCase()})?`)) {
+    users = users.filter(u => u.id !== chave);
+    showBanner(`Usuário ${user.nome} excluído com sucesso.`, 'info');
+    persistChanges();
+    renderUsersTable();
   }
 }
 
@@ -726,29 +999,29 @@ function renderFormGroupsOptions() {
   });
   selectGrupo.innerHTML = html;
 
-  // Preencher usuários aptos no formulário de auto-registro
   const selectRegUsuario = document.getElementById('reg-usuario');
   let userHtml = '';
-  users.filter(u => u.tipo === 'APOIADOR').forEach(u => {
+  users.filter(u => u.tipo === 'OPERADOR').forEach(u => {
     userHtml += `<option value="${u.id}">${u.nome} (${u.cargo})</option>`;
   });
   selectRegUsuario.innerHTML = userHtml;
+  
+  // Re-ligar listener se mudou
+  selectRegUsuario.removeEventListener('change', checkLateSubmission);
   selectRegUsuario.addEventListener('change', () => {
     checkLateSubmission();
     updatePointsPreview();
   });
 
-  // Preencher usuários na modal de infrações
   const selectInfUsuario = document.getElementById('inf-usuario');
   let infHtml = '';
-  users.filter(u => u.tipo === 'APOIADOR').forEach(u => {
+  users.filter(u => u.tipo === 'OPERADOR').forEach(u => {
     infHtml += `<option value="${u.id}">${u.nome} (${u.cargo})</option>`;
   });
   selectInfUsuario.innerHTML = infHtml;
 }
 
 function renderRulesCheckboxes() {
-  // Checkboxes na view de registro (R1 a R12)
   let html = '';
   SUPPORT_RULES.filter(r => r.id !== 'R13').forEach(r => {
     html += `
@@ -763,7 +1036,6 @@ function renderRulesCheckboxes() {
   });
   rulesCheckboxContainer.innerHTML = html;
 
-  // Checkboxes na modal de criação de escala
   let modalHtml = '';
   SUPPORT_RULES.filter(r => r.id !== 'R13').forEach(r => {
     modalHtml += `
@@ -775,7 +1047,6 @@ function renderRulesCheckboxes() {
   });
   modalRulesCheckboxes.innerHTML = modalHtml;
 
-  // Listeners de mudança no form de registro para atualizar a prévia de pontos
   rulesCheckboxContainer.querySelectorAll('input[type="checkbox"]').forEach(cb => {
     cb.addEventListener('change', updatePointsPreview);
   });
@@ -788,25 +1059,24 @@ function updatePointsPreview() {
   const regras = Array.from(selectedCbs).map(cb => cb.value);
 
   const isLate = isSubmissionLate();
+  const isBypassed = regBypassLimit && regBypassLimit.checked;
+  const applyPenalty = isLate && !isBypassed;
   
-  if (isLate) {
-    // Se estiver atrasado, a penalidade R13 é aplicada automaticamente, desabilitando/ignorando as outras
-    regPointsPreview.textContent = '2.00';
+  if (applyPenalty) {
+    regPointsPreview.textContent = '2.0000';
     regPointsPreview.style.color = 'var(--danger)';
     regFormulaPreview.textContent = 'R13 Penalidade (Peso 20 / 10 = 2.0)';
     
-    // Desabilitar visualmente outros checkboxes
     rulesCheckboxContainer.querySelectorAll('input[name="reg-regras"]').forEach(cb => {
       cb.disabled = true;
     });
   } else {
-    // Re-habilitar outros checkboxes
     rulesCheckboxContainer.querySelectorAll('input[name="reg-regras"]').forEach(cb => {
       cb.disabled = false;
     });
 
     if (regras.length === 0) {
-      regPointsPreview.textContent = '0.00';
+      regPointsPreview.textContent = '0.0000';
       regPointsPreview.style.color = 'var(--text-muted)';
       regFormulaPreview.textContent = 'Nenhuma característica selecionada';
       return;
@@ -831,13 +1101,10 @@ function isSubmissionLate() {
   const supportDateVal = regDataInput.value;
   if (!supportDateVal) return false;
 
-  const supportDate = new Date(supportDateVal + 'T23:59:59'); // Fim do dia do apoio
-  const simDate = new Date(simulatedCurrentDate + 'T00:00:00'); // Começo do dia simulado lançamento
+  const supportDate = new Date(supportDateVal + 'T23:59:59');
+  const simDate = new Date(simulatedCurrentDate + 'T00:00:00');
 
-  // Diferença em milissegundos
   const diffTime = simDate - supportDate;
-  
-  // 72 horas = 3 dias
   const limitMs = 3 * 24 * 60 * 60 * 1000;
   
   return diffTime > limitMs;
@@ -845,8 +1112,17 @@ function isSubmissionLate() {
 
 function checkLateSubmission() {
   const isLate = isSubmissionLate();
+  const isBypassed = regBypassLimit && regBypassLimit.checked;
+  
   if (isLate) {
     regDateWarning.style.display = 'block';
+    if (isBypassed) {
+      regDateWarning.textContent = 'ℹ️ Lançamento fora do prazo de 72h, mas a penalidade R13 foi ignorada por ajuste administrativo.';
+      regDateWarning.style.color = 'var(--warning)';
+    } else {
+      regDateWarning.textContent = '⚠️ Lançamento fora do prazo de 72 horas! Será aplicada a penalidade R13 automaticamente.';
+      regDateWarning.style.color = 'var(--danger)';
+    }
   } else {
     regDateWarning.style.display = 'none';
   }
@@ -855,16 +1131,14 @@ function checkLateSubmission() {
 
 // --- EVENT HANDLERS ---
 
-// 1. Assumir vaga direta (Escala Livre)
 function handleAssumirVagaDireta(slotId) {
-  if (!currentUser || currentUser.tipo !== 'APOIADOR') {
+  if (!currentUser || currentUser.tipo !== 'OPERADOR') {
     showBanner('Apenas apoiadores podem assumir escalas.', 'danger');
     return;
   }
 
   const slot = slots.find(s => s.id === slotId);
 
-  // Atribuir o apoio
   slots = slots.map(s => {
     if (s.id === slotId) {
       return { ...s, status: 'ATRIBUIDO', usuarioId: currentUser.id };
@@ -872,9 +1146,8 @@ function handleAssumirVagaDireta(slotId) {
     return s;
   });
 
-  // Também criar um registro concluído imediatamente no histórico
   const historyId = 'h_' + Date.now();
-  const regras = slot.regrasPrevistas || ['R1']; // Usa regras previstas ou R1 como padrão
+  const regras = slot.regrasPrevistas || ['R1'];
   
   const supportDate = new Date(slot.data + 'T00:00:00');
   const simDate = new Date(simulatedCurrentDate + 'T00:00:00');
@@ -900,9 +1173,8 @@ function handleAssumirVagaDireta(slotId) {
   persistChanges();
 }
 
-// 2. Candidatar-se na Fila de Prioridade (Art. 3º)
 function handleCandidatarDisputa(slotId) {
-  if (!currentUser || currentUser.tipo !== 'APOIADOR') {
+  if (!currentUser || currentUser.tipo !== 'OPERADOR') {
     showBanner('Apenas apoiadores podem se candidatar.', 'danger');
     return;
   }
@@ -920,8 +1192,13 @@ function handleCandidatarDisputa(slotId) {
   renderSlots();
 }
 
-// 3. Encerrar disputa e atribuir por prioridade
 function handleEncerrarDisputa(slotId) {
+  const isGestor = currentUser.tipo === 'ADMINISTRADOR' || currentUser.tipo === 'GERENTE' || currentUser.tipo === 'SUPERVISOR';
+  if (!isGestor) {
+    showBanner('Você não tem permissão para encerrar disputas.', 'danger');
+    return;
+  }
+
   const slot = slots.find(s => s.id === slotId);
   const list = candidatos[slotId] || [];
 
@@ -933,7 +1210,6 @@ function handleEncerrarDisputa(slotId) {
   const vencedor = getDisputeWinner(slotId);
   const userVencedor = users.find(u => u.id === vencedor.id);
 
-  // Atribuir na escala
   slots = slots.map(s => {
     if (s.id === slotId) {
       return { ...s, status: 'ATRIBUIDO', usuarioId: vencedor.id };
@@ -941,7 +1217,6 @@ function handleEncerrarDisputa(slotId) {
     return s;
   });
 
-  // Registrar no histórico
   const historyId = 'h_' + Date.now();
   const regras = slot.regrasPrevistas || ['R1'];
   
@@ -960,7 +1235,7 @@ function handleEncerrarDisputa(slotId) {
     regras: finalRegras,
     pontuacao: score,
     dataRegistro: new Date(simulatedCurrentDate + 'T12:00:00').toISOString(),
-    registradoPorId: currentUser.id // Admin registrou
+    registradoPorId: currentUser.id
   };
 
   history = [...history, novoHistorico];
@@ -971,7 +1246,6 @@ function handleEncerrarDisputa(slotId) {
   persistChanges();
 }
 
-// 4. Auto-registro manual de Apoio Concluído (Art. 9º)
 function handleAutoRegistroApoio(e) {
   e.preventDefault();
 
@@ -985,9 +1259,24 @@ function handleAutoRegistroApoio(e) {
   }
 
   const isLate = isSubmissionLate();
-  let regras = [];
+  const isGestor = currentUser.tipo === 'ADMINISTRADOR' || currentUser.tipo === 'GERENTE' || currentUser.tipo === 'SUPERVISOR';
+  const isBypassed = regBypassLimit && regBypassLimit.checked;
+  const applyPenalty = isLate && !isBypassed;
 
-  if (isLate) {
+  // Se for operador, aplicar restrições de hierarquia (Art. 9º)
+  if (!isGestor) {
+    if (regUserId !== currentUser.id) {
+      // Tentando registrar para outra pessoa
+      if (!isLate) {
+        showBanner('Você só pode registrar apoios dentro do prazo para si mesmo. Lançamentos para terceiros só são permitidos após 72h com a penalidade R13 aplicada.', 'danger');
+        return;
+      }
+      // Se estiver atrasado, é permitido mas com R13 forçado
+    }
+  }
+
+  let regras = [];
+  if (applyPenalty) {
     regras = ['R13'];
   } else {
     const checkedRules = rulesCheckboxContainer.querySelectorAll('input[name="reg-regras"]:checked');
@@ -1018,18 +1307,23 @@ function handleAutoRegistroApoio(e) {
   const user = users.find(u => u.id === regUserId);
   showBanner(`Apoio registrado para ${user.nome}! Pontuação calculada: ${score.toFixed(4)} pts.`, 'success');
 
-  // Reset do form
   regSubgrupoInput.value = '';
   regDataInput.value = '';
   rulesCheckboxContainer.querySelectorAll('input[name="reg-regras"]').forEach(cb => cb.checked = false);
+  if (regBypassLimit) regBypassLimit.checked = false;
   checkLateSubmission();
 
   persistChanges();
-  switchView('historico'); // Mostra a tabela de histórico
+  switchView('historico');
 }
 
-// 5. Cancelar / Reativar Vaga (Admin)
 function handleCancelarVagaAdmin(slotId) {
+  const hasPermission = currentUser.tipo === 'ADMINISTRADOR' || currentUser.tipo === 'GERENTE' || currentUser.tipo === 'SUPERVISOR';
+  if (!hasPermission) {
+    showBanner('Você não tem permissão para cancelar ou reativar escalas.', 'danger');
+    return;
+  }
+
   const slot = slots.find(s => s.id === slotId);
   const statusAtual = slot.status;
 
@@ -1048,7 +1342,6 @@ function handleCancelarVagaAdmin(slotId) {
   persistChanges();
 }
 
-// 6. Criar nova solicitação de slot de escala (Admin)
 function handleCriarSolicitacaoSlot(e) {
   e.preventDefault();
 
@@ -1094,7 +1387,6 @@ function handleCriarSolicitacaoSlot(e) {
   addModal.style.display = 'none';
   showBanner('Nova escala de apoio cadastrada!', 'success');
 
-  // Reset form
   document.getElementById('form-subgrupo').value = '';
   document.getElementById('form-data').value = '';
   document.getElementById('form-motivo').value = '';
@@ -1103,9 +1395,13 @@ function handleCriarSolicitacaoSlot(e) {
   persistChanges();
 }
 
-// 7. Aplicar Infração de WhatsApp (Art. 7º - Admin)
 function handleAplicarInfracao(e) {
   e.preventDefault();
+
+  if (currentUser.tipo !== 'ADMINISTRADOR' && currentUser.tipo !== 'GERENTE') {
+    showBanner('Apenas Administradores e Gerentes podem aplicar infrações de WhatsApp.', 'danger');
+    return;
+  }
 
   const infUserId = document.getElementById('inf-usuario').value;
   const user = users.find(u => u.id === infUserId);
@@ -1123,7 +1419,6 @@ function handleAplicarInfracao(e) {
   persistChanges();
 }
 
-// 8. Excluir Lançamento do Histórico (Admin)
 function handleExcluirHistorico(historyId) {
   const item = history.find(h => h.id === historyId);
   const user = users.find(u => u.id === item.usuarioId);
@@ -1134,7 +1429,7 @@ function handleExcluirHistorico(historyId) {
   persistChanges();
 }
 
-// --- INTEGRÇÃO WHATSAPP ---
+// --- INTEGRAÇÃO WHATSAPP ---
 function openWhatsappExporter() {
   whatsappExportArea.value = generateWhatsappTemplate();
   whatsappModal.style.display = 'flex';
@@ -1168,7 +1463,7 @@ function generateWhatsappTemplate() {
         if (s.status === 'CANCELADO') {
           userText = '*CANCELADO*';
         } else if (isDisp) {
-          userText = ''; // Mostra vazio para preencherem
+          userText = '';
         } else if (s.status === 'ATRIBUIDO') {
           userText = `${u?.nome || ''}`;
         }
