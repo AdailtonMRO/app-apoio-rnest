@@ -331,6 +331,26 @@ function handleSubstituirVaga(slotId) {
   persistChanges();
 }
 
+function handleDesistirVaga(slotId) {
+  const slot = slots.find(s => s.id === slotId);
+  if (!slot) return;
+
+  const assigneeId = slot.usuarioId;
+
+  // 1. Remover histórico correspondente para este slot/data
+  const indexToRemove = history.findIndex(h => h.usuarioId === assigneeId && h.data === slot.data);
+  if (indexToRemove !== -1) {
+    history.splice(indexToRemove, 1);
+  }
+
+  // 2. Liberar a vaga
+  slot.usuarioId = null;
+  slot.status = 'LIVRE';
+
+  showBanner('Você desistiu do apoio. A vaga está disponível novamente.', 'info');
+  persistChanges();
+}
+
 function handleIniciarEdicaoHistorico(historyId) {
   const item = history.find(h => h.id === historyId);
   if (!item) return;
@@ -640,20 +660,27 @@ function renderSlots() {
               👥 Candidatos na fila (${candList.length}):
             </span>
             <div style="display: flex; flex-direction: column; gap: 5px;">
-              ${candList.map((cid, i) => {
-                const u = users.find(user => user.id === cid);
-                const score = calculateUserPointsGeral(cid);
-                const lastDate = getUserLastSupportDate(cid);
-                const eLider = vencedor && vencedor.id === cid;
-                return `
-                  <div style="font-size: 0.72rem; display: flex; justify-content: space-between; align-items: center; color: ${eLider ? 'var(--success)' : 'var(--text-secondary)'}; font-weight: ${eLider ? 700 : 400};">
-                    <span>${i+1}. ${u?.nome || 'Desconhecido'} ${eLider ? '🏆 (Líder)' : ''}</span>
-                    <span style="font-size: 0.65rem;">
-                      ${score.toFixed(2)} pts | Último: ${lastDate ? formatDatePt(lastDate) : 'Nenhum'}
-                    </span>
-                  </div>
-                `;
-              }).join('')}
+              ${(() => {
+                const sortedCands = [...candList].sort((a, b) => {
+                  if (hasHigherPriority(a, b)) return -1;
+                  if (hasHigherPriority(b, a)) return 1;
+                  return 0;
+                });
+                return sortedCands.map((cid, i) => {
+                  const u = users.find(user => user.id === cid);
+                  const score = calculateUserPointsGeral(cid);
+                  const lastDate = getUserLastSupportDate(cid);
+                  const eLider = vencedor && vencedor.id === cid;
+                  return `
+                    <div style="font-size: 0.72rem; display: flex; justify-content: space-between; align-items: center; color: ${eLider ? 'var(--success)' : 'var(--text-secondary)'}; font-weight: ${eLider ? 700 : 400};">
+                      <span>${i+1}. ${u?.nome || 'Desconhecido'} ${eLider ? '🏆 (Líder)' : ''}</span>
+                      <span style="font-size: 0.65rem;">
+                        ${score.toFixed(2)} pts | Último: ${lastDate ? formatDatePt(lastDate) : 'Nenhum'}
+                      </span>
+                    </div>
+                  `;
+                }).join('');
+              })()}
               ${candList.length === 0 ? `
                 <span style="font-size: 0.75rem; color: var(--text-muted); font-style: italic;">
                   Nenhum voluntário inscrito na fila.
@@ -737,7 +764,9 @@ function attachSlotActionsListeners(filteredSlots) {
     // 3. Substituição/Deslocamento de voluntário por prioridade (bumping)
     else if (slot.status === 'ATRIBUIDO' && !isDisputa && currentUser.tipo === 'OPERADOR') {
       const isExcluido = currentUser.cargo === 'GPI' || currentUser.cargo === 'OPMAN';
-      if (slot.usuarioId !== currentUser.id && !isExcluido) {
+      if (slot.usuarioId === currentUser.id) {
+        actionHtml = `<button class="btn btn-danger btn-desistir-vaga" style="width: 100%;">❌ Desistir do Apoio (Liberar Vaga)</button>`;
+      } else if (!isExcluido) {
         const occupant = users.find(u => u.id === slot.usuarioId);
         const occupantIsExcluido = occupant && (occupant.cargo === 'GPI' || occupant.cargo === 'OPMAN');
         const hasPriority = occupantIsExcluido || hasHigherPriority(currentUser.id, slot.usuarioId);
@@ -789,6 +818,9 @@ function attachSlotActionsListeners(filteredSlots) {
 
     const btnSubstituir = actionContainer.querySelector('.btn-substituir');
     if (btnSubstituir) btnSubstituir.addEventListener('click', () => handleSubstituirVaga(slot.id));
+
+    const btnDesistir = actionContainer.querySelector('.btn-desistir-vaga');
+    if (btnDesistir) btnDesistir.addEventListener('click', () => handleDesistirVaga(slot.id));
 
     const btnResolver = actionContainer.querySelector('.btn-resolver-disputa');
     if (btnResolver) btnResolver.addEventListener('click', () => handleEncerrarDisputa(slot.id));
