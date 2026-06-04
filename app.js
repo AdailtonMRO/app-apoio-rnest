@@ -14,6 +14,7 @@ let currentUser = null;
 let currentView = 'escalas'; // 'escalas', 'registro', 'historico', 'usuarios'
 let activeTab = 'all';
 let editingHistoryId = null;
+let editingSlotId = null;
 
 // Data simulada atual (para testes da regra de 72h)
 let simulatedCurrentDate = '2026-06-04';
@@ -123,8 +124,8 @@ function init() {
 
   // Modais - Adicionar Escala
   btnOpenAddModal.addEventListener('click', () => addModal.style.display = 'flex');
-  btnCloseAddModal.addEventListener('click', () => addModal.style.display = 'none');
-  btnCancelAddModal.addEventListener('click', () => addModal.style.display = 'none');
+  btnCloseAddModal.addEventListener('click', handleCancelarSlotModal);
+  btnCancelAddModal.addEventListener('click', handleCancelarSlotModal);
   addSlotForm.addEventListener('submit', handleCriarSolicitacaoSlot);
 
   // Modais - WhatsApp
@@ -159,7 +160,7 @@ function init() {
 
   // Fechar modais ao clicar fora
   window.addEventListener('click', (e) => {
-    if (e.target === addModal) addModal.style.display = 'none';
+    if (e.target === addModal) handleCancelarSlotModal();
     if (e.target === whatsappModal) whatsappModal.style.display = 'none';
     if (e.target === infracaoModal) infracaoModal.style.display = 'none';
     if (e.target === userModal) userModal.style.display = 'none';
@@ -743,12 +744,15 @@ function attachSlotActionsListeners(filteredSlots) {
         `;
       }
       
-      // Cancelar Escala (Somente Admin, Gerente e Supervisor)
+      // Cancelar/Editar Escala (Somente Admin, Gerente e Supervisor)
       if (currentUser.tipo === 'ADMINISTRADOR' || currentUser.tipo === 'GERENTE' || currentUser.tipo === 'SUPERVISOR') {
         actionHtml += `
-          <div style="margin-top: 8px; display: flex; justify-content: flex-end;">
+          <div style="margin-top: 8px; display: flex; justify-content: flex-end; gap: 8px; align-items: center;">
+            <button class="btn btn-secondary btn-icon-only btn-editar-escala" style="font-size: 0.72rem; padding: 4px 8px; color: var(--info);" title="Editar Escala">
+              ✏️ Editar
+            </button>
             <button class="btn btn-secondary btn-icon-only btn-cancelar-escala" style="font-size: 0.72rem; padding: 4px 8px; color: var(--danger);">
-              ⚠️ ${slot.status === 'CANCELADO' ? 'Reativar Slot' : 'Cancelar Slot'}
+              ⚠️ ${slot.status === 'CANCELADO' ? 'Reativar' : 'Cancelar'}
             </button>
           </div>
         `;
@@ -769,6 +773,9 @@ function attachSlotActionsListeners(filteredSlots) {
 
     const btnResolver = actionContainer.querySelector('.btn-resolver-disputa');
     if (btnResolver) btnResolver.addEventListener('click', () => handleEncerrarDisputa(slot.id));
+
+    const btnEditarEscala = actionContainer.querySelector('.btn-editar-escala');
+    if (btnEditarEscala) btnEditarEscala.addEventListener('click', () => handleIniciarEdicaoEscala(slot.id));
 
     const btnCancelEscala = actionContainer.querySelector('.btn-cancelar-escala');
     if (btnCancelEscala) btnCancelEscala.addEventListener('click', () => handleCancelarVagaAdmin(slot.id));
@@ -1592,6 +1599,49 @@ function handleCancelarVagaAdmin(slotId) {
   persistChanges();
 }
 
+function handleCancelarSlotModal() {
+  addModal.style.display = 'none';
+  editingSlotId = null;
+  const titleEl = document.getElementById('add-modal-title');
+  if (titleEl) titleEl.textContent = 'Lançar Nova Solicitação de Apoio';
+  addSlotForm.reset();
+  modalRulesCheckboxes.querySelectorAll('input[name="modal-prev-regras"]').forEach(cb => cb.checked = false);
+}
+
+function handleIniciarEdicaoEscala(slotId) {
+  const slot = slots.find(s => s.id === slotId);
+  if (!slot) return;
+
+  editingSlotId = slotId;
+  addModal.style.display = 'flex';
+
+  const titleEl = document.getElementById('add-modal-title');
+  if (titleEl) titleEl.textContent = 'Editar Solicitação de Apoio';
+
+  document.getElementById('form-grupo').value = slot.grupoId;
+  document.getElementById('form-subgrupo').value = slot.subgrupo;
+  document.getElementById('form-data').value = slot.data;
+  document.getElementById('form-horario').value = slot.horario;
+  
+  const elMotivo = document.getElementById('form-motivo');
+  if (elMotivo) {
+    elMotivo.value = slot.motivo || '';
+  }
+
+  // Preencher as regras previstas
+  modalRulesCheckboxes.querySelectorAll('input[name="modal-prev-regras"]').forEach(cb => {
+    cb.checked = slot.regrasPrevistas && slot.regrasPrevistas.includes(cb.value);
+  });
+
+  // Preencher regra de candidatura (radio buttons)
+  const isDisputa = candidatos[slot.id] !== undefined;
+  if (isDisputa) {
+    document.querySelector('input[name="prioridade"][value="disputa"]').checked = true;
+  } else {
+    document.querySelector('input[name="prioridade"][value="imediata"]').checked = true;
+  }
+}
+
 function handleCriarSolicitacaoSlot(e) {
   e.preventDefault();
 
@@ -1599,7 +1649,8 @@ function handleCriarSolicitacaoSlot(e) {
   const formSubgrupo = document.getElementById('form-subgrupo').value;
   const formData = document.getElementById('form-data').value;
   const formHorario = document.getElementById('form-horario').value;
-  const formMotivo = document.getElementById('form-motivo').value;
+  const elMotivo = document.getElementById('form-motivo');
+  const formMotivo = elMotivo ? elMotivo.value : '';
   const formPrioridade = document.querySelector('input[name="prioridade"]:checked').value;
 
   const modalCbs = modalRulesCheckboxes.querySelectorAll('input[name="modal-prev-regras"]:checked');
@@ -1610,36 +1661,94 @@ function handleCriarSolicitacaoSlot(e) {
     return;
   }
 
-  const slotId = 's_' + Date.now();
-  const novoSlot = {
-    id: slotId,
-    grupoId: formGrupo,
-    subgrupo: formSubgrupo,
-    data: formData,
-    horario: formHorario,
-    status: 'LIVRE',
-    usuarioId: null,
-    observacao: '',
-    requerAprovacao: false,
-    regrasPrevistas: regrasPrevistas
-  };
+  if (editingSlotId) {
+    // 1. Encontrar o slot original para atualizar o histórico do voluntário se necessário
+    const slot = slots.find(s => s.id === editingSlotId);
+    if (slot && slot.usuarioId) {
+      history = history.map(h => {
+        if (h.usuarioId === slot.usuarioId && h.data === slot.data) {
+          const finalRegras = h.regras.includes('R13') ? ['R13'] : regrasPrevistas;
+          return {
+            ...h,
+            data: formData,
+            subgrupo: formSubgrupo,
+            regras: finalRegras,
+            pontuacao: calculateSupportScore(finalRegras)
+          };
+        }
+        return h;
+      });
+    }
 
-  if (formMotivo) {
-    novoSlot.motivo = formMotivo;
-  }
+    // 2. Atualizar o slot
+    slots = slots.map(s => {
+      if (s.id === editingSlotId) {
+        const updated = {
+          ...s,
+          grupoId: formGrupo,
+          subgrupo: formSubgrupo,
+          data: formData,
+          horario: formHorario,
+          regrasPrevistas: regrasPrevistas
+        };
+        if (formMotivo) {
+          updated.motivo = formMotivo;
+        } else {
+          delete updated.motivo;
+        }
+        return updated;
+      }
+      return s;
+    });
 
-  slots = [...slots, novoSlot];
+    // 3. Gerenciar disputa
+    if (formPrioridade === 'disputa') {
+      if (candidatos[editingSlotId] === undefined) {
+        candidatos[editingSlotId] = [];
+      }
+    } else {
+      delete candidatos[editingSlotId];
+    }
 
-  if (formPrioridade === 'disputa') {
-    candidatos[slotId] = [];
+    showBanner('Escala de apoio atualizada!', 'success');
+    editingSlotId = null;
+    const titleEl = document.getElementById('add-modal-title');
+    if (titleEl) titleEl.textContent = 'Lançar Nova Solicitação de Apoio';
+  } else {
+    // Criar novo slot
+    const slotId = 's_' + Date.now();
+    const novoSlot = {
+      id: slotId,
+      grupoId: formGrupo,
+      subgrupo: formSubgrupo,
+      data: formData,
+      horario: formHorario,
+      status: 'LIVRE',
+      usuarioId: null,
+      observacao: '',
+      requerAprovacao: false,
+      regrasPrevistas: regrasPrevistas
+    };
+
+    if (formMotivo) {
+      novoSlot.motivo = formMotivo;
+    }
+
+    slots = [...slots, novoSlot];
+
+    if (formPrioridade === 'disputa') {
+      candidatos[slotId] = [];
+    }
+
+    showBanner('Nova escala de apoio cadastrada!', 'success');
   }
 
   addModal.style.display = 'none';
-  showBanner('Nova escala de apoio cadastrada!', 'success');
 
+  // Limpar formulário
   document.getElementById('form-subgrupo').value = '';
   document.getElementById('form-data').value = '';
-  document.getElementById('form-motivo').value = '';
+  if (elMotivo) elMotivo.value = '';
   modalRulesCheckboxes.querySelectorAll('input[name="modal-prev-regras"]').forEach(cb => cb.checked = false);
 
   persistChanges();
