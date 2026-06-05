@@ -5,10 +5,11 @@
 // Se as chaves ficarem em branco, o sistema automaticamente usará o 
 // LocalStorage local como simulação.
 export const firebaseConfig = {
-  apiKey: "",
-  authDomain: "",
-  projectId: "",
-  storageBucket: "",
-  messagingSenderId: "",
-  appId: ""
+  apiKey: "AIzaSyDoogLg4L_etWVGWh7rmQuLqs30oTwG98E",
+  authDomain: "app-apoio-rnest.firebaseapp.com",
+  projectId: "app-apoio-rnest",
+  storageBucket: "app-apoio-rnest.firebasestorage.app",
+  messagingSenderId: "629818355014",
+  appId: "1:629818355014:web:271e60b7ac59b70bc28947",
+  measurementId: "G-W48Y6P625D"
 };
