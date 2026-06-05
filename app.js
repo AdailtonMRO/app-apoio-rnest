@@ -631,10 +631,21 @@ function handleSubstituirVaga(slotId) {
     history.splice(indexToRemove, 1);
   }
 
-  // 2. Reatribuir
-  slot.usuarioId = currentUser.id;
+  // 2. Verificar limite mensal de 3 apoios para o novo usuário
+  const monthlyCount = getUserMonthlySupportCount(currentUser.id, slot.data);
+  const needsAuthorization = monthlyCount >= 3;
 
-  // 3. Novo histórico
+  // 3. Reatribuir
+  slot.usuarioId = currentUser.id;
+  if (needsAuthorization) {
+    slot.requerAutorizacao = true;
+    delete slot.autorizadoPorId;
+  } else {
+    delete slot.requerAutorizacao;
+    delete slot.autorizadoPorId;
+  }
+
+  // 4. Novo histórico
   const historyId = 'h_' + Date.now();
   const regras = slot.regrasPrevistas || ['R1'];
   
@@ -657,7 +668,11 @@ function handleSubstituirVaga(slotId) {
 
   history.push(novoHistorico);
 
-  showBanner(`Você assumiu a vaga de ${oldUser?.nome || 'colaborador'} por possuir maior prioridade!`, 'success');
+  if (needsAuthorization) {
+    showBanner(`Você assumiu a vaga de ${oldUser?.nome || 'colaborador'}, mas este é o seu ${monthlyCount + 1}º apoio no mês. Aguardando autorização gerencial.`, 'warning');
+  } else {
+    showBanner(`Você assumiu a vaga de ${oldUser?.nome || 'colaborador'} por possuir maior prioridade!`, 'success');
+  }
   persistChanges();
 }
 
@@ -679,6 +694,57 @@ function handleDesistirVaga(slotId) {
 
   showBanner('Você desistiu do apoio. A vaga está disponível novamente.', 'info');
   persistChanges();
+}
+
+// --- AUTORIZAÇÃO GERENCIAL (Limite de 3 apoios/mês) ---
+
+function handleAutorizarApoio(slotId) {
+  if (!isCurrentUserGestor()) {
+    showBanner('Apenas Supervisores, Gerentes e Administradores podem autorizar apoios.', 'danger');
+    return;
+  }
+
+  const slot = slots.find(s => s.id === slotId);
+  if (!slot) return;
+
+  slots = slots.map(s => {
+    if (s.id === slotId) {
+      return { ...s, requerAutorizacao: false, autorizadoPorId: currentUser.id };
+    }
+    return s;
+  });
+
+  const user = users.find(u => u.id === slot.usuarioId);
+  showBanner(`Apoio de ${user?.nome || 'colaborador'} em ${formatDatePt(slot.data)} autorizado com sucesso!`, 'success');
+  persistChanges();
+}
+
+function handleRejeitarAutorizacao(slotId) {
+  if (!isCurrentUserGestor()) {
+    showBanner('Apenas Supervisores, Gerentes e Administradores podem rejeitar autorizações.', 'danger');
+    return;
+  }
+
+  const slot = slots.find(s => s.id === slotId);
+  if (!slot) return;
+
+  const user = users.find(u => u.id === slot.usuarioId);
+
+  if (confirm(`Rejeitar o apoio de ${user?.nome || 'colaborador'} em ${formatDatePt(slot.data)}? Isso liberará a vaga e removerá o histórico associado.`)) {
+    // 1. Remover histórico associado
+    history = history.filter(h => !(h.usuarioId === slot.usuarioId && h.data === slot.data));
+
+    // 2. Resetar o slot
+    slots = slots.map(s => {
+      if (s.id === slotId) {
+        return { ...s, status: 'LIVRE', usuarioId: null, requerAutorizacao: undefined, autorizadoPorId: undefined };
+      }
+      return s;
+    });
+
+    showBanner(`Autorização rejeitada. Vaga de ${formatDatePt(slot.data)} liberada novamente.`, 'info');
+    persistChanges();
+  }
 }
 
 function handleIniciarEdicaoHistorico(historyId) {
@@ -811,6 +877,16 @@ function calculateUserPointsGeral(userId) {
   }
 
   return parseFloat(sum.toFixed(4));
+}
+
+// Conta quantos apoios o usuário tem em um determinado mês (baseado na data do apoio)
+function getUserMonthlySupportCount(userId, dateStr) {
+  if (!dateStr) return 0;
+  const targetMonth = dateStr.substring(0, 7); // YYYY-MM
+  return history.filter(h =>
+    h.usuarioId === userId &&
+    h.data && h.data.substring(0, 7) === targetMonth
+  ).length;
 }
 
 function getDisputeWinner(slotId) {
@@ -1225,19 +1301,35 @@ function renderSlots() {
         ` : ''}
 
         <!-- Se já estiver preenchido -->
-        ${!isDisputa && slot.usuarioId ? `
+        ${!isDisputa && slot.usuarioId ? (() => {
+          const monthlyCount = getUserMonthlySupportCount(slot.usuarioId, slot.data);
+          const needsAuth = slot.requerAutorizacao && !slot.autorizadoPorId;
+          const isAuthorized = slot.autorizadoPorId;
+          const autorizador = isAuthorized ? users.find(u => u.id === slot.autorizadoPorId) : null;
+          return `
           <div class="slot-details">
             <div class="slot-assignee">
               <div>
                 <span style="font-size: 0.75rem; color: var(--text-muted); display: block;">Voluntário confirmado:</span>
                 <span class="assignee-name">${apontee?.nome || 'Desconhecido'}</span>
+                <span style="font-size: 0.7rem; color: var(--text-muted); display: block;">${monthlyCount} apoio(s) neste mês</span>
               </div>
               <span class="assignee-count" style="font-weight: bold; color: var(--info);">
                 ${calculateUserPointsGeral(slot.usuarioId).toFixed(2)} pts gerais
               </span>
             </div>
+            ${needsAuth ? `
+              <div style="margin-top: 8px; padding: 8px 12px; background: var(--warning-glow); border: 1px solid hsla(38, 92%, 50%, 0.3); border-radius: var(--radius-sm); font-size: 0.78rem; color: var(--warning);">
+                ⚠️ <strong>${monthlyCount}º apoio no mês</strong> — Aguardando autorização gerencial (limite: 3 apoios/mês sem autorização).
+              </div>
+            ` : ''}
+            ${isAuthorized ? `
+              <div style="margin-top: 8px; padding: 8px 12px; background: var(--success-glow); border: 1px solid hsla(142, 72%, 45%, 0.3); border-radius: var(--radius-sm); font-size: 0.78rem; color: var(--success);">
+                ✅ Autorizado por <strong>${autorizador ? autorizador.nome : slot.autorizadoPorId}</strong>
+              </div>
+            ` : ''}
           </div>
-        ` : ''}
+        `; })() : ''}
 
         <!-- Ações do Slot -->
         <div class="slot-actions" data-slot-id="${slot.id}">
@@ -1313,6 +1405,20 @@ function attachSlotActionsListeners(filteredSlots) {
       }
     }
 
+    // 4. Botões de Autorização Gerencial (limite de 3 apoios/mês)
+    if (slot.requerAutorizacao && !slot.autorizadoPorId && isGestor) {
+      actionHtml += `
+        <div style="margin-top: 8px; display: flex; gap: 8px;">
+          <button class="btn btn-primary btn-autorizar-apoio" style="flex: 1; background: var(--success); border: none;">
+            ✅ Autorizar Apoio
+          </button>
+          <button class="btn btn-danger btn-rejeitar-autorizacao" style="flex: 1;">
+            ❌ Rejeitar
+          </button>
+        </div>
+      `;
+    }
+
     // Ações de Gestão (Fechar Disputa, Cancelar Vaga)
     if (isGestor) {
       if (isDisputa && candList.length > 0) {
@@ -1364,6 +1470,12 @@ function attachSlotActionsListeners(filteredSlots) {
 
     const btnCancelEscala = actionContainer.querySelector('.btn-cancelar-escala');
     if (btnCancelEscala) btnCancelEscala.addEventListener('click', () => handleCancelarVagaAdmin(slot.id));
+
+    const btnAutorizar = actionContainer.querySelector('.btn-autorizar-apoio');
+    if (btnAutorizar) btnAutorizar.addEventListener('click', () => handleAutorizarApoio(slot.id));
+
+    const btnRejeitar = actionContainer.querySelector('.btn-rejeitar-autorizacao');
+    if (btnRejeitar) btnRejeitar.addEventListener('click', () => handleRejeitarAutorizacao(slot.id));
   });
 }
 
@@ -1374,6 +1486,9 @@ function renderMyPanel() {
     const score = calculateUserPointsGeral(currentUser.id);
     const lastDate = getUserLastSupportDate(currentUser.id);
     const isExcluido = currentUser.cargo === 'GPI' || currentUser.cargo === 'OPMAN';
+    const currentMonth = getTodayStr();
+    const monthlyCount = getUserMonthlySupportCount(currentUser.id, currentMonth);
+    const monthName = new Date(currentMonth + '-01T00:00:00').toLocaleDateString('pt-BR', { month: 'long' });
 
     myPanelWidget.innerHTML = `
       <h3 class="widget-title">👤 Meu Painel</h3>
@@ -1383,7 +1498,7 @@ function renderMyPanel() {
           <strong>${currentUser.nome} (${currentUser.cargo})</strong>
         </div>
         
-        <div style="display: grid; grid-template-columns: 1fr 1.2fr; gap: 10px;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
           <div>
             <span style="color: var(--text-muted); display: block;">Pontuação Geral:</span>
             <strong style="font-size: 1.2rem; color: ${isExcluido ? 'var(--text-muted)' : 'var(--info)'}">
@@ -1395,6 +1510,13 @@ function renderMyPanel() {
             <strong style="font-size: 0.85rem; color: var(--text-primary)">
               ${lastDate ? formatDatePt(lastDate) : 'Nenhum realizado'}
             </strong>
+          </div>
+          <div>
+            <span style="color: var(--text-muted); display: block;">Apoios em ${monthName}:</span>
+            <strong style="font-size: 1.2rem; color: ${monthlyCount >= 3 ? 'var(--warning)' : 'var(--success)'}">
+              ${monthlyCount}/3
+            </strong>
+            ${monthlyCount >= 3 ? '<span style="font-size: 0.65rem; color: var(--warning); display: block;">Requer autorização</span>' : ''}
           </div>
         </div>
 
@@ -1966,9 +2088,17 @@ function handleAssumirVagaDireta(slotId) {
 
   const slot = slots.find(s => s.id === slotId);
 
+  // Verificar limite mensal de 3 apoios
+  const monthlyCount = getUserMonthlySupportCount(currentUser.id, slot.data);
+  const needsAuthorization = monthlyCount >= 3;
+
   slots = slots.map(s => {
     if (s.id === slotId) {
-      return { ...s, status: 'ATRIBUIDO', usuarioId: currentUser.id };
+      const updated = { ...s, status: 'ATRIBUIDO', usuarioId: currentUser.id };
+      if (needsAuthorization) {
+        updated.requerAutorizacao = true;
+      }
+      return updated;
     }
     return s;
   });
@@ -1996,7 +2126,11 @@ function handleAssumirVagaDireta(slotId) {
 
   history = [...history, novoHistorico];
 
-  showBanner(`Vaga de apoio confirmada e registrada no histórico para ${formatDatePt(slot.data)} (${score.toFixed(2)} pts)!`, 'success');
+  if (needsAuthorization) {
+    showBanner(`Vaga assumida para ${formatDatePt(slot.data)}, mas este é o seu ${monthlyCount + 1}º apoio no mês. Aguardando autorização gerencial.`, 'warning');
+  } else {
+    showBanner(`Vaga de apoio confirmada e registrada no histórico para ${formatDatePt(slot.data)} (${score.toFixed(2)} pts)!`, 'success');
+  }
   persistChanges();
 }
 
@@ -2050,9 +2184,17 @@ function handleEncerrarDisputa(slotId) {
   const vencedor = getDisputeWinner(slotId);
   const userVencedor = users.find(u => u.id === vencedor.id);
 
+  // Verificar limite mensal de 3 apoios para o vencedor
+  const monthlyCount = getUserMonthlySupportCount(vencedor.id, slot.data);
+  const needsAuthorization = monthlyCount >= 3;
+
   slots = slots.map(s => {
     if (s.id === slotId) {
-      return { ...s, status: 'ATRIBUIDO', usuarioId: vencedor.id };
+      const updated = { ...s, status: 'ATRIBUIDO', usuarioId: vencedor.id };
+      if (needsAuthorization) {
+        updated.requerAutorizacao = true;
+      }
+      return updated;
     }
     return s;
   });
@@ -2080,7 +2222,11 @@ function handleEncerrarDisputa(slotId) {
 
   history = [...history, novoHistorico];
 
-  showBanner(`Disputa encerrada! Vaga atribuída ao líder ${userVencedor.nome} (${vencedor.score.toFixed(2)} pts gerais)`, 'success');
+  if (needsAuthorization) {
+    showBanner(`Disputa encerrada! Vaga atribuída a ${userVencedor.nome}, mas este é o ${monthlyCount + 1}º apoio dele(a) no mês. Aguardando autorização gerencial.`, 'warning');
+  } else {
+    showBanner(`Disputa encerrada! Vaga atribuída ao líder ${userVencedor.nome} (${vencedor.score.toFixed(2)} pts gerais)`, 'success');
+  }
   
   delete candidatos[slotId];
   persistChanges();
@@ -2102,6 +2248,16 @@ function handleAutoRegistroApoio(e) {
   const isGestor = isCurrentUserGestor();
   const isBypassed = regBypassLimit && regBypassLimit.checked;
   const applyPenalty = isLate && !isBypassed;
+
+  // Verificar limite mensal de 3 apoios
+  const monthlyCount = getUserMonthlySupportCount(regUserId, regData);
+  const exceedsMonthlyLimit = monthlyCount >= 3;
+
+  // Se o operador está registrando para si mesmo e excede o limite, precisa de autorização
+  if (exceedsMonthlyLimit && !isGestor && !editingHistoryId) {
+    showBanner(`Este é o ${monthlyCount + 1}º apoio de ${users.find(u => u.id === regUserId)?.nome || 'colaborador'} neste mês. Apenas um Supervisor, Gerente ou Administrador pode registrar apoios além do limite de 3/mês.`, 'danger');
+    return;
+  }
 
   // Se for operador, aplicar restrições de hierarquia (Art. 9º)
   if (!isGestor) {
