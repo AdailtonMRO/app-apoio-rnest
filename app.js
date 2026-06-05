@@ -12,6 +12,8 @@ let currentUserId = 'AB2U'; // Syan Addy Vasconcellos por padrão (Operador)
 let currentUser = null;
 let adminViewMode = 'admin'; // 'admin' ou 'operator'
 let authenticatedGoogleUser = null;
+let dbConnected = false;
+let connectionTimeout = null;
 
 // Funções Auxiliares de Permissão
 function isCurrentUserAdminOnly() {
@@ -239,6 +241,21 @@ function init() {
   registerCompletedSupportForm.addEventListener('submit', handleAutoRegistroApoio);
   document.getElementById('history-filter-user').addEventListener('change', renderHistoryTable);
 
+  // Botão de recarregar no erro de conexão
+  const btnReloadConnection = document.getElementById('btn-reload-connection-error');
+  if (btnReloadConnection) {
+    btnReloadConnection.addEventListener('click', () => {
+      window.location.reload();
+    });
+  }
+
+  // Ouvinte de status de rede offline
+  window.addEventListener('offline', () => {
+    if (isFirebaseEnabled) {
+      showConnectionError();
+    }
+  });
+
   // Preencher elementos de formulário
   renderFormGroupsOptions();
   renderRulesCheckboxes();
@@ -306,14 +323,42 @@ function init() {
 
 let unsubscribers = [];
 
+function showConnectionError() {
+  const overlay = document.getElementById('connection-error-overlay');
+  if (overlay) {
+    overlay.style.display = 'flex';
+  }
+}
+
+function hideConnectionError() {
+  const overlay = document.getElementById('connection-error-overlay');
+  if (overlay) {
+    overlay.style.display = 'none';
+  }
+}
+
 function stopRealtimeSync() {
   unsubscribers.forEach(unsub => unsub());
   unsubscribers = [];
+  if (connectionTimeout) {
+    clearTimeout(connectionTimeout);
+    connectionTimeout = null;
+  }
+  dbConnected = false;
+  hideConnectionError();
 }
 
 function setupRealtimeSync() {
   unsubscribers.forEach(unsub => unsub());
   unsubscribers = [];
+
+  dbConnected = false;
+  if (connectionTimeout) clearTimeout(connectionTimeout);
+  connectionTimeout = setTimeout(() => {
+    if (isFirebaseEnabled && !dbConnected) {
+      showConnectionError();
+    }
+  }, 6000); // 6 segundos de tolerância de conexão no carregamento inicial
 
   const defaultCandidatos = {
     's_f1': ['Ab5a', 'Kbvx'],
@@ -323,6 +368,10 @@ function setupRealtimeSync() {
 
   // Sync users
   unsubscribers.push(syncDocument('users', INITIAL_USERS, (data) => {
+    dbConnected = true;
+    hideConnectionError();
+    if (connectionTimeout) clearTimeout(connectionTimeout);
+
     users = data;
     
     if (isFirebaseEnabled && authenticatedGoogleUser) {
@@ -380,24 +429,40 @@ function setupRealtimeSync() {
 
   // Sync groups
   unsubscribers.push(syncDocument('groups', INITIAL_GROUPS, (data) => {
+    dbConnected = true;
+    hideConnectionError();
+    if (connectionTimeout) clearTimeout(connectionTimeout);
+
     groups = data;
     renderAll();
   }));
 
   // Sync slots
   unsubscribers.push(syncDocument('slots', INITIAL_SLOTS, (data) => {
+    dbConnected = true;
+    hideConnectionError();
+    if (connectionTimeout) clearTimeout(connectionTimeout);
+
     slots = data;
     renderAll();
   }));
 
   // Sync history
   unsubscribers.push(syncDocument('history', INITIAL_HISTORY, (data) => {
+    dbConnected = true;
+    hideConnectionError();
+    if (connectionTimeout) clearTimeout(connectionTimeout);
+
     history = data;
     renderAll();
   }));
 
   // Sync candidatos
   unsubscribers.push(syncDocument('candidatos', defaultCandidatos, (data) => {
+    dbConnected = true;
+    hideConnectionError();
+    if (connectionTimeout) clearTimeout(connectionTimeout);
+
     candidatos = data;
     renderAll();
   }));
