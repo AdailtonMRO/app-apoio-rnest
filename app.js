@@ -45,8 +45,15 @@ let activeTab = 'all';
 let editingHistoryId = null;
 let editingSlotId = null;
 
-// Data simulada atual (para testes da regra de 72h)
-let simulatedCurrentDate = '2026-06-04';
+// Data atual (formato YYYY-MM-DD em fuso horário local)
+function getTodayStr() {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+let simulatedCurrentDate = getTodayStr();
 
 // Candidaturas a vagas em disputa (Chaves reais correspondentes ao novo seed)
 let candidatos = {
@@ -138,8 +145,10 @@ const btnSubmitReg = document.getElementById('btn-submit-reg');
 function init() {
   loadData();
 
-  // Configurar data de hoje simulada
-  simCurrentDateInput.value = simulatedCurrentDate;
+  // Configurar data de hoje
+  if (simCurrentDateInput) {
+    simCurrentDateInput.value = simulatedCurrentDate;
+  }
   regDataLancamentoInput.value = formatDatePt(simulatedCurrentDate);
 
   // Listeners de navegação principal
@@ -148,10 +157,16 @@ function init() {
   tabBtnHistorico.addEventListener('click', () => switchView('historico'));
   tabBtnUsuarios.addEventListener('click', () => switchView('usuarios'));
 
-  // Listeners de simulação
-  roleSelect.addEventListener('change', handleRoleChange);
-  btnResetDemo.addEventListener('click', resetDemo);
-  simCurrentDateInput.addEventListener('change', handleSimDateChange);
+  // Listeners de simulação com salvaguardas (elementos removidos em produção)
+  if (roleSelect) {
+    roleSelect.addEventListener('change', handleRoleChange);
+  }
+  if (btnResetDemo) {
+    btnResetDemo.addEventListener('click', resetDemo);
+  }
+  if (simCurrentDateInput) {
+    simCurrentDateInput.addEventListener('change', handleSimDateChange);
+  }
 
   // Listener do Modo de Vista Admin (Adailton)
   const adminViewModeSelect = document.getElementById('admin-view-mode-select');
@@ -629,8 +644,10 @@ function resetDemo() {
   };
 
   currentUserId = 'AB2U'; // Syan Addy
-  simulatedCurrentDate = '2026-06-04';
-  simCurrentDateInput.value = simulatedCurrentDate;
+  simulatedCurrentDate = getTodayStr();
+  if (simCurrentDateInput) {
+    simCurrentDateInput.value = simulatedCurrentDate;
+  }
   regDataLancamentoInput.value = formatDatePt(simulatedCurrentDate);
 
   if (isFirebaseEnabled) {
@@ -740,6 +757,7 @@ function renderAll() {
 }
 
 function renderRoleSelect() {
+  if (!roleSelect) return;
   let html = '';
   
   html += '<optgroup label="Colaboradores (Apoiadores)">';
