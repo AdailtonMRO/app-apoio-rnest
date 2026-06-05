@@ -10,6 +10,32 @@ let history = [];
 // Perfil simulado ativo
 let currentUserId = 'AB2U'; // Syan Addy Vasconcellos por padrão (Operador)
 let currentUser = null;
+let adminViewMode = 'admin'; // 'admin' ou 'operator'
+
+// Funções Auxiliares de Permissão
+function isCurrentUserAdminOnly() {
+  if (!currentUser) return false;
+  if (currentUser.id === 'AB3R') {
+    return adminViewMode === 'admin';
+  }
+  return currentUser.tipo === 'ADMINISTRADOR';
+}
+
+function isCurrentUserGestor() {
+  if (!currentUser) return false;
+  if (currentUser.id === 'AB3R') {
+    return adminViewMode === 'admin';
+  }
+  return currentUser.tipo === 'ADMINISTRADOR' || currentUser.tipo === 'GERENTE' || currentUser.tipo === 'SUPERVISOR';
+}
+
+function isCurrentUserOperador() {
+  if (!currentUser) return false;
+  if (currentUser.id === 'AB3R') {
+    return adminViewMode === 'operator';
+  }
+  return currentUser.tipo === 'OPERADOR';
+}
 
 // Abas de visualização principal e escalas
 let currentView = 'escalas'; // 'escalas', 'registro', 'historico', 'usuarios'
@@ -125,6 +151,15 @@ function init() {
   btnResetDemo.addEventListener('click', resetDemo);
   simCurrentDateInput.addEventListener('change', handleSimDateChange);
 
+  // Listener do Modo de Vista Admin (Adailton)
+  const adminViewModeSelect = document.getElementById('admin-view-mode-select');
+  if (adminViewModeSelect) {
+    adminViewModeSelect.addEventListener('change', (e) => {
+      adminViewMode = e.target.value;
+      renderAll();
+    });
+  }
+
   // Modais - Adicionar Escala
   const formTipoData = document.getElementById('form-tipo-data');
   const containerDataUnica = document.getElementById('container-data-unica');
@@ -227,10 +262,17 @@ function init() {
           document.getElementById('auth-user-role').textContent = `${matched.cargo} (${matched.tipo})`;
 
           // Controle do switcher de simulação para segurança
-          const isGestor = matched.tipo === 'ADMINISTRADOR' || matched.tipo === 'GERENTE' || matched.tipo === 'SUPERVISOR';
+          const isRealAdmin = googleUser.email.toLowerCase() === 'adailton.medeiros@gmail.com' || matched.id === 'AB3R';
+          const isGestor = matched.tipo === 'ADMINISTRADOR' || matched.tipo === 'GERENTE' || matched.tipo === 'SUPERVISOR' || isRealAdmin;
           const switcher = document.getElementById('sim-role-switcher');
           if (switcher) {
             switcher.style.display = isGestor ? 'flex' : 'none';
+          }
+
+          // Alternador de modo de vista para o Adailton
+          const adminModeToggle = document.getElementById('admin-mode-toggle');
+          if (adminModeToggle) {
+            adminModeToggle.style.display = isRealAdmin ? 'flex' : 'none';
           }
           
           renderAll();
@@ -376,13 +418,13 @@ function switchView(view) {
   viewUsuarios.style.display = view === 'usuarios' ? 'block' : 'none';
 
   if (view === 'registro') {
-    const isGestor = currentUser.tipo === 'ADMINISTRADOR' || currentUser.tipo === 'GERENTE' || currentUser.tipo === 'SUPERVISOR';
+    const isGestor = isCurrentUserGestor();
     
     // Configurar o usuário atual selecionado no formulário se não estiver em edição
     if (!editingHistoryId) {
       const apoiadores = users.filter(u => u.tipo === 'OPERADOR');
       if (apoiadores.length > 0) {
-        regUsuarioSelect.value = currentUser.tipo === 'OPERADOR' ? currentUser.id : apoiadores[0].id;
+        regUsuarioSelect.value = isCurrentUserOperador() ? currentUser.id : apoiadores[0].id;
       }
     }
     
@@ -559,7 +601,7 @@ function handleRoleChange(e) {
   renderAll();
   
   // Se mudar para operador na aba de usuários, move para escalas
-  const isGestor = currentUser.tipo === 'ADMINISTRADOR' || currentUser.tipo === 'GERENTE' || currentUser.tipo === 'SUPERVISOR';
+  const isGestor = isCurrentUserGestor();
   if (!isGestor && currentView === 'usuarios') {
     switchView('escalas');
   }
@@ -722,7 +764,7 @@ function renderRoleSelect() {
 }
 
 function renderTabs() {
-  const isGestor = currentUser.tipo === 'ADMINISTRADOR' || currentUser.tipo === 'GERENTE' || currentUser.tipo === 'SUPERVISOR';
+  const isGestor = isCurrentUserGestor();
   
   // Mostrar/esconder aba de usuários com base na hierarquia
   if (isGestor) {
@@ -748,7 +790,7 @@ function renderTabs() {
 }
 
 function renderAdminBar() {
-  const isGestor = currentUser.tipo === 'ADMINISTRADOR' || currentUser.tipo === 'GERENTE' || currentUser.tipo === 'SUPERVISOR';
+  const isGestor = isCurrentUserGestor();
   
   if (isGestor) {
     adminActionsBar.style.display = 'flex';
@@ -756,7 +798,7 @@ function renderAdminBar() {
     // Configurar botões específicos conforme cargo
     const btnCreate = document.getElementById('btn-open-add-modal');
     // Admin, Gerente e Supervisor criam escala
-    if (currentUser.tipo === 'ADMINISTRADOR' || currentUser.tipo === 'GERENTE' || currentUser.tipo === 'SUPERVISOR') {
+    if (isCurrentUserGestor()) {
       btnCreate.style.display = 'inline-flex';
     } else {
       btnCreate.style.display = 'none';
@@ -764,7 +806,7 @@ function renderAdminBar() {
 
     // Apenas Admin e Gerente aplicam multas de WhatsApp
     const btnInfracao = document.getElementById('btn-open-infracao-modal');
-    if (currentUser.tipo === 'ADMINISTRADOR' || currentUser.tipo === 'GERENTE') {
+    if (isCurrentUserAdminOnly() || (currentUser && currentUser.tipo === 'GERENTE')) {
       btnInfracao.style.display = 'inline-flex';
     } else {
       btnInfracao.style.display = 'none';
@@ -903,12 +945,12 @@ function attachSlotActionsListeners(filteredSlots) {
 
     const isDisputa = candidatos[slot.id] !== undefined;
     const candList = candidatos[slot.id] || [];
-    const isGestor = currentUser.tipo === 'ADMINISTRADOR' || currentUser.tipo === 'GERENTE' || currentUser.tipo === 'SUPERVISOR';
+    const isGestor = isCurrentUserGestor();
 
     let actionHtml = '';
 
     // 1. Inscrição em vaga direta (Livre comum)
-    if (slot.status === 'LIVRE' && !isDisputa && currentUser.tipo === 'OPERADOR') {
+    if (slot.status === 'LIVRE' && !isDisputa && isCurrentUserOperador()) {
       const isExcluido = currentUser.cargo === 'GPI' || currentUser.cargo === 'OPMAN';
       if (isExcluido) {
         actionHtml = `<button class="btn btn-secondary btn-assumir" style="width: 100%;">🟢 Assumir Apoio (Função Administrativa)</button>`;
@@ -917,7 +959,7 @@ function attachSlotActionsListeners(filteredSlots) {
       }
     }
     // 2. Fila de Candidatura por Prioridade (Art. 3º)
-    else if (isDisputa && currentUser.tipo === 'OPERADOR') {
+    else if (isDisputa && isCurrentUserOperador()) {
       const jaInscrito = candList.includes(currentUser.id);
       const isExcluido = currentUser.cargo === 'GPI' || currentUser.cargo === 'OPMAN';
       
@@ -941,7 +983,7 @@ function attachSlotActionsListeners(filteredSlots) {
       }
     }
     // 3. Substituição/Deslocamento de voluntário por prioridade (bumping)
-    else if (slot.status === 'ATRIBUIDO' && !isDisputa && currentUser.tipo === 'OPERADOR') {
+    else if (slot.status === 'ATRIBUIDO' && !isDisputa && isCurrentUserOperador()) {
       const isExcluido = currentUser.cargo === 'GPI' || currentUser.cargo === 'OPMAN';
       if (slot.usuarioId === currentUser.id) {
         actionHtml = `<button class="btn btn-danger btn-desistir-vaga" style="width: 100%;">❌ Desistir do Apoio (Liberar Vaga)</button>`;
@@ -969,7 +1011,7 @@ function attachSlotActionsListeners(filteredSlots) {
       }
       
       // Cancelar/Editar Escala (Somente Admin, Gerente e Supervisor)
-      if (currentUser.tipo === 'ADMINISTRADOR' || currentUser.tipo === 'GERENTE' || currentUser.tipo === 'SUPERVISOR') {
+      if (isCurrentUserGestor()) {
         actionHtml += `
           <div style="margin-top: 8px; display: flex; justify-content: flex-end; gap: 8px; align-items: center;">
             <button class="btn btn-secondary btn-icon-only btn-editar-escala" style="font-size: 0.72rem; padding: 4px 8px; color: var(--info);" title="Editar Escala">
@@ -1013,7 +1055,7 @@ function attachSlotActionsListeners(filteredSlots) {
 }
 
 function renderMyPanel() {
-  if (currentUser && currentUser.tipo === 'OPERADOR') {
+  if (currentUser && isCurrentUserOperador()) {
     myPanelWidget.style.display = 'block';
     
     const score = calculateUserPointsGeral(currentUser.id);
@@ -1198,8 +1240,8 @@ function renderHistoryTable() {
     const user = users.find(u => u.id === h.usuarioId);
     const regBy = users.find(u => u.id === h.registradoPorId);
     
-    const canEdit = currentUser.tipo === 'ADMINISTRADOR' || currentUser.tipo === 'GERENTE' || currentUser.tipo === 'SUPERVISOR' || h.usuarioId === currentUser.id || h.registradoPorId === currentUser.id;
-    const canDelete = currentUser.tipo === 'ADMINISTRADOR';
+    const canEdit = isCurrentUserGestor() || h.usuarioId === currentUser.id || h.registradoPorId === currentUser.id;
+    const canDelete = isCurrentUserAdminOnly();
 
     html += `
       <tr>
@@ -1265,7 +1307,7 @@ function renderUsersTable() {
     return u.nome.toLowerCase().includes(query) || u.id.toLowerCase().includes(query) || u.cargo.toLowerCase().includes(query);
   });
 
-  const isOnlyAdmin = currentUser.tipo === 'ADMINISTRADOR';
+  const isOnlyAdmin = isCurrentUserAdminOnly();
 
   // Mostrar ou esconder botão de cadastrar novo usuário com base no perfil de Admin
   const btnCreate = document.getElementById('btn-open-user-modal');
@@ -1371,7 +1413,7 @@ function openUserModal(mode, id = '') {
 function handleSaveUser(e) {
   e.preventDefault();
 
-  if (currentUser.tipo !== 'ADMINISTRADOR') {
+  if (!isCurrentUserAdminOnly()) {
     showBanner('Apenas administradores podem cadastrar ou editar usuários.', 'danger');
     return;
   }
@@ -1432,7 +1474,7 @@ function handleSaveUser(e) {
 }
 
 function handleDeleteUser(chave) {
-  if (currentUser.tipo !== 'ADMINISTRADOR') {
+  if (!isCurrentUserAdminOnly()) {
     showBanner('Apenas administradores podem excluir usuários.', 'danger');
     return;
   }
@@ -1598,7 +1640,7 @@ function checkLateSubmission() {
 // --- EVENT HANDLERS ---
 
 function handleAssumirVagaDireta(slotId) {
-  if (!currentUser || currentUser.tipo !== 'OPERADOR') {
+  if (!currentUser || !isCurrentUserOperador()) {
     showBanner('Apenas apoiadores podem assumir escalas.', 'danger');
     return;
   }
@@ -1640,7 +1682,7 @@ function handleAssumirVagaDireta(slotId) {
 }
 
 function handleCandidatarDisputa(slotId) {
-  if (!currentUser || currentUser.tipo !== 'OPERADOR') {
+  if (!currentUser || !isCurrentUserOperador()) {
     showBanner('Apenas apoiadores podem se candidatar.', 'danger');
     return;
   }
@@ -1659,7 +1701,7 @@ function handleCandidatarDisputa(slotId) {
 }
 
 function handleSairDisputa(slotId) {
-  if (!currentUser || currentUser.tipo !== 'OPERADOR') {
+  if (!currentUser || !isCurrentUserOperador()) {
     return;
   }
 
@@ -1672,7 +1714,7 @@ function handleSairDisputa(slotId) {
 }
 
 function handleEncerrarDisputa(slotId) {
-  const isGestor = currentUser.tipo === 'ADMINISTRADOR' || currentUser.tipo === 'GERENTE' || currentUser.tipo === 'SUPERVISOR';
+  const isGestor = isCurrentUserGestor();
   if (!isGestor) {
     showBanner('Você não tem permissão para encerrar disputas.', 'danger');
     return;
@@ -1738,7 +1780,7 @@ function handleAutoRegistroApoio(e) {
   }
 
   const isLate = isSubmissionLate();
-  const isGestor = currentUser.tipo === 'ADMINISTRADOR' || currentUser.tipo === 'GERENTE' || currentUser.tipo === 'SUPERVISOR';
+  const isGestor = isCurrentUserGestor();
   const isBypassed = regBypassLimit && regBypassLimit.checked;
   const applyPenalty = isLate && !isBypassed;
 
@@ -1819,7 +1861,7 @@ function handleAutoRegistroApoio(e) {
 }
 
 function handleCancelarVagaAdmin(slotId) {
-  const hasPermission = currentUser.tipo === 'ADMINISTRADOR' || currentUser.tipo === 'GERENTE' || currentUser.tipo === 'SUPERVISOR';
+  const hasPermission = isCurrentUserGestor();
   if (!hasPermission) {
     showBanner('Você não tem permissão para cancelar ou reativar escalas.', 'danger');
     return;
@@ -2153,7 +2195,7 @@ function handleCriarSolicitacaoSlot(e) {
 function handleAplicarInfracao(e) {
   e.preventDefault();
 
-  if (currentUser.tipo !== 'ADMINISTRADOR' && currentUser.tipo !== 'GERENTE') {
+  if (!isCurrentUserAdminOnly() && (currentUser && currentUser.tipo !== 'GERENTE')) {
     showBanner('Apenas Administradores e Gerentes podem aplicar infrações de WhatsApp.', 'danger');
     return;
   }

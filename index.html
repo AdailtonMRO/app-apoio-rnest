@@ -68,6 +68,15 @@
             </button>
           </div>
 
+          <!-- Alternador de Modo de Vista (Apenas visível para Adailton) -->
+          <div id="admin-mode-toggle" class="role-switcher" style="display: none; align-items: center; gap: 8px;">
+            <span>Visualizar como:</span>
+            <select id="admin-view-mode-select" class="role-select" style="border-color: var(--primary-glow); font-weight: 600;">
+              <option value="admin">Administrador 🛡️</option>
+              <option value="operator">Operador 🛠️</option>
+            </select>
+          </div>
+
           <!-- Painel de Usuário Autenticado (Firebase Google Login) -->
           <div id="auth-header-panel" style="display: none; align-items: center; gap: 12px; margin-left: 12px; border-left: 1px solid var(--border-color); padding-left: 16px;">
             <div style="display: flex; flex-direction: column; align-items: flex-end;">
