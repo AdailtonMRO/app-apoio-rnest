@@ -165,6 +165,16 @@ function init() {
     tabBtnAuditoria.addEventListener('click', () => switchView('auditoria'));
   }
 
+  // Listeners de filtros da Auditoria
+  const audFilterUser = document.getElementById('auditoria-filter-user');
+  const audFilterStatus = document.getElementById('auditoria-filter-status');
+  const audFilterDateStart = document.getElementById('auditoria-filter-date-start');
+  const audFilterDateEnd = document.getElementById('auditoria-filter-date-end');
+  if (audFilterUser) audFilterUser.addEventListener('change', renderAuditoriaTable);
+  if (audFilterStatus) audFilterStatus.addEventListener('change', renderAuditoriaTable);
+  if (audFilterDateStart) audFilterDateStart.addEventListener('change', renderAuditoriaTable);
+  if (audFilterDateEnd) audFilterDateEnd.addEventListener('change', renderAuditoriaTable);
+
   // Listeners de simulação com salvaguardas (elementos removidos em produção)
   if (roleSelect) {
     roleSelect.addEventListener('change', handleRoleChange);
@@ -843,24 +853,108 @@ function renderAll() {
   renderRanking();
   renderFormGroupsOptions();
   populateHistoryFilterUsers();
+  populateAuditoriaFilterUsers();
 
   if (isCurrentUserGestor()) {
     renderAuditoriaTable();
   }
 }
 
+function populateAuditoriaFilterUsers() {
+  const filterSelect = document.getElementById('auditoria-filter-user');
+  if (!filterSelect) return;
+
+  const currentValue = filterSelect.value || 'all';
+  const sortedUsers = [...users].sort((a, b) => a.nome.localeCompare(b.nome));
+
+  let html = '<option value="all">-- Todos --</option>';
+  sortedUsers.forEach(u => {
+    html += `<option value="${u.id}">${u.nome} (${u.id.toUpperCase()})</option>`;
+  });
+
+  filterSelect.innerHTML = html;
+  filterSelect.value = currentValue;
+}
+
 function renderAuditoriaTable() {
   const tableBody = document.getElementById('auditoria-table-body');
   if (!tableBody) return;
 
-  // Filtrar apenas os slots (escalas) que foram confirmados (ATRIBUIDO)
-  const assignedSlots = slots.filter(s => s.status === 'ATRIBUIDO');
+  // Ler filtros
+  const filterUser = document.getElementById('auditoria-filter-user')?.value || 'all';
+  const filterStatus = document.getElementById('auditoria-filter-status')?.value || 'all';
+  const filterDateStart = document.getElementById('auditoria-filter-date-start')?.value || '';
+  const filterDateEnd = document.getElementById('auditoria-filter-date-end')?.value || '';
 
-  if (assignedSlots.length === 0) {
+  // Filtrar apenas os slots (escalas) que foram confirmados (ATRIBUIDO)
+  let assignedSlots = slots.filter(s => s.status === 'ATRIBUIDO');
+
+  // Aplicar filtro de usuário
+  if (filterUser !== 'all') {
+    assignedSlots = assignedSlots.filter(s => s.usuarioId === filterUser);
+  }
+
+  // Aplicar filtro de data
+  if (filterDateStart) {
+    assignedSlots = assignedSlots.filter(s => s.data >= filterDateStart);
+  }
+  if (filterDateEnd) {
+    assignedSlots = assignedSlots.filter(s => s.data <= filterDateEnd);
+  }
+
+  // Calcular estatísticas antes do filtro de status
+  let totalSlots = assignedSlots.length;
+  let totalLancados = 0;
+  let totalNaoLancados = 0;
+
+  // Pré-calcular lançamentos para cada slot
+  const slotsWithStatus = assignedSlots.map(s => {
+    const matchingHistory = history.filter(h =>
+      h.usuarioId === s.usuarioId &&
+      h.data === s.data
+    );
+    const hasMatching = matchingHistory.length > 0;
+    if (hasMatching) totalLancados++;
+    else totalNaoLancados++;
+    return { slot: s, matchingHistory, hasMatching };
+  });
+
+  // Aplicar filtro de status
+  let filteredResults = slotsWithStatus;
+  if (filterStatus === 'lancado') {
+    filteredResults = slotsWithStatus.filter(r => r.hasMatching);
+  } else if (filterStatus === 'nao_lancado') {
+    filteredResults = slotsWithStatus.filter(r => !r.hasMatching);
+  }
+
+  // Atualizar resumo
+  const summaryEl = document.getElementById('auditoria-summary');
+  if (summaryEl) {
+    summaryEl.innerHTML = `
+      <div class="glass-panel" style="padding: 12px 16px; text-align: center; border: 1px solid var(--border-color);">
+        <span style="font-size: 0.75rem; color: var(--text-muted); display: block;">Total Escalados</span>
+        <strong style="font-size: 1.3rem; color: var(--text-primary);">${totalSlots}</strong>
+      </div>
+      <div class="glass-panel" style="padding: 12px 16px; text-align: center; border: 1px solid hsla(142, 72%, 45%, 0.3);">
+        <span style="font-size: 0.75rem; color: var(--text-muted); display: block;">Lançados ✓</span>
+        <strong style="font-size: 1.3rem; color: var(--success);">${totalLancados}</strong>
+      </div>
+      <div class="glass-panel" style="padding: 12px 16px; text-align: center; border: 1px solid hsla(0, 84%, 60%, 0.3);">
+        <span style="font-size: 0.75rem; color: var(--text-muted); display: block;">Não Lançados ⚠️</span>
+        <strong style="font-size: 1.3rem; color: var(--danger);">${totalNaoLancados}</strong>
+      </div>
+      <div class="glass-panel" style="padding: 12px 16px; text-align: center; border: 1px solid var(--border-color);">
+        <span style="font-size: 0.75rem; color: var(--text-muted); display: block;">Conformidade</span>
+        <strong style="font-size: 1.3rem; color: ${totalSlots > 0 && totalNaoLancados === 0 ? 'var(--success)' : totalNaoLancados > 0 ? 'var(--warning)' : 'var(--text-primary)'}">${totalSlots > 0 ? Math.round((totalLancados / totalSlots) * 100) : 0}%</strong>
+      </div>
+    `;
+  }
+
+  if (filteredResults.length === 0) {
     tableBody.innerHTML = `
       <tr>
-        <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 20px;">
-          Nenhum apoio solicitado está confirmado ou atribuído no momento.
+        <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 20px;">
+          Nenhum apoio solicitado corresponde aos filtros selecionados.
         </td>
       </tr>
     `;
@@ -868,31 +962,23 @@ function renderAuditoriaTable() {
   }
 
   // Ordenar slots por data decrescente
-  assignedSlots.sort((a, b) => new Date(b.data) - new Date(a.data));
+  filteredResults.sort((a, b) => new Date(b.slot.data) - new Date(a.slot.data));
 
   let html = '';
 
-  assignedSlots.forEach(s => {
+  filteredResults.forEach(({ slot: s, matchingHistory, hasMatching }) => {
     const user = users.find(u => u.id === s.usuarioId);
     const group = groups.find(g => g.id === s.grupoId);
 
-    // Verificar se existe um registro correspondente no histórico
-    // Correspondência por: usuarioId e data (mesmo dia)
-    const matchingHistory = history.filter(h => 
-      h.usuarioId === s.usuarioId && 
-      h.data === s.data
-    );
-
-    const hasMatching = matchingHistory.length > 0;
-    
     let statusText = '';
     let statusBadgeClass = '';
     let historyDetails = '';
+    let registradoPorText = '';
 
     if (hasMatching) {
       statusText = 'Lançado ✓';
       statusBadgeClass = 'badge badge-open';
-      
+
       // Detalhes do registro encontrado no histórico
       historyDetails = matchingHistory.map(h => {
         const regrasText = h.regras.map(r => {
@@ -907,6 +993,22 @@ function renderAuditoriaTable() {
           </div>
         `;
       }).join('<hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.08); margin: 6px 0;">');
+
+      // Quem registrou
+      const registrador = matchingHistory[0];
+      if (registrador && registrador.registradoPorId) {
+        const regUser = users.find(u => u.id === registrador.registradoPorId);
+        registradoPorText = `
+          <div style="font-size: 0.78rem;">
+            <strong>${regUser ? regUser.nome : registrador.registradoPorId}</strong><br>
+            <span style="font-size: 0.7rem; color: var(--text-muted);">
+              Em: ${registrador.dataRegistro ? formatDatePt(registrador.dataRegistro.split('T')[0]) : '-'}
+            </span>
+          </div>
+        `;
+      } else {
+        registradoPorText = '<span style="color: var(--text-muted); font-size: 0.75rem;">Sistema</span>';
+      }
     } else {
       statusText = 'Não Lançado ⚠️';
       statusBadgeClass = 'badge badge-cancelled';
@@ -915,6 +1017,7 @@ function renderAuditoriaTable() {
           Nenhum lançamento encontrado para este operador nesta data.
         </div>
       `;
+      registradoPorText = '<span style="color: var(--danger); font-size: 0.75rem;">—</span>';
     }
 
     html += `
@@ -926,6 +1029,7 @@ function renderAuditoriaTable() {
           <strong>${user ? user.nome : 'Desconhecido'}</strong><br>
           <span style="font-size: 0.75rem; color: var(--text-muted);">${user ? user.cargo : ''} (${s.usuarioId})</span>
         </td>
+        <td>${registradoPorText}</td>
         <td style="max-width: 300px; text-align: left; vertical-align: top;">
           ${historyDetails}
         </td>
@@ -2539,7 +2643,13 @@ function showBanner(message, type = 'success') {
 }
 
 // Rodar na carga
-document.addEventListener('DOMContentLoaded', init);
-if (document.readyState === 'interactive' || document.readyState === 'complete') {
+let _initCalled = false;
+function safeInit() {
+  if (_initCalled) return;
+  _initCalled = true;
   init();
+}
+document.addEventListener('DOMContentLoaded', safeInit);
+if (document.readyState === 'interactive' || document.readyState === 'complete') {
+  safeInit();
 }

@@ -297,9 +297,40 @@
                 <div>
                   <h2>🔍 Auditoria de Apoios Solicitados vs. Lançamentos</h2>
                   <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;">
-                    Esta tabela lista todos os **Apoios Solicitados** (escalas) que foram confirmados para um colaborador (`status: ATRIBUIDO`) e verifica se existe um correspondente **Registro de Apoio** no histórico (lançamento efetuado pelo operador).
+                    Tabela de verificação cruzada: lista todos os Apoios Solicitados (escalas) confirmados para um colaborador e verifica se existe o correspondente Registro de Apoio no histórico.
                   </p>
                 </div>
+              </div>
+
+              <!-- Filtros da Auditoria -->
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 20px; align-items: end;">
+                <div class="form-group">
+                  <label class="form-label" for="auditoria-filter-user">🔎 Filtrar por Colaborador:</label>
+                  <select id="auditoria-filter-user" class="input-field">
+                    <option value="all">-- Todos --</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="auditoria-filter-status">📋 Status:</label>
+                  <select id="auditoria-filter-status" class="input-field">
+                    <option value="all">-- Todos --</option>
+                    <option value="lancado">Lançado ✓</option>
+                    <option value="nao_lancado">Não Lançado ⚠️</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="auditoria-filter-date-start">📅 De:</label>
+                  <input type="date" id="auditoria-filter-date-start" class="input-field">
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="auditoria-filter-date-end">📅 Até:</label>
+                  <input type="date" id="auditoria-filter-date-end" class="input-field">
+                </div>
+              </div>
+
+              <!-- Resumo da Auditoria -->
+              <div id="auditoria-summary" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px;">
+                <!-- Preenchido via JS -->
               </div>
 
               <div class="table-responsive">
@@ -310,8 +341,9 @@
                       <th>Grupo / Categoria</th>
                       <th>Horário</th>
                       <th>Colaborador Escalado</th>
+                      <th>Registrado Por</th>
                       <th>Registro no Histórico</th>
-                      <th>Status do Lançamento</th>
+                      <th>Status</th>
                     </tr>
                   </thead>
                   <tbody id="auditoria-table-body">
@@ -358,12 +390,13 @@
             </table>
           </div>
 
-          <!-- Info Box / Resumo da Lei -->
+          <!-- Info Box / Resumo das Regras -->
           <div class="widget glass-panel" style="background: var(--bg-input); font-size: 0.8rem; color: var(--text-muted); display: flex; flex-direction: column; gap: 10px;">
-            <strong>💡 Simulação da Lei 0001/2025:</strong>
-            <p><strong>Limite de 72 Horas:</strong> Defina a data simulada no topo. Se lançar um apoio com atraso superior a 72h, o sistema travará a penalidade `R13` (peso 20 / multiplicador 2.0).</p>
-            <p><strong>Empate no Ranking:</strong> Max e Javã iniciam empatados com 0.8 pontos. Note que Max lidera a prioridade pois seu apoio foi em 10/05/26 (mais antigo que o de Javã, 15/05/26).</p>
-            <p><strong>Multas WA:</strong> Exclusivo de Admin, adiciona 0.01 por infração na classificação do colaborador.</p>
+            <strong>💡 Regras do Sistema (Lei 0001/2025):</strong>
+            <p><strong>Limite de 72 Horas:</strong> Lançamentos feitos com mais de 72h de atraso recebem automaticamente a penalidade R13 (peso 20 / multiplicador 2.0).</p>
+            <p><strong>Empate no Ranking:</strong> Em caso de empate na pontuação, o desempate é feito pela data do apoio mais antigo (Art. 8º).</p>
+            <p><strong>Multas WA:</strong> Exclusivo de Admin/Gerente, adiciona 0.01 por infração na classificação do colaborador (Art. 7º).</p>
+            <p><strong>Exclusões:</strong> Cargos GPI e OPMAN não entram na disputa de prioridade (Art. 6º).</p>
           </div>
 
         </aside>

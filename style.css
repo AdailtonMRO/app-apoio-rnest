@@ -426,7 +426,29 @@ a:hover {
 
 @media (max-width: 600px) {
   .app-views-nav {
-    flex-direction: column;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .app-views-nav::-webkit-scrollbar {
+    display: none;
+  }
+  .view-tab-btn {
+    flex: 0 0 auto;
+    font-size: 0.82rem;
+    padding: 8px 12px;
+  }
+}
+
+/* Mobile: Auth Header Panel */
+@media (max-width: 768px) {
+  #auth-header-panel {
+    border-top: 1px solid var(--border-color);
+    padding-top: 12px;
+    width: 100%;
+    justify-content: space-between;
   }
 }
 
