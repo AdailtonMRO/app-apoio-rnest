@@ -82,10 +82,12 @@ const tabBtnEscalas = document.getElementById('tab-btn-escalas');
 const tabBtnRegistro = document.getElementById('tab-btn-registro');
 const tabBtnHistorico = document.getElementById('tab-btn-historico');
 const tabBtnUsuarios = document.getElementById('tab-btn-usuarios');
+const tabBtnAuditoria = document.getElementById('tab-btn-auditoria');
 const viewEscalas = document.getElementById('view-escalas');
 const viewRegistro = document.getElementById('view-registro');
 const viewHistorico = document.getElementById('view-historico');
 const viewUsuarios = document.getElementById('view-usuarios');
+const viewAuditoria = document.getElementById('view-auditoria');
 
 // Modais - Escalas
 const addModal = document.getElementById('add-modal');
@@ -159,6 +161,9 @@ function init() {
   tabBtnRegistro.addEventListener('click', () => switchView('registro'));
   tabBtnHistorico.addEventListener('click', () => switchView('historico'));
   tabBtnUsuarios.addEventListener('click', () => switchView('usuarios'));
+  if (tabBtnAuditoria) {
+    tabBtnAuditoria.addEventListener('click', () => switchView('auditoria'));
+  }
 
   // Listeners de simulação com salvaguardas (elementos removidos em produção)
   if (roleSelect) {
@@ -506,12 +511,22 @@ function switchView(view) {
   tabBtnRegistro.classList.toggle('active', view === 'registro');
   tabBtnHistorico.classList.toggle('active', view === 'historico');
   tabBtnUsuarios.classList.toggle('active', view === 'usuarios');
+  if (tabBtnAuditoria) {
+    tabBtnAuditoria.classList.toggle('active', view === 'auditoria');
+  }
 
   // Atualizar contêineres
   viewEscalas.style.display = view === 'escalas' ? 'block' : 'none';
   viewRegistro.style.display = view === 'registro' ? 'block' : 'none';
   viewHistorico.style.display = view === 'historico' ? 'block' : 'none';
   viewUsuarios.style.display = view === 'usuarios' ? 'block' : 'none';
+  if (viewAuditoria) {
+    viewAuditoria.style.display = view === 'auditoria' ? 'block' : 'none';
+  }
+
+  if (view === 'auditoria') {
+    renderAuditoriaTable();
+  }
 
   if (view === 'registro') {
     const isGestor = isCurrentUserGestor();
@@ -828,6 +843,102 @@ function renderAll() {
   renderRanking();
   renderFormGroupsOptions();
   populateHistoryFilterUsers();
+
+  if (isCurrentUserGestor()) {
+    renderAuditoriaTable();
+  }
+}
+
+function renderAuditoriaTable() {
+  const tableBody = document.getElementById('auditoria-table-body');
+  if (!tableBody) return;
+
+  // Filtrar apenas os slots (escalas) que foram confirmados (ATRIBUIDO)
+  const assignedSlots = slots.filter(s => s.status === 'ATRIBUIDO');
+
+  if (assignedSlots.length === 0) {
+    tableBody.innerHTML = `
+      <tr>
+        <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 20px;">
+          Nenhum apoio solicitado está confirmado ou atribuído no momento.
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  // Ordenar slots por data decrescente
+  assignedSlots.sort((a, b) => new Date(b.data) - new Date(a.data));
+
+  let html = '';
+
+  assignedSlots.forEach(s => {
+    const user = users.find(u => u.id === s.usuarioId);
+    const group = groups.find(g => g.id === s.grupoId);
+
+    // Verificar se existe um registro correspondente no histórico
+    // Correspondência por: usuarioId e data (mesmo dia)
+    const matchingHistory = history.filter(h => 
+      h.usuarioId === s.usuarioId && 
+      h.data === s.data
+    );
+
+    const hasMatching = matchingHistory.length > 0;
+    
+    let statusText = '';
+    let statusBadgeClass = '';
+    let historyDetails = '';
+
+    if (hasMatching) {
+      statusText = 'Lançado ✓';
+      statusBadgeClass = 'badge badge-open';
+      
+      // Detalhes do registro encontrado no histórico
+      historyDetails = matchingHistory.map(h => {
+        const regrasText = h.regras.map(r => {
+          const ruleObj = SUPPORT_RULES.find(rule => rule.id === r);
+          return ruleObj ? ruleObj.descricao : r;
+        }).join(', ');
+        return `
+          <div style="font-size: 0.75rem; color: var(--success); margin-top: 4px;">
+            <strong>Lançado em:</strong> ${formatDatePt(h.data)}<br>
+            <strong>Regras/Pontos:</strong> ${regrasText} (${h.pontuacao.toFixed(2)} pts)<br>
+            <strong>ID Registro:</strong> ${h.id}
+          </div>
+        `;
+      }).join('<hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.08); margin: 6px 0;">');
+    } else {
+      statusText = 'Não Lançado ⚠️';
+      statusBadgeClass = 'badge badge-cancelled';
+      historyDetails = `
+        <div style="font-size: 0.75rem; color: var(--danger); margin-top: 4px;">
+          Nenhum lançamento encontrado para este operador nesta data.
+        </div>
+      `;
+    }
+
+    html += `
+      <tr>
+        <td style="font-weight: 600;">${formatDatePt(s.data)}</td>
+        <td>${group ? group.nome : s.grupoId} (${s.subgrupo})</td>
+        <td>${s.horario}</td>
+        <td>
+          <strong>${user ? user.nome : 'Desconhecido'}</strong><br>
+          <span style="font-size: 0.75rem; color: var(--text-muted);">${user ? user.cargo : ''} (${s.usuarioId})</span>
+        </td>
+        <td style="max-width: 300px; text-align: left; vertical-align: top;">
+          ${historyDetails}
+        </td>
+        <td>
+          <span class="${statusBadgeClass}">
+            ${statusText}
+          </span>
+        </td>
+      </tr>
+    `;
+  });
+
+  tableBody.innerHTML = html;
 }
 
 function renderRoleSelect() {
@@ -862,11 +973,13 @@ function renderRoleSelect() {
 function renderTabs() {
   const isGestor = isCurrentUserGestor();
   
-  // Mostrar/esconder aba de usuários com base na hierarquia
+  // Mostrar/esconder abas de gestão com base na hierarquia
   if (isGestor) {
     tabBtnUsuarios.style.display = 'inline-flex';
+    if (tabBtnAuditoria) tabBtnAuditoria.style.display = 'inline-flex';
   } else {
     tabBtnUsuarios.style.display = 'none';
+    if (tabBtnAuditoria) tabBtnAuditoria.style.display = 'none';
   }
 
   let html = `<button class="tab-btn ${activeTab === 'all' ? 'active' : ''}" data-tab="all">Todas as Escalas</button>`;

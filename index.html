@@ -87,6 +87,7 @@
             <button id="tab-btn-registro" class="view-tab-btn">✍️ Registrar Meu Apoio</button>
             <button id="tab-btn-historico" class="view-tab-btn">📜 Histórico de Lançamentos</button>
             <button id="tab-btn-usuarios" class="view-tab-btn" style="display: none;">👥 Usuários</button>
+            <button id="tab-btn-auditoria" class="view-tab-btn" style="display: none;">🔍 Auditoria de Apoios</button>
           </div>
 
           <!-- 1. VIEW DE ESCALAS (VAGAS DISPONÍVEIS) -->
@@ -282,6 +283,38 @@
                     </tr>
                   </thead>
                   <tbody id="users-table-body">
+                    <!-- Preenchido via JS -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- 5. VIEW DE AUDITORIA DE LANÇAMENTOS -->
+          <div id="view-auditoria" class="app-view-section" style="display: none;">
+            <div class="glass-panel" style="padding: 24px;">
+              <div class="group-header" style="margin-bottom: 20px;">
+                <div>
+                  <h2>🔍 Auditoria de Apoios Solicitados vs. Lançamentos</h2>
+                  <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;">
+                    Esta tabela lista todos os **Apoios Solicitados** (escalas) que foram confirmados para um colaborador (`status: ATRIBUIDO`) e verifica se existe um correspondente **Registro de Apoio** no histórico (lançamento efetuado pelo operador).
+                  </p>
+                </div>
+              </div>
+
+              <div class="table-responsive">
+                <table class="ranking-table" style="width: 100%;">
+                  <thead>
+                    <tr>
+                      <th>Data do Apoio</th>
+                      <th>Grupo / Categoria</th>
+                      <th>Horário</th>
+                      <th>Colaborador Escalado</th>
+                      <th>Registro no Histórico</th>
+                      <th>Status do Lançamento</th>
+                    </tr>
+                  </thead>
+                  <tbody id="auditoria-table-body">
                     <!-- Preenchido via JS -->
                   </tbody>
                 </table>
