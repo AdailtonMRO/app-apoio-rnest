@@ -15,23 +15,25 @@ let adminViewMode = 'admin'; // 'admin' ou 'operator'
 // Funções Auxiliares de Permissão
 function isCurrentUserAdminOnly() {
   if (!currentUser) return false;
-  if (currentUser.id === 'AB3R') {
+  if (currentUser.tipo === 'ADMINISTRADOR') {
     return adminViewMode === 'admin';
   }
-  return currentUser.tipo === 'ADMINISTRADOR';
+  return false;
 }
 
 function isCurrentUserGestor() {
   if (!currentUser) return false;
-  if (currentUser.id === 'AB3R') {
+  const isGestorRole = currentUser.tipo === 'ADMINISTRADOR' || currentUser.tipo === 'GERENTE' || currentUser.tipo === 'SUPERVISOR';
+  if (isGestorRole) {
     return adminViewMode === 'admin';
   }
-  return currentUser.tipo === 'ADMINISTRADOR' || currentUser.tipo === 'GERENTE' || currentUser.tipo === 'SUPERVISOR';
+  return false;
 }
 
 function isCurrentUserOperador() {
   if (!currentUser) return false;
-  if (currentUser.id === 'AB3R') {
+  const isGestorRole = currentUser.tipo === 'ADMINISTRADOR' || currentUser.tipo === 'GERENTE' || currentUser.tipo === 'SUPERVISOR';
+  if (isGestorRole) {
     return adminViewMode === 'operator';
   }
   return currentUser.tipo === 'OPERADOR';
@@ -269,10 +271,10 @@ function init() {
             switcher.style.display = isGestor ? 'flex' : 'none';
           }
 
-          // Alternador de modo de vista para o Adailton
+          // Alternador de modo de vista para gestores
           const adminModeToggle = document.getElementById('admin-mode-toggle');
           if (adminModeToggle) {
-            adminModeToggle.style.display = isRealAdmin ? 'flex' : 'none';
+            adminModeToggle.style.display = isGestor ? 'flex' : 'none';
           }
           
           renderAll();
@@ -422,7 +424,7 @@ function switchView(view) {
     
     // Configurar o usuário atual selecionado no formulário se não estiver em edição
     if (!editingHistoryId) {
-      const apoiadores = users.filter(u => u.tipo === 'OPERADOR');
+      const apoiadores = users.filter(u => u.cargo !== 'GPI' && u.cargo !== 'OPMAN');
       if (apoiadores.length > 0) {
         regUsuarioSelect.value = isCurrentUserOperador() ? currentUser.id : apoiadores[0].id;
       }
@@ -460,7 +462,6 @@ function populateHistoryFilterUsers() {
   const currentValue = filterSelect.value || 'all';
   
   const sortedOperators = users
-    .filter(u => u.tipo === 'OPERADOR')
     .sort((a, b) => a.nome.localeCompare(b.nome));
     
   let html = '<option value="all">-- Todos os Colaboradores --</option>';
@@ -754,8 +755,11 @@ function renderRoleSelect() {
   
   html += '<optgroup label="Gestão (Administradores/Supervisores)">';
   users.filter(u => u.tipo !== 'OPERADOR').forEach(u => {
+    const score = calculateUserPointsGeral(u.id);
+    const isExcluido = u.cargo === 'GPI' || u.cargo === 'OPMAN';
+    const scoreLabel = isExcluido ? 'Sem Classif.' : `${score.toFixed(2)} pts`;
     html += `<option value="${u.id}" ${u.id === currentUserId ? 'selected' : ''}>
-      ${u.nome} (${u.cargo} | ${u.tipo})
+      ${u.nome} (${u.cargo} | ${scoreLabel} | ${u.tipo})
     </option>`;
   });
   html += '</optgroup>';
@@ -1108,7 +1112,7 @@ function renderRanking() {
   
   // Apoiadores válidos para classificação (filtra quem tem score > 0.0 de acordo com o pedido 9)
   const classificados = users
-    .filter(u => u.tipo === 'OPERADOR' && u.cargo !== 'GPI' && u.cargo !== 'OPMAN')
+    .filter(u => u.cargo !== 'GPI' && u.cargo !== 'OPMAN')
     .map(u => {
       return {
         ...u,
@@ -1159,7 +1163,7 @@ function renderRanking() {
   });
 
   // Mostrar não-classificados no rodapé
-  const naoClassificados = users.filter(u => u.tipo === 'OPERADOR' && (u.cargo === 'GPI' || u.cargo === 'OPMAN'));
+  const naoClassificados = users.filter(u => u.cargo === 'GPI' || u.cargo === 'OPMAN');
   if (naoClassificados.length > 0) {
     html += `
       <tr style="background: hsla(222, 47%, 5%, 0.5);"><td colspan="4" style="font-size: 0.7rem; color: var(--text-muted); text-align: center; border-bottom: none; padding: 6px;">Excluídos da Classificação (Art. 6º)</td></tr>
@@ -1509,7 +1513,10 @@ function renderFormGroupsOptions() {
 
   const selectRegUsuario = document.getElementById('reg-usuario');
   let userHtml = '';
-  users.filter(u => u.tipo === 'OPERADOR').forEach(u => {
+  const sortedRegUsers = [...users]
+    .filter(u => u.cargo !== 'GPI' && u.cargo !== 'OPMAN')
+    .sort((a, b) => a.nome.localeCompare(b.nome));
+  sortedRegUsers.forEach(u => {
     userHtml += `<option value="${u.id}">${u.nome} (${u.cargo})</option>`;
   });
   selectRegUsuario.innerHTML = userHtml;
@@ -1523,7 +1530,10 @@ function renderFormGroupsOptions() {
 
   const selectInfUsuario = document.getElementById('inf-usuario');
   let infHtml = '';
-  users.filter(u => u.tipo === 'OPERADOR').forEach(u => {
+  const sortedInfUsers = [...users]
+    .filter(u => u.cargo !== 'GPI' && u.cargo !== 'OPMAN')
+    .sort((a, b) => a.nome.localeCompare(b.nome));
+  sortedInfUsers.forEach(u => {
     infHtml += `<option value="${u.id}">${u.nome} (${u.cargo})</option>`;
   });
   selectInfUsuario.innerHTML = infHtml;
