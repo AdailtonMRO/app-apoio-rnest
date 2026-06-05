@@ -637,6 +637,11 @@ function handleSimDateChange(e) {
 }
 
 function resetDemo() {
+  if (isFirebaseEnabled) {
+    showBanner('Ação desabilitada: A base de dados de produção do Firebase não pode ser resetada.', 'danger');
+    return;
+  }
+
   const defaultCandidatos = {
     's_f1': ['Ab5a', 'Kbvx'],
     's_f2': ['Ab3r'],
@@ -650,25 +655,15 @@ function resetDemo() {
   }
   regDataLancamentoInput.value = formatDatePt(simulatedCurrentDate);
 
-  if (isFirebaseEnabled) {
-    users = INITIAL_USERS;
-    groups = INITIAL_GROUPS;
-    slots = INITIAL_SLOTS;
-    history = INITIAL_HISTORY;
-    candidatos = defaultCandidatos;
-    
-    persistChanges();
-  } else {
-    localStorage.removeItem('rnest_law_users_v5');
-    localStorage.removeItem('rnest_law_groups_v5');
-    localStorage.removeItem('rnest_law_slots_v5');
-    localStorage.removeItem('rnest_law_history_v5');
-    localStorage.removeItem('rnest_law_candidatos_v5');
+  localStorage.removeItem('rnest_law_users_v5');
+  localStorage.removeItem('rnest_law_groups_v5');
+  localStorage.removeItem('rnest_law_slots_v5');
+  localStorage.removeItem('rnest_law_history_v5');
+  localStorage.removeItem('rnest_law_candidatos_v5');
 
-    candidatos = defaultCandidatos;
-    loadData();
-    renderAll();
-  }
+  candidatos = defaultCandidatos;
+  loadData();
+  renderAll();
   showBanner('Simulação e histórico resetados!', 'info');
 }
 
