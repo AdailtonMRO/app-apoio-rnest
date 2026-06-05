@@ -11,6 +11,7 @@ let history = [];
 let currentUserId = 'AB2U'; // Syan Addy Vasconcellos por padrão (Operador)
 let currentUser = null;
 let adminViewMode = 'admin'; // 'admin' ou 'operator'
+let authenticatedGoogleUser = null;
 
 // Funções Auxiliares de Permissão
 function isCurrentUserAdminOnly() {
@@ -259,51 +260,21 @@ function init() {
     // 2. Ouvir mudanças de autenticação
     onAuthChange((googleUser) => {
       if (googleUser) {
-        // Encontrar usuário correspondente
-        const matched = users.find(u => 
-          u.email.toLowerCase() === googleUser.email.toLowerCase() ||
-          u.id.toLowerCase() === googleUser.email.split('@')[0].toLowerCase()
-        );
-
-        if (matched) {
-          currentUser = matched;
-          currentUserId = matched.id;
-          
-          // Esconder tela de login
-          if (loginOverlay) loginOverlay.style.display = 'none';
-          document.getElementById('login-error-message').style.display = 'none';
-
-          // Atualizar cabeçalho de autenticação
-          document.getElementById('auth-header-panel').style.display = 'flex';
-          document.getElementById('auth-user-name').textContent = googleUser.displayName || matched.nome;
-          document.getElementById('auth-user-role').textContent = `${matched.cargo} (${matched.tipo})`;
-
-          // Controle do switcher de simulação para segurança
-          const isRealAdmin = googleUser.email.toLowerCase() === 'adailton.medeiros@gmail.com' || matched.id === 'AB3R';
-          const isGestor = matched.tipo === 'ADMINISTRADOR' || matched.tipo === 'GERENTE' || matched.tipo === 'SUPERVISOR' || isRealAdmin;
-          const switcher = document.getElementById('sim-role-switcher');
-          if (switcher) {
-            switcher.style.display = isGestor ? 'flex' : 'none';
-          }
-
-          // Alternador de modo de vista para gestores
-          const adminModeToggle = document.getElementById('admin-mode-toggle');
-          if (adminModeToggle) {
-            adminModeToggle.style.display = isGestor ? 'flex' : 'none';
-          }
-          
-          renderAll();
-        } else {
-          // Usuário logado mas não cadastrado
-          document.getElementById('login-error-message').style.display = 'block';
-          logout();
-        }
+        authenticatedGoogleUser = googleUser;
+        // Iniciar sincro em tempo real
+        setupRealtimeSync();
       } else {
+        authenticatedGoogleUser = null;
+        stopRealtimeSync();
+
         if (loginOverlay) loginOverlay.style.display = 'flex';
         document.getElementById('auth-header-panel').style.display = 'none';
         
         const switcher = document.getElementById('sim-role-switcher');
         if (switcher) switcher.style.display = 'none';
+
+        const adminModeToggle = document.getElementById('admin-mode-toggle');
+        if (adminModeToggle) adminModeToggle.style.display = 'none';
       }
     });
 
@@ -326,9 +297,6 @@ function init() {
         logout();
       });
     }
-
-    // 4. Iniciar sincro em tempo real
-    setupRealtimeSync();
   } else {
     // Modo clássico LocalStorage
     loadData();
@@ -337,6 +305,11 @@ function init() {
 }
 
 let unsubscribers = [];
+
+function stopRealtimeSync() {
+  unsubscribers.forEach(unsub => unsub());
+  unsubscribers = [];
+}
 
 function setupRealtimeSync() {
   unsubscribers.forEach(unsub => unsub());
@@ -351,7 +324,48 @@ function setupRealtimeSync() {
   // Sync users
   unsubscribers.push(syncDocument('users', INITIAL_USERS, (data) => {
     users = data;
-    if (currentUser) {
+    
+    if (isFirebaseEnabled && authenticatedGoogleUser) {
+      // Encontrar usuário correspondente
+      const matched = users.find(u => 
+        u.email.toLowerCase() === authenticatedGoogleUser.email.toLowerCase() ||
+        u.id.toLowerCase() === authenticatedGoogleUser.email.split('@')[0].toLowerCase()
+      );
+
+      if (matched) {
+        currentUser = matched;
+        currentUserId = matched.id;
+
+        // Esconder tela de login
+        const loginOverlay = document.getElementById('login-overlay');
+        if (loginOverlay) loginOverlay.style.display = 'none';
+        document.getElementById('login-error-message').style.display = 'none';
+
+        // Atualizar cabeçalho de autenticação
+        document.getElementById('auth-header-panel').style.display = 'flex';
+        document.getElementById('auth-user-name').textContent = authenticatedGoogleUser.displayName || matched.nome;
+        document.getElementById('auth-user-role').textContent = `${matched.cargo} (${matched.tipo})`;
+
+        // Controle do switcher de simulação para segurança
+        const isRealAdmin = authenticatedGoogleUser.email.toLowerCase() === 'adailton.medeiros@gmail.com' || matched.id === 'AB3R';
+        const isGestor = matched.tipo === 'ADMINISTRADOR' || matched.tipo === 'GERENTE' || matched.tipo === 'SUPERVISOR' || isRealAdmin;
+        const switcher = document.getElementById('sim-role-switcher');
+        if (switcher) {
+          switcher.style.display = isGestor ? 'flex' : 'none';
+        }
+
+        // Alternador de modo de vista para gestores
+        const adminModeToggle = document.getElementById('admin-mode-toggle');
+        if (adminModeToggle) {
+          adminModeToggle.style.display = isGestor ? 'flex' : 'none';
+        }
+      } else {
+        // Usuário logado mas não cadastrado
+        document.getElementById('login-error-message').style.display = 'block';
+        logout();
+        return; // não renderiza nada ainda
+      }
+    } else if (currentUser) {
       const updatedUser = users.find(u => u.id === currentUser.id);
       if (updatedUser) {
         currentUser = updatedUser;
