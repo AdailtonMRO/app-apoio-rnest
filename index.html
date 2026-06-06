@@ -94,6 +94,12 @@
 
           <!-- 1. VIEW DE ESCALAS (VAGAS DISPONÍVEIS) -->
           <div id="view-escalas" class="app-view-section">
+            <!-- Abas para filtrar por Data: Apoios Futuros vs Apoios Anteriores -->
+            <div id="date-filter-container" class="tab-container" style="border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-bottom: 16px;">
+              <button id="btn-date-future" class="tab-btn active">📅 Apoios Solicitados (Atuais e Futuros)</button>
+              <button id="btn-date-past" class="tab-btn">⏳ Apoios Anteriores (Histórico)</button>
+            </div>
+
             <!-- Tabs para filtrar Categorias de Escalas -->
             <div id="tab-container" class="tab-container">
               <!-- Preenchido via JS -->
@@ -114,7 +120,7 @@
 
             <div class="group-section">
               <div class="group-header">
-                <h2>Apoios Solicitados</h2>
+                <h2 id="slots-title">Apoios Solicitados</h2>
                 <span id="slots-count" style="font-size: 0.85rem; color: var(--text-muted);">
                   0 vaga(s) encontrada(s)
                 </span>

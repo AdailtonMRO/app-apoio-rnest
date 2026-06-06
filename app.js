@@ -45,6 +45,7 @@ function isCurrentUserOperador() {
 // Abas de visualização principal e escalas
 let currentView = 'escalas'; // 'escalas', 'registro', 'historico', 'usuarios'
 let activeTab = 'all';
+let escalaDateFilter = 'future'; // 'future' ou 'past'
 let editingHistoryId = null;
 let editingSlotId = null;
 
@@ -68,6 +69,9 @@ const simCurrentDateInput = document.getElementById('sim-current-date');
 const tabContainer = document.getElementById('tab-container');
 const slotsCount = document.getElementById('slots-count');
 const slotsGrid = document.getElementById('slots-grid');
+const slotsTitle = document.getElementById('slots-title');
+const btnDateFuture = document.getElementById('btn-date-future');
+const btnDatePast = document.getElementById('btn-date-past');
 const myPanelWidget = document.getElementById('my-panel-widget');
 const rankingTableBody = document.getElementById('ranking-table-body');
 const notificationContainer = document.getElementById('notification-container');
@@ -171,6 +175,24 @@ function init() {
   }
   if (tabBtnRelatorios) {
     tabBtnRelatorios.addEventListener('click', () => switchView('relatorios'));
+  }
+
+  // Listeners de filtros de data para escalas
+  if (btnDateFuture && btnDatePast) {
+    btnDateFuture.addEventListener('click', () => {
+      escalaDateFilter = 'future';
+      btnDateFuture.classList.add('active');
+      btnDatePast.classList.remove('active');
+      if (slotsTitle) slotsTitle.textContent = 'Apoios Solicitados';
+      renderSlots();
+    });
+    btnDatePast.addEventListener('click', () => {
+      escalaDateFilter = 'past';
+      btnDatePast.classList.add('active');
+      btnDateFuture.classList.remove('active');
+      if (slotsTitle) slotsTitle.textContent = 'Apoios Anteriores (Histórico)';
+      renderSlots();
+    });
   }
 
   // Listeners de filtros da Auditoria
@@ -861,6 +883,12 @@ function resetDemo() {
   localStorage.removeItem('rnest_law_candidatos_v5');
 
   candidatos = defaultCandidatos;
+  escalaDateFilter = 'future';
+  if (btnDateFuture && btnDatePast) {
+    btnDateFuture.classList.add('active');
+    btnDatePast.classList.remove('active');
+  }
+  if (slotsTitle) slotsTitle.textContent = 'Apoios Solicitados';
   loadData();
   renderAll();
   showBanner('Simulação e histórico resetados!', 'info');
@@ -1241,7 +1269,15 @@ function renderAdminBar() {
 
 function renderSlots() {
   let filtered = [...slots];
-  filtered.sort((a, b) => new Date(a.data) - new Date(b.data));
+  
+  // Filtrar por data conforme a aba ativa
+  if (escalaDateFilter === 'future') {
+    filtered = filtered.filter(s => s.data >= simulatedCurrentDate);
+    filtered.sort((a, b) => new Date(a.data) - new Date(b.data));
+  } else if (escalaDateFilter === 'past') {
+    filtered = filtered.filter(s => s.data < simulatedCurrentDate);
+    filtered.sort((a, b) => new Date(b.data) - new Date(a.data)); // mais recente primeiro para as passadas
+  }
 
   if (activeTab !== 'all') {
     filtered = filtered.filter(s => s.grupoId === activeTab);
