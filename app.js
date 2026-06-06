@@ -673,6 +673,11 @@ function handleSubstituirVaga(slotId) {
   const slot = slots.find(s => s.id === slotId);
   if (!slot) return;
 
+  if (slot.data < simulatedCurrentDate) {
+    showBanner('Não é possível substituir vagas de apoio do histórico (datas passadas).', 'danger');
+    return;
+  }
+
   const oldAssigneeId = slot.usuarioId;
   const oldUser = users.find(u => u.id === oldAssigneeId);
 
@@ -730,6 +735,11 @@ function handleSubstituirVaga(slotId) {
 function handleDesistirVaga(slotId) {
   const slot = slots.find(s => s.id === slotId);
   if (!slot) return;
+
+  if (slot.data < simulatedCurrentDate) {
+    showBanner('Não é possível desistir de vagas de apoio do histórico (datas passadas).', 'danger');
+    return;
+  }
 
   const assigneeId = slot.usuarioId;
 
@@ -1305,7 +1315,8 @@ function renderSlots() {
     const regrasPrevistas = slot.regrasPrevistas || [];
     const pesoPrevisao = calculateSupportScore(regrasPrevistas);
 
-    const cardStatusClass = isDisputa ? 'pendente' : slot.status.toLowerCase();
+    const isPast = slot.data < simulatedCurrentDate;
+    const cardStatusClass = isPast ? 'concluido' : (isDisputa ? 'pendente' : slot.status.toLowerCase());
 
     html += `
       <div class="slot-card glass-panel status-${cardStatusClass}">
@@ -1314,9 +1325,9 @@ function renderSlots() {
           ${isDisputa ? `
             <span class="badge badge-pending">Em Disputa</span>
           ` : `
-            <span class="badge badge-${slot.status.toLowerCase()}">
-              ${slot.status === 'LIVRE' ? 'Disponível' : 
-                slot.status === 'CANCELADO' ? 'Cancelado' : 'Fechada'}
+            <span class="badge ${isPast ? 'badge-concluido' : `badge-${slot.status.toLowerCase()}`}">
+              ${isPast ? 'Concluído' : (slot.status === 'LIVRE' ? 'Disponível' : 
+                slot.status === 'CANCELADO' ? 'Cancelado' : 'Fechada')}
             </span>
           `}
         </div>
@@ -1421,96 +1432,112 @@ function attachSlotActionsListeners(filteredSlots) {
     const isDisputa = false; // Vagas são apenas de acesso Direto
     const candList = [];
     const isGestor = isCurrentUserGestor();
+    const isPast = slot.data < simulatedCurrentDate;
+    const isAdmin = isCurrentUserAdminOnly();
 
     let actionHtml = '';
 
-    // 1. Inscrição em vaga direta (Livre comum)
-    if (slot.status === 'LIVRE' && !isDisputa && isCurrentUserOperador()) {
-      const isExcluido = currentUser.cargo === 'GPI' || currentUser.cargo === 'OPMAN';
-      if (isExcluido) {
-        actionHtml = `<button class="btn btn-secondary btn-assumir" style="width: 100%;">🟢 Assumir Apoio (Função Administrativa)</button>`;
-      } else {
-        actionHtml = `<button class="btn btn-primary btn-assumir" style="width: 100%;">🟢 Assumir Apoio Rápido</button>`;
-      }
-    }
-    // 2. Fila de Candidatura por Prioridade (Art. 3º)
-    else if (isDisputa && isCurrentUserOperador()) {
-      const jaInscrito = candList.includes(currentUser.id);
-      const isExcluido = currentUser.cargo === 'GPI' || currentUser.cargo === 'OPMAN';
-      
-      if (isExcluido) {
-        actionHtml = `<button class="btn btn-secondary" style="width: 100%; cursor: not-allowed;" disabled>⚠️ GPI/OPMAN não disputam prioridade</button>`;
-      } else {
-        if (jaInscrito) {
-          actionHtml = `
-            <div style="display: flex; flex-direction: column; gap: 6px; width: 100%;">
-              <span style="font-size: 0.85rem; color: var(--success); font-weight: bold; text-align: center;">✓ Você está na fila</span>
-              <button class="btn btn-danger btn-candidatar-sair" style="width: 100%;">❌ Sair da Fila</button>
-            </div>
-          `;
-        } else {
-          actionHtml = `
-            <button class="btn btn-secondary btn-candidatar" style="width: 100%; border-color: var(--warning); color: var(--warning);">
-              ⏳ Candidatar-se à Vaga
-            </button>
-          `;
-        }
-      }
-    }
-    // 3. Substituição/Deslocamento de voluntário por prioridade (bumping)
-    else if (slot.status === 'ATRIBUIDO' && !isDisputa && isCurrentUserOperador()) {
-      const isExcluido = currentUser.cargo === 'GPI' || currentUser.cargo === 'OPMAN';
-      if (slot.usuarioId === currentUser.id) {
-        actionHtml = `<button class="btn btn-danger btn-desistir-vaga" style="width: 100%;">❌ Desistir do Apoio (Liberar Vaga)</button>`;
-      } else if (!isExcluido) {
-        const occupant = users.find(u => u.id === slot.usuarioId);
-        const occupantIsExcluido = occupant && (occupant.cargo === 'GPI' || occupant.cargo === 'OPMAN');
-        const hasPriority = occupantIsExcluido || hasHigherPriority(currentUser.id, slot.usuarioId);
-        
-        if (hasPriority) {
-          actionHtml = `<button class="btn btn-primary btn-substituir" style="width: 100%;">🔄 Substituir (Maior Prioridade)</button>`;
-        } else {
-          actionHtml = `<button class="btn btn-secondary" style="width: 100%; cursor: not-allowed;" disabled>🔒 Ocupado (Maior Prioridade)</button>`;
-        }
-      }
-    }
-
-    // 4. Botões de Autorização Gerencial (limite de 3 apoios/mês)
-    if (slot.requerAutorizacao && !slot.autorizadoPorId && isGestor) {
-      actionHtml += `
-        <div style="margin-top: 8px; display: flex; gap: 8px;">
-          <button class="btn btn-primary btn-autorizar-apoio" style="flex: 1; background: var(--success); border: none;">
-            ✅ Autorizar Apoio
-          </button>
-          <button class="btn btn-danger btn-rejeitar-autorizacao" style="flex: 1;">
-            ❌ Rejeitar
-          </button>
-        </div>
-      `;
-    }
-
-    // Ações de Gestão (Fechar Disputa, Cancelar Vaga)
-    if (isGestor) {
-      if (isDisputa && candList.length > 0) {
-        actionHtml += `
-          <button class="btn btn-primary btn-resolver-disputa" style="width: 100%; background: var(--warning); color: black; margin-top: 8px;">
-            🔒 Fechar Janela e Atribuir ao Líder
-          </button>
-        `;
-      }
-      
-      // Cancelar/Editar Escala (Somente Admin, Gerente e Supervisor)
-      if (isCurrentUserGestor()) {
-        actionHtml += `
-          <div style="margin-top: 8px; display: flex; justify-content: flex-end; gap: 8px; align-items: center;">
-            <button class="btn btn-secondary btn-icon-only btn-editar-escala" style="font-size: 0.72rem; padding: 4px 8px; color: var(--info);" title="Editar Escala">
-              ✏️ Editar
-            </button>
-            <button class="btn btn-secondary btn-icon-only btn-cancelar-escala" style="font-size: 0.72rem; padding: 4px 8px; color: var(--danger);">
-              ⚠️ ${slot.status === 'CANCELADO' ? 'Reativar' : 'Cancelar'}
+    if (isPast) {
+      if (isAdmin) {
+        actionHtml = `
+          <div style="margin-top: 8px; display: flex; justify-content: flex-end; gap: 8px; align-items: center; width: 100%;">
+            <button class="btn btn-secondary btn-icon-only btn-editar-escala" style="font-size: 0.72rem; padding: 4px 8px; color: var(--info); width: 100%;" title="Editar Escala">
+              ✏️ Editar Apoio Concluído
             </button>
           </div>
         `;
+      } else {
+        actionHtml = '';
+      }
+    } else {
+      // 1. Inscrição em vaga direta (Livre comum)
+      if (slot.status === 'LIVRE' && !isDisputa && isCurrentUserOperador()) {
+        const isExcluido = currentUser.cargo === 'GPI' || currentUser.cargo === 'OPMAN';
+        if (isExcluido) {
+          actionHtml = `<button class="btn btn-secondary btn-assumir" style="width: 100%;">🟢 Assumir Apoio (Função Administrativa)</button>`;
+        } else {
+          actionHtml = `<button class="btn btn-primary btn-assumir" style="width: 100%;">🟢 Assumir Apoio Rápido</button>`;
+        }
+      }
+      // 2. Fila de Candidatura por Prioridade (Art. 3º)
+      else if (isDisputa && isCurrentUserOperador()) {
+        const jaInscrito = candList.includes(currentUser.id);
+        const isExcluido = currentUser.cargo === 'GPI' || currentUser.cargo === 'OPMAN';
+        
+        if (isExcluido) {
+          actionHtml = `<button class="btn btn-secondary" style="width: 100%; cursor: not-allowed;" disabled>⚠️ GPI/OPMAN não disputam prioridade</button>`;
+        } else {
+          if (jaInscrito) {
+            actionHtml = `
+              <div style="display: flex; flex-direction: column; gap: 6px; width: 100%;">
+                <span style="font-size: 0.85rem; color: var(--success); font-weight: bold; text-align: center;">✓ Você está na fila</span>
+                <button class="btn btn-danger btn-candidatar-sair" style="width: 100%;">❌ Sair da Fila</button>
+              </div>
+            `;
+          } else {
+            actionHtml = `
+              <button class="btn btn-secondary btn-candidatar" style="width: 100%; border-color: var(--warning); color: var(--warning);">
+                ⏳ Candidatar-se à Vaga
+              </button>
+            `;
+          }
+        }
+      }
+      // 3. Substituição/Deslocamento de voluntário por prioridade (bumping)
+      else if (slot.status === 'ATRIBUIDO' && !isDisputa && isCurrentUserOperador()) {
+        const isExcluido = currentUser.cargo === 'GPI' || currentUser.cargo === 'OPMAN';
+        if (slot.usuarioId === currentUser.id) {
+          actionHtml = `<button class="btn btn-danger btn-desistir-vaga" style="width: 100%;">❌ Desistir do Apoio (Liberar Vaga)</button>`;
+        } else if (!isExcluido) {
+          const occupant = users.find(u => u.id === slot.usuarioId);
+          const occupantIsExcluido = occupant && (occupant.cargo === 'GPI' || occupant.cargo === 'OPMAN');
+          const hasPriority = occupantIsExcluido || hasHigherPriority(currentUser.id, slot.usuarioId);
+          
+          if (hasPriority) {
+            actionHtml = `<button class="btn btn-primary btn-substituir" style="width: 100%;">🔄 Substituir (Maior Prioridade)</button>`;
+          } else {
+            actionHtml = `<button class="btn btn-secondary" style="width: 100%; cursor: not-allowed;" disabled>🔒 Ocupado (Maior Prioridade)</button>`;
+          }
+        }
+      }
+
+      // 4. Botões de Autorização Gerencial (limite de 3 apoios/mês)
+      if (slot.requerAutorizacao && !slot.autorizadoPorId && isGestor) {
+        actionHtml += `
+          <div style="margin-top: 8px; display: flex; gap: 8px;">
+            <button class="btn btn-primary btn-autorizar-apoio" style="flex: 1; background: var(--success); border: none;">
+              ✅ Autorizar Apoio
+            </button>
+            <button class="btn btn-danger btn-rejeitar-autorizacao" style="flex: 1;">
+              ❌ Rejeitar
+            </button>
+          </div>
+        `;
+      }
+
+      // Ações de Gestão (Fechar Disputa, Cancelar Vaga)
+      if (isGestor) {
+        if (isDisputa && candList.length > 0) {
+          actionHtml += `
+            <button class="btn btn-primary btn-resolver-disputa" style="width: 100%; background: var(--warning); color: black; margin-top: 8px;">
+              🔒 Fechar Janela e Atribuir ao Líder
+            </button>
+          `;
+        }
+        
+        // Cancelar/Editar Escala (Somente Admin, Gerente e Supervisor)
+        if (isCurrentUserGestor()) {
+          actionHtml += `
+            <div style="margin-top: 8px; display: flex; justify-content: flex-end; gap: 8px; align-items: center;">
+              <button class="btn btn-secondary btn-icon-only btn-editar-escala" style="font-size: 0.72rem; padding: 4px 8px; color: var(--info);" title="Editar Escala">
+                ✏️ Editar
+              </button>
+              <button class="btn btn-secondary btn-icon-only btn-cancelar-escala" style="font-size: 0.72rem; padding: 4px 8px; color: var(--danger);">
+                ⚠️ ${slot.status === 'CANCELADO' ? 'Reativar' : 'Cancelar'}
+              </button>
+            </div>
+          `;
+        }
       }
     }
 
@@ -2158,6 +2185,12 @@ function handleAssumirVagaDireta(slotId) {
   }
 
   const slot = slots.find(s => s.id === slotId);
+  if (!slot) return;
+
+  if (slot.data < simulatedCurrentDate) {
+    showBanner('Não é possível assumir vagas de apoio do histórico (datas passadas).', 'danger');
+    return;
+  }
 
   // Verificar limite mensal de 3 apoios
   const monthlyCount = getUserMonthlySupportCount(currentUser.id, slot.data);
@@ -2468,6 +2501,13 @@ function handleIniciarEdicaoEscala(slotId) {
   const slot = slots.find(s => s.id === slotId);
   if (!slot) return;
 
+  const isPast = slot.data < simulatedCurrentDate;
+  const isAdmin = isCurrentUserAdminOnly();
+  if (isPast && !isAdmin) {
+    showBanner('Apenas administradores podem editar escalas anteriores (histórico).', 'danger');
+    return;
+  }
+
   editingSlotId = slotId;
   addModal.style.display = 'flex';
 
@@ -2526,6 +2566,13 @@ function handleExcluirSlotAdmin() {
   const slot = slots.find(s => s.id === editingSlotId);
   if (!slot) return;
 
+  const isPast = slot.data < simulatedCurrentDate;
+  const isAdmin = isCurrentUserAdminOnly();
+  if (isPast && !isAdmin) {
+    showBanner('Apenas administradores podem excluir escalas anteriores (histórico).', 'danger');
+    return;
+  }
+
   // Se tiver um voluntário confirmado, precisamos de confirmação extra
   const msg = slot.usuarioId 
     ? `Esta escala possui o voluntário confirmado "${users.find(u => u.id === slot.usuarioId)?.nome || 'desconhecido'}". Deseja realmente excluí-la? (O histórico de apoios dele associado a este dia também será removido).`
@@ -2573,6 +2620,15 @@ function handleCriarSolicitacaoSlot(e) {
   let datesToCreate = [];
 
   if (editingSlotId) {
+    const originalSlot = slots.find(s => s.id === editingSlotId);
+    if (originalSlot) {
+      const isPast = originalSlot.data < simulatedCurrentDate;
+      const isAdmin = isCurrentUserAdminOnly();
+      if (isPast && !isAdmin) {
+        showBanner('Apenas administradores podem editar escalas anteriores (histórico).', 'danger');
+        return;
+      }
+    }
     // Modo de edição: sempre data única
     const formData = document.getElementById('form-data').value;
     if (!formData) {

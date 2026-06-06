@@ -259,6 +259,12 @@ a:hover {
   border: 1px solid hsla(0, 84%, 60%, 0.3);
 }
 
+.badge-concluido {
+  background-color: hsla(150, 80%, 40%, 0.15);
+  color: hsl(150, 80%, 75%);
+  border: 1px solid hsla(150, 80%, 40%, 0.3);
+}
+
 .app-container {
   display: flex;
   flex-direction: column;
