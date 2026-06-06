@@ -126,6 +126,13 @@ const userFormNivel = document.getElementById('user-form-nivel');
 const userSearchInput = document.getElementById('user-search-input');
 const usersTableBody = document.getElementById('users-table-body');
 
+// Modal - Lei de Apoio
+const leiModal = document.getElementById('lei-modal');
+const btnOpenLeiModal = document.getElementById('btn-open-lei-modal');
+const btnCloseLeiModal = document.getElementById('btn-close-lei-modal');
+const btnCloseLeiModalOk = document.getElementById('btn-close-lei-modal-ok');
+const leiModalBody = document.getElementById('lei-modal-body');
+
 // Formulário de Auto-Registro
 const regUsuarioSelect = document.getElementById('reg-usuario');
 const regSubgrupoInput = document.getElementById('reg-subgrupo');
@@ -245,6 +252,20 @@ function init() {
   userForm.addEventListener('submit', handleSaveUser);
   userSearchInput.addEventListener('keyup', renderUsersTable);
 
+  // Modal - Lei de Apoio
+  if (btnOpenLeiModal) {
+    btnOpenLeiModal.addEventListener('click', (e) => {
+      e.preventDefault();
+      openLeiModal();
+    });
+  }
+  if (btnCloseLeiModal) {
+    btnCloseLeiModal.addEventListener('click', () => leiModal.style.display = 'none');
+  }
+  if (btnCloseLeiModalOk) {
+    btnCloseLeiModalOk.addEventListener('click', () => leiModal.style.display = 'none');
+  }
+
   // Formulário de Auto-Registro - Eventos
   regDataInput.addEventListener('change', checkLateSubmission);
   regBypassLimit.addEventListener('change', updatePointsPreview);
@@ -277,6 +298,7 @@ function init() {
     if (e.target === whatsappModal) whatsappModal.style.display = 'none';
     if (e.target === infracaoModal) infracaoModal.style.display = 'none';
     if (e.target === userModal) userModal.style.display = 'none';
+    if (e.target === leiModal) leiModal.style.display = 'none';
   });
 
   // Render inicial se não estiver no modo Firebase (no modo Firebase, renderiza após carregar os documentos)
@@ -2794,6 +2816,98 @@ function showBanner(message, type = 'success') {
   banner.querySelector('button').addEventListener('click', () => {
     banner.remove();
   });
+}
+
+// --- LEI DE APOIO POPUP & MARKDOWN PARSER ---
+
+async function openLeiModal() {
+  leiModal.style.display = 'flex';
+  leiModalBody.innerHTML = '<div style="text-align: center; padding: 20px;">Carregando regulamento... ⏳</div>';
+  
+  try {
+    const res = await fetch('./lei_apoio.md');
+    if (!res.ok) throw new Error('Não foi possível carregar o arquivo lei_apoio.md');
+    const mdText = await res.text();
+    leiModalBody.innerHTML = parseMarkdown(mdText);
+  } catch (error) {
+    console.error(error);
+    leiModalBody.innerHTML = `
+      <div style="text-align: center; padding: 20px; color: var(--danger);">
+        ⚠️ Erro ao carregar o regulamento local: ${error.message}.
+      </div>
+    `;
+  }
+}
+
+function parseMarkdown(md) {
+  let html = md;
+  
+  // Clean carriage returns
+  html = html.replace(/\r\n/g, '\n');
+  
+  // Headers
+  html = html.replace(/^# (.*$)/gim, '<h1 style="font-size: 1.4rem; font-family: var(--font-heading); margin-top: 16px; margin-bottom: 12px; color: var(--info); text-align: center;">$1</h1>');
+  html = html.replace(/^## (.*$)/gim, '<h2 style="font-size: 1.15rem; font-family: var(--font-heading); margin-top: 16px; margin-bottom: 10px; color: var(--text-primary); border-bottom: 1px solid var(--border-color); padding-bottom: 4px;">$1</h2>');
+  html = html.replace(/^### (.*$)/gim, '<h3 style="font-size: 1.0rem; font-family: var(--font-heading); margin-top: 12px; margin-bottom: 8px; color: var(--text-secondary);">$1</h3>');
+  
+  // Bold
+  html = html.replace(/\*\*(.*?)\*\*/g, '<strong style="color: var(--text-primary);">$1</strong>');
+  
+  // Links
+  html = html.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" style="color: var(--info); text-decoration: underline;">$1</a>');
+  html = html.replace(/<(https?:\/\/.*?)>/g, '<a href="$1" target="_blank" style="color: var(--info); text-decoration: underline;">$1</a>');
+  
+  // Lines parsing for tables & lists
+  const lines = html.split('\n');
+  let inTable = false;
+  let tableHtml = '';
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (line.startsWith('|') && line.endsWith('|')) {
+      if (!inTable) {
+        inTable = true;
+        tableHtml = '<div class="table-responsive" style="margin-top: 15px; margin-bottom: 15px;"><table class="ranking-table" style="width:100%;"><thead>';
+      }
+      
+      const cols = line.split('|').map(c => c.trim()).filter((c, idx, arr) => idx > 0 && idx < arr.length - 1);
+      
+      if (lines[i+1] && (lines[i+1].includes('---|') || lines[i+1].includes('- |') || lines[i+1].includes('--- |'))) {
+        tableHtml += '<tr>' + cols.map(c => `<th>${c}</th>`).join('') + '</tr></thead><tbody>';
+        i++; // skip separator line
+      } else {
+        tableHtml += '<tr>' + cols.map(c => `<td>${c}</td>`).join('') + '</tr>';
+      }
+    } else {
+      if (inTable) {
+        inTable = false;
+        tableHtml += '</tbody></table></div>';
+        lines[i] = tableHtml + '\n' + lines[i];
+      }
+    }
+  }
+  html = lines.join('\n');
+  
+  // Paragraphs and lists
+  const blocks = html.split('\n\n');
+  const parsedBlocks = blocks.map(block => {
+    const trimmed = block.trim();
+    if (!trimmed) return '';
+    if (trimmed.startsWith('<h') || trimmed.startsWith('<div') || trimmed.startsWith('<table') || trimmed.startsWith('<ul') || trimmed.startsWith('<ol') || trimmed.startsWith('<p')) {
+      return trimmed;
+    }
+    // Handle list points
+    if (trimmed.startsWith('* ') || trimmed.startsWith('- ')) {
+      const items = trimmed.split('\n').map(li => {
+        const itemContent = li.replace(/^[\*\-]\s+/, '');
+        return `<li style="margin-bottom: 4px;">${itemContent}</li>`;
+      });
+      return `<ul style="margin-left: 20px; margin-bottom: 12px; color: var(--text-secondary); display: flex; flex-direction: column; gap: 4px;">${items.join('')}</ul>`;
+    }
+    return `<p style="margin-bottom: 12px; line-height: 1.6; color: var(--text-secondary);">${trimmed.replace(/\n/g, '<br>')}</p>`;
+  });
+  
+  return parsedBlocks.join('\n');
 }
 
 // Rodar na carga
