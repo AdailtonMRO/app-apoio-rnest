@@ -1502,7 +1502,8 @@ function renderMyPanel() {
     const isExcluido = currentUser.cargo === 'GPI' || currentUser.cargo === 'OPMAN';
     const currentMonth = getTodayStr();
     const monthlyCount = getUserMonthlySupportCount(currentUser.id, currentMonth);
-    const monthName = new Date(currentMonth + '-01T00:00:00').toLocaleDateString('pt-BR', { month: 'long' });
+    const rawMonth = new Date(currentMonth + 'T00:00:00').toLocaleDateString('pt-BR', { month: 'long' });
+    const monthName = rawMonth.charAt(0).toUpperCase() + rawMonth.slice(1);
 
     myPanelWidget.innerHTML = `
       <h3 class="widget-title">👤 Meu Painel</h3>
