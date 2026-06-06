@@ -2838,7 +2838,7 @@ function generateWhatsappTemplate() {
   let output = '';
 
   groups.forEach(group => {
-    const groupSlots = slots.filter(s => s.grupoId === group.id);
+    const groupSlots = slots.filter(s => s.grupoId === group.id && s.data >= simulatedCurrentDate);
     if (groupSlots.length === 0) return;
 
     output += `🚦*${group.nome}*\n\n`;
