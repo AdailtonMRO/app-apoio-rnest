@@ -71,14 +71,14 @@ O registro de seu apoio deverá ser feito pelo próprio, atentando para o corret
 
 **Parágrafo Segundo:** Atentar para o prazo definido no Parágrafo Único do Art. 4º.
 
-### Art. 10º
+**Parágrafo Terceiro:** O novo sistema faz o lancamento automático, mas a conferência e ajuste se necessario é de responsabilidade do apoiador.
+
+### Art. 10º - REVOGADO
 Os links para o controle e acompanhamento dos apoios são:
 
 #### Formulário de Registro
-<https://docs.google.com/forms/d/e/1FAIpQLSdMLPYl_yRCiAEcSohlHew3qZW_6SEt1-NWuEAIIN_AVjLTlw/viewform?usp=header>
 
 #### Planilha de Acompanhamento
-<https://docs.google.com/spreadsheets/d/1P07q8UlghBoT_khWcMVERcNwUFIZvEqzt65BHOg0DcE/edit?usp=sharing>
 
 ### Art. 11º
 Este projeto entra em vigor na data de sua publicação.
