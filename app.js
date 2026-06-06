@@ -2744,12 +2744,12 @@ function generateWhatsappTemplate() {
       output += `\n`;
     });
 
-    output += `Obs.: Quem estiver disponível, informar o número de apoios no mês.\n`;
-    output += `Se o número de apoios for superior a 3 será solicitada autorização gerencial.\n\n`;
-    output += `Obrigado!\n\n`;
-    output += `Acesse o sistema: https://adailtonmro.github.io/app-apoio-rnest/\n`;
     output += `*-----------------------------------*\n\n`;
   });
+
+  output += `Obs.: Se o número de apoios for superior a 3 será solicitada autorização gerencial.\n`;
+  output += `Obrigado!\n\n`;
+  output += `Acesse o sistema: https://adailtonmro.github.io/app-apoio-rnest/\n`;
 
   return output;
 }
