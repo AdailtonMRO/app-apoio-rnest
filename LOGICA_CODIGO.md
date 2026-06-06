@@ -49,7 +49,7 @@ Representa cada vaga de apoio solicitada pela administração.
   "autorizadoPorId": null
 }
 ```
-*   `status`: Estado da vaga (`LIVRE` - disponível, `EM_DISPUTA` - janela de prioridade ativa, `ATRIBUIDO` - confirmada para um colaborador).
+*   `status`: Estado da vaga (`LIVRE` - disponível, `ATRIBUIDO` - confirmada para um colaborador). A opção de vagas em disputa (`EM_DISPUTA`) foi desativada, tornando todas as vagas de acesso direto.
 *   `regrasPrevistas`: Características planejadas para o apoio, usadas para simular/estimar os pontos.
 *   `requerAutorizacao`: Define se o apoio requer aprovação por exceder o limite mensal de 3 apoios.
 
@@ -69,9 +69,7 @@ Registros de apoios efetuados. É a base para a pontuação do ranking de priori
 ```
 
 ### E. Candidatos a Vagas em Disputa (`candidatos`)
-Mapa chave-valor que armazena a fila de prioridades para vagas em disputa.
-*   **Chave**: `slotId` da vaga.
-*   **Valor**: Array de IDs dos candidatos cadastrados (ex: `['AB5A', 'KBVX']`).
+*(Desativado)* Estrutura anteriormente utilizada para controlar a fila de candidaturas. Com a transição para vagas 100% de Acesso Direto, esta coleção permanece vazia (`{}`) e sem efeito no fluxo operacional.
 
 ---
 
@@ -247,10 +245,10 @@ function handleDesistirVaga(slotId) {
 Esta regra garante que nenhum operador acumule apoios em excesso no mês sem a autorização explícita de um gestor.
 
 ### A. Validação de Limite
-A verificação ocorre em três momentos:
+A verificação ocorre em dois momentos principais:
 1.  **Ao assumir diretamente** (`handleAssumirVagaDireta`).
 2.  **Ao substituir alguém** (`handleSubstituirVaga`).
-3.  **Ao encerrar uma disputa** (`handleEncerrarDisputa`).
+*(O encerramento de disputa foi desativado).*
 
 Se o usuário já possuir **3 ou mais apoios** no mês da escala, a propriedade `requerAutorizacao = true` é setada na escala.
 

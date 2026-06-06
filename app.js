@@ -58,12 +58,8 @@ function getTodayStr() {
 }
 let simulatedCurrentDate = getTodayStr();
 
-// Candidaturas a vagas em disputa (Chaves reais correspondentes ao novo seed)
-let candidatos = {
-  's_f1': ['Ab5a', 'Kbvx'], // Alan Bernardino (27.60), George Lima (21.30)
-  's_f2': ['Ab3r'],        // Adailton Medeiros (29.31)
-  's_f3': ['Kva8 ', 'ab1j']   // Java Lauriano (37.26), Isaias Moura (28.13)
-};
+// Candidaturas a vagas em disputa (Iniciada vazia para apenas Acesso Direto)
+let candidatos = {};
 
 // --- ELEMENTOS DO DOM ---
 const roleSelect = document.getElementById('role-select');
@@ -375,11 +371,7 @@ function setupRealtimeSync() {
     }
   }, 6000); // 6 segundos de tolerância de conexão no carregamento inicial
 
-  const defaultCandidatos = {
-    's_f1': ['Ab5a', 'Kbvx'],
-    's_f2': ['Ab3r'],
-    's_f3': ['Kva8 ', 'ab1j']
-  };
+  const defaultCandidatos = {};
 
   // Sync users
   unsubscribers.push(syncDocument('users', INITIAL_USERS, (data) => {
@@ -1226,8 +1218,8 @@ function renderSlots() {
 
   let html = '';
   filtered.forEach(slot => {
-    const isDisputa = candidatos[slot.id] !== undefined;
-    const candList = candidatos[slot.id] || [];
+    const isDisputa = false; // Vagas são apenas de acesso Direto
+    const candList = [];
     const vencedor = getDisputeWinner(slot.id);
     const apontee = users.find(u => u.id === slot.usuarioId);
     
@@ -1348,8 +1340,8 @@ function attachSlotActionsListeners(filteredSlots) {
     const actionContainer = slotsGrid.querySelector(`[data-slot-id="${slot.id}"]`);
     if (!actionContainer) return;
 
-    const isDisputa = candidatos[slot.id] !== undefined;
-    const candList = candidatos[slot.id] || [];
+    const isDisputa = false; // Vagas são apenas de acesso Direto
+    const candList = [];
     const isGestor = isCurrentUserGestor();
 
     let actionHtml = '';
@@ -2440,8 +2432,8 @@ function handleIniciarEdicaoEscala(slotId) {
     cb.checked = slot.regrasPrevistas && slot.regrasPrevistas.includes(cb.value);
   });
 
-  // Preencher regra de candidatura (radio buttons)
-  const isDisputa = candidatos[slot.id] !== undefined;
+  // Preencher regra de candidatura (radio buttons) - Apenas Acesso Direto
+  const isDisputa = false;
   if (isDisputa) {
     document.querySelector('input[name="prioridade"][value="disputa"]').checked = true;
   } else {
@@ -2730,7 +2722,7 @@ function generateWhatsappTemplate() {
       slotsBySubgrupo[sub].forEach(s => {
         const u = users.find(user => user.id === s.usuarioId);
         let userText = '';
-        const isDisp = candidatos[s.id] !== undefined;
+        const isDisp = false; // Vagas são apenas de acesso Direto
 
         if (s.status === 'CANCELADO') {
           userText = '*CANCELADO*';

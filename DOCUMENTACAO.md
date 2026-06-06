@@ -78,13 +78,13 @@ $$(10 / 10) \times (8 / 10) = 1.0 \times 0.8 = 0.8 \text{ pontos}$$
 ## 📅 5. Gerenciamento de Escalas e Limites Mensais
 
 ### Tipos de Vagas
-*   **Vagas de Acesso Direto**: Podem ser assumidas imediatamente por qualquer operador qualificado.
-*   **Vagas em Fila de Prioridade (Janela de Disputa)**: Vários operadores podem se inscrever na vaga. O sistema exibe em tempo real a lista de inscritos e destaca o "Líder da Disputa" (com base nas regras do ranking). O administrador clica em "Encerrar Disputa" para homologar e atribuir a vaga ao vencedor com maior prioridade.
+*   **Vagas de Acesso Direto**: Todas as vagas do sistema são de acesso direto. Elas podem ser assumidas imediatamente por qualquer operador qualificado.
+*   **Substituição por Prioridade (Bumping)**: Caso um colaborador com menor prioridade (pontuação maior no ranking) tenha assumido uma vaga, outro colaborador com maior prioridade (pontuação menor) pode clicar em "Substituir" para assumir o apoio correspondente, respeitando as regras de prioridade do ranking. A opção de criar vagas em "Fila de Prioridade / Janela de Disputa" foi removida.
 
 ### ⚠️ Regra do Limite Mensal (Autorização Gerencial)
-*   Se um operador se candidatar a uma vaga direta, for vencedor de uma disputa ou registrar um apoio e isso exceder o **limite de 3 apoios no mês** (`getUserMonthlySupportCount >= 3`), a vaga entra em status de aprovação pendente.
+*   Se um operador assumir uma vaga direta ou registrar um apoio e isso exceder o **limite de 3 apoios no mês** (`getUserMonthlySupportCount >= 3`), a vaga entra em status de aprovação pendente.
 *   O sistema exibe o aviso: **"Aguardando Aprovação Gerencial"**.
-*   Botoes especiais de **Aprovar (Autorizar)** e **Recusar (Rejeitar)** aparecem para usuários com nível de Supervisor, Gerente ou Administrador.
+*   Botões especiais de **Aprovar (Autorizar)** e **Recusar (Rejeitar)** aparecem para usuários com nível de Supervisor, Gerente ou Administrador.
 *   Se o apoio for autorizado, ele é confirmado e armazena o ID do gestor que o aprovou. Se for rejeitado, a vaga volta a ficar livre e o histórico associado é removido.
 *   No widget **"Meu Painel"**, o operador visualiza um indicador de controle mensal: "Apoios no Mês: X / 3", com alertas visuais amarelados ou avermelhados quando atinge ou supera o limite gratuito.
 

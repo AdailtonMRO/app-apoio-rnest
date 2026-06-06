@@ -463,15 +463,16 @@
               </div>
             </div>
 
-            <div class="form-group">
+            <!-- Regra de Candidatura (Apenas Acesso Direto) -->
+            <div class="form-group" style="display: none;">
               <label class="form-label">Regra de Candidatura:</label>
               <div style="display: flex; gap: 16px; margin-top: 4px;">
                 <label style="display: flex; align-items: center; gap: 6px; font-size: 0.9rem; cursor: pointer;">
-                  <input type="radio" name="prioridade" value="imediata" />
+                  <input type="radio" name="prioridade" value="imediata" checked />
                   Imediata (Quem clicar assume)
                 </label>
                 <label style="display: flex; align-items: center; gap: 6px; font-size: 0.9rem; cursor: pointer;">
-                  <input type="radio" name="prioridade" value="disputa" checked />
+                  <input type="radio" name="prioridade" value="disputa" />
                   Janela de Prioridade (Menor pontuação ganha)
                 </label>
               </div>
