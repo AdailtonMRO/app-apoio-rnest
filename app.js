@@ -2729,7 +2729,13 @@ function generateWhatsappTemplate() {
         } else if (isDisp) {
           userText = '';
         } else if (s.status === 'ATRIBUIDO') {
-          userText = `${u?.nome || ''}`;
+          if (u) {
+            const primeiroNome = u.nome ? u.nome.trim().split(' ')[0] : '';
+            const monthlyCount = getUserMonthlySupportCount(u.id, s.data);
+            userText = `${u.id.trim().toUpperCase()} - ${primeiroNome} (${monthlyCount})`;
+          } else {
+            userText = 'Desconhecido';
+          }
         }
 
         output += `${formatDatePt(s.data)} - ${s.horario}: ${userText}\n`;
