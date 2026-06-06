@@ -9,6 +9,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="./style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   </head>
   <body>
     <!-- OVERLAY DE LOGIN GOOGLE (Apenas ativo se Firebase estiver configurado) -->
@@ -88,6 +89,7 @@
             <button id="tab-btn-historico" class="view-tab-btn">📜 Histórico de Lançamentos</button>
             <button id="tab-btn-usuarios" class="view-tab-btn" style="display: none;">👥 Usuários</button>
             <button id="tab-btn-auditoria" class="view-tab-btn" style="display: none;">🔍 Auditoria de Apoios</button>
+            <button id="tab-btn-relatorios" class="view-tab-btn" style="display: none;">📊 Relatórios (KPI)</button>
           </div>
 
           <!-- 1. VIEW DE ESCALAS (VAGAS DISPONÍVEIS) -->
@@ -351,6 +353,115 @@
                   </tbody>
                 </table>
               </div>
+            </div>
+          </div>
+
+          <!-- 6. VIEW DE RELATÓRIOS KPI (GESTORES) -->
+          <div id="view-relatorios" class="app-view-section" style="display: none;">
+            <div class="kpi-dashboard">
+              <!-- Cabeçalho e Filtros -->
+              <div class="kpi-filters">
+                <div class="form-group">
+                  <label class="form-label" for="kpi-filter-month">📅 Mês:</label>
+                  <select id="kpi-filter-month" class="input-field">
+                    <option value="all">Todos os Meses</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="kpi-filter-year">📆 Ano:</label>
+                  <select id="kpi-filter-year" class="input-field">
+                    <option value="2026">2026</option>
+                  </select>
+                </div>
+                <button id="btn-kpi-export" class="btn btn-secondary" style="height: fit-content;">📋 Exportar Dados</button>
+              </div>
+
+              <!-- Cards de KPIs -->
+              <div>
+                <h3 class="kpi-section-title">📈 Indicadores Gerais</h3>
+                <div id="kpi-cards-container" class="kpi-cards-grid">
+                  <!-- Preenchido via JS -->
+                </div>
+              </div>
+
+              <!-- Gráficos -->
+              <div>
+                <h3 class="kpi-section-title">📊 Análise Visual</h3>
+                <div class="kpi-charts-grid">
+                  <div class="kpi-chart-container">
+                    <h4 class="kpi-chart-title">Apoios por Mês</h4>
+                    <div class="kpi-chart-canvas-wrapper">
+                      <canvas id="kpi-chart-monthly"></canvas>
+                    </div>
+                  </div>
+                  <div class="kpi-chart-container">
+                    <h4 class="kpi-chart-title">Apoios por Dia da Semana</h4>
+                    <div class="kpi-chart-canvas-wrapper">
+                      <canvas id="kpi-chart-weekday"></canvas>
+                    </div>
+                  </div>
+                  <div class="kpi-chart-container" style="grid-column: 1 / -1;">
+                    <h4 class="kpi-chart-title">Distribuição por Característica (Art. 4º)</h4>
+                    <div class="kpi-chart-canvas-wrapper">
+                      <canvas id="kpi-chart-rules"></canvas>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Tabela: Top Apoiadores -->
+              <div>
+                <h3 class="kpi-section-title">🏆 Top 15 Apoiadores</h3>
+                <div class="kpi-table-section">
+                  <div class="table-responsive">
+                    <table class="ranking-table" style="width: 100%;">
+                      <thead>
+                        <tr>
+                          <th style="width: 50px;">#</th>
+                          <th>Colaborador</th>
+                          <th style="text-align: center;">Qtd. Apoios</th>
+                          <th style="text-align: right;">Pontuação Acum.</th>
+                          <th style="width: 25%;">Proporção</th>
+                        </tr>
+                      </thead>
+                      <tbody id="kpi-top-apoiadores-body">
+                        <!-- Preenchido via JS -->
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Tabela: Colaboradores sem Apoio -->
+              <div>
+                <h3 class="kpi-section-title">⚠️ Colaboradores sem Apoios no Período</h3>
+                <div id="kpi-sem-apoio-container" class="kpi-table-section">
+                  <!-- Preenchido via JS -->
+                </div>
+              </div>
+
+              <!-- Tabela: Infrações WhatsApp -->
+              <div id="kpi-infracoes-section" style="display: none;">
+                <h3 class="kpi-section-title">🚩 Infrações de WhatsApp (Art. 7º)</h3>
+                <div class="kpi-table-section">
+                  <div class="table-responsive">
+                    <table class="ranking-table" style="width: 100%;">
+                      <thead>
+                        <tr>
+                          <th>Colaborador</th>
+                          <th>Chave</th>
+                          <th style="text-align: center;">Nº Infrações</th>
+                          <th style="text-align: right;">Penalidade Total</th>
+                        </tr>
+                      </thead>
+                      <tbody id="kpi-infracoes-body">
+                        <!-- Preenchido via JS -->
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
             </div>
           </div>
 

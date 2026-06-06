@@ -79,11 +79,13 @@ const tabBtnRegistro = document.getElementById('tab-btn-registro');
 const tabBtnHistorico = document.getElementById('tab-btn-historico');
 const tabBtnUsuarios = document.getElementById('tab-btn-usuarios');
 const tabBtnAuditoria = document.getElementById('tab-btn-auditoria');
+const tabBtnRelatorios = document.getElementById('tab-btn-relatorios');
 const viewEscalas = document.getElementById('view-escalas');
 const viewRegistro = document.getElementById('view-registro');
 const viewHistorico = document.getElementById('view-historico');
 const viewUsuarios = document.getElementById('view-usuarios');
 const viewAuditoria = document.getElementById('view-auditoria');
+const viewRelatorios = document.getElementById('view-relatorios');
 
 // Modais - Escalas
 const addModal = document.getElementById('add-modal');
@@ -166,6 +168,9 @@ function init() {
   tabBtnUsuarios.addEventListener('click', () => switchView('usuarios'));
   if (tabBtnAuditoria) {
     tabBtnAuditoria.addEventListener('click', () => switchView('auditoria'));
+  }
+  if (tabBtnRelatorios) {
+    tabBtnRelatorios.addEventListener('click', () => switchView('relatorios'));
   }
 
   // Listeners de filtros da Auditoria
@@ -538,6 +543,9 @@ function switchView(view) {
   if (tabBtnAuditoria) {
     tabBtnAuditoria.classList.toggle('active', view === 'auditoria');
   }
+  if (tabBtnRelatorios) {
+    tabBtnRelatorios.classList.toggle('active', view === 'relatorios');
+  }
 
   // Atualizar contêineres
   viewEscalas.style.display = view === 'escalas' ? 'block' : 'none';
@@ -547,9 +555,16 @@ function switchView(view) {
   if (viewAuditoria) {
     viewAuditoria.style.display = view === 'auditoria' ? 'block' : 'none';
   }
+  if (viewRelatorios) {
+    viewRelatorios.style.display = view === 'relatorios' ? 'block' : 'none';
+  }
 
   if (view === 'auditoria') {
     renderAuditoriaTable();
+  }
+
+  if (view === 'relatorios') {
+    renderRelatorios();
   }
 
   if (view === 'registro') {
@@ -947,6 +962,9 @@ function renderAll() {
 
   if (isCurrentUserGestor()) {
     renderAuditoriaTable();
+    if (currentView === 'relatorios') {
+      renderRelatorios();
+    }
   }
 }
 
@@ -1171,9 +1189,11 @@ function renderTabs() {
   if (isGestor) {
     tabBtnUsuarios.style.display = 'inline-flex';
     if (tabBtnAuditoria) tabBtnAuditoria.style.display = 'inline-flex';
+    if (tabBtnRelatorios) tabBtnRelatorios.style.display = 'inline-flex';
   } else {
     tabBtnUsuarios.style.display = 'none';
     if (tabBtnAuditoria) tabBtnAuditoria.style.display = 'none';
+    if (tabBtnRelatorios) tabBtnRelatorios.style.display = 'none';
   }
 
   let html = `<button class="tab-btn ${activeTab === 'all' ? 'active' : ''}" data-tab="all">Todas as Escalas</button>`;
@@ -2819,7 +2839,559 @@ function showBanner(message, type = 'success') {
   });
 }
 
+// --- RELATÓRIOS KPI (DASHBOARD DE INDICADORES) ---
+
+let kpiChartMonthly = null;
+let kpiChartWeekday = null;
+let kpiChartRules = null;
+let kpiFiltersInitialized = false;
+
+function initKpiFilters() {
+  if (kpiFiltersInitialized) return;
+  kpiFiltersInitialized = true;
+
+  const monthSelect = document.getElementById('kpi-filter-month');
+  const yearSelect = document.getElementById('kpi-filter-year');
+  const btnExport = document.getElementById('btn-kpi-export');
+
+  if (monthSelect) {
+    const meses = [
+      'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+      'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+    ];
+    monthSelect.innerHTML = '<option value="all">Todos os Meses</option>';
+    meses.forEach((m, i) => {
+      const val = String(i + 1).padStart(2, '0');
+      monthSelect.innerHTML += `<option value="${val}">${m}</option>`;
+    });
+    monthSelect.addEventListener('change', () => renderRelatorios());
+  }
+
+  if (yearSelect) {
+    // Detectar anos disponíveis no histórico
+    const anos = new Set();
+    history.forEach(h => {
+      if (h.data) anos.add(h.data.substring(0, 4));
+    });
+    if (anos.size === 0) anos.add('2026');
+    yearSelect.innerHTML = '';
+    [...anos].sort().forEach(a => {
+      yearSelect.innerHTML += `<option value="${a}">${a}</option>`;
+    });
+    yearSelect.addEventListener('change', () => renderRelatorios());
+  }
+
+  if (btnExport) {
+    btnExport.addEventListener('click', () => exportKpiCsv());
+  }
+}
+
+function getKpiFilteredHistory() {
+  const monthSelect = document.getElementById('kpi-filter-month');
+  const yearSelect = document.getElementById('kpi-filter-year');
+  const selectedMonth = monthSelect ? monthSelect.value : 'all';
+  const selectedYear = yearSelect ? yearSelect.value : '2026';
+
+  return history.filter(h => {
+    if (!h.data) return false;
+    const year = h.data.substring(0, 4);
+    const month = h.data.substring(5, 7);
+    if (year !== selectedYear) return false;
+    if (selectedMonth !== 'all' && month !== selectedMonth) return false;
+    return true;
+  });
+}
+
+function renderRelatorios() {
+  if (!isCurrentUserGestor()) return;
+
+  initKpiFilters();
+
+  const filtered = getKpiFilteredHistory();
+  const monthSelect = document.getElementById('kpi-filter-month');
+  const selectedMonth = monthSelect ? monthSelect.value : 'all';
+
+  // --- KPI CARDS ---
+  const totalApoios = filtered.length;
+
+  // Mês atual
+  const hoje = simulatedCurrentDate;
+  const mesAtual = hoje.substring(0, 7); // YYYY-MM
+  const apoiosMesAtual = history.filter(h => h.data && h.data.substring(0, 7) === mesAtual).length;
+
+  // Média de apoios por mês
+  const mesesComDados = new Set();
+  filtered.forEach(h => {
+    if (h.data) mesesComDados.add(h.data.substring(0, 7));
+  });
+  const mediaApoiosMes = mesesComDados.size > 0 ? (totalApoios / mesesComDados.size).toFixed(1) : '0';
+
+  // Colaboradores ativos (com apoio no período)
+  const colabAtivos = new Set();
+  filtered.forEach(h => colabAtivos.add(h.usuarioId));
+
+  // Taxa de penalidade R13
+  const apoiosComR13 = filtered.filter(h => h.regras && h.regras.includes('R13')).length;
+  const taxaR13 = totalApoios > 0 ? ((apoiosComR13 / totalApoios) * 100).toFixed(1) : '0.0';
+
+  // Pontuação média
+  const pontuacaoMedia = totalApoios > 0
+    ? (filtered.reduce((sum, h) => sum + h.pontuacao, 0) / totalApoios).toFixed(2)
+    : '0.00';
+
+  const cardsContainer = document.getElementById('kpi-cards-container');
+  if (cardsContainer) {
+    cardsContainer.innerHTML = `
+      <div class="kpi-card kpi-card--primary">
+        <div class="kpi-card-header">
+          <span class="kpi-label">Total de Apoios</span>
+          <span class="kpi-icon">📋</span>
+        </div>
+        <span class="kpi-value">${totalApoios}</span>
+        <span class="kpi-sublabel">No período selecionado</span>
+      </div>
+
+      <div class="kpi-card kpi-card--info">
+        <div class="kpi-card-header">
+          <span class="kpi-label">Apoios no Mês Atual</span>
+          <span class="kpi-icon">📅</span>
+        </div>
+        <span class="kpi-value">${apoiosMesAtual}</span>
+        <span class="kpi-sublabel">${formatMonthName(mesAtual)}</span>
+      </div>
+
+      <div class="kpi-card kpi-card--success">
+        <div class="kpi-card-header">
+          <span class="kpi-label">Média / Mês</span>
+          <span class="kpi-icon">📊</span>
+        </div>
+        <span class="kpi-value">${mediaApoiosMes}</span>
+        <span class="kpi-sublabel">${mesesComDados.size} mês(es) com dados</span>
+      </div>
+
+      <div class="kpi-card kpi-card--primary">
+        <div class="kpi-card-header">
+          <span class="kpi-label">Colaboradores Ativos</span>
+          <span class="kpi-icon">👥</span>
+        </div>
+        <span class="kpi-value">${colabAtivos.size}</span>
+        <span class="kpi-sublabel">Com ≥1 apoio no período</span>
+      </div>
+
+      <div class="kpi-card kpi-card--danger">
+        <div class="kpi-card-header">
+          <span class="kpi-label">Taxa Penalidade R13</span>
+          <span class="kpi-icon">⚠️</span>
+        </div>
+        <span class="kpi-value">${taxaR13}%</span>
+        <span class="kpi-sublabel">${apoiosComR13} de ${totalApoios} com atraso</span>
+      </div>
+
+      <div class="kpi-card kpi-card--warning">
+        <div class="kpi-card-header">
+          <span class="kpi-label">Pontuação Média</span>
+          <span class="kpi-icon">⚖️</span>
+        </div>
+        <span class="kpi-value">${pontuacaoMedia}</span>
+        <span class="kpi-sublabel">Média por apoio</span>
+      </div>
+    `;
+  }
+
+  // --- GRÁFICOS ---
+  renderKpiChartMonthly(filtered, selectedMonth);
+  renderKpiChartWeekday(filtered);
+  renderKpiChartRules(filtered);
+
+  // --- TABELAS ---
+  renderKpiTopApoiadores(filtered);
+  renderKpiSemApoio(filtered);
+  renderKpiInfracoes();
+}
+
+function formatMonthName(monthStr) {
+  if (!monthStr || monthStr.length < 7) return '';
+  const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+  const parts = monthStr.split('-');
+  const monthIdx = parseInt(parts[1], 10) - 1;
+  return `${meses[monthIdx] || ''} ${parts[0]}`;
+}
+
+// --- CHART: Apoios por Mês ---
+function renderKpiChartMonthly(filtered, selectedMonth) {
+  const canvas = document.getElementById('kpi-chart-monthly');
+  if (!canvas || typeof Chart === 'undefined') return;
+
+  // Agrupar por mês
+  const monthCounts = {};
+  const mesesNomes = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
+  // Se "Todos os Meses", mostrar todos os meses do ano
+  if (selectedMonth === 'all') {
+    // Inicializar todos os meses com 0
+    mesesNomes.forEach((m, i) => {
+      const key = String(i + 1).padStart(2, '0');
+      monthCounts[key] = 0;
+    });
+
+    filtered.forEach(h => {
+      if (h.data) {
+        const m = h.data.substring(5, 7);
+        monthCounts[m] = (monthCounts[m] || 0) + 1;
+      }
+    });
+
+    const labels = Object.keys(monthCounts).sort().map(k => mesesNomes[parseInt(k, 10) - 1]);
+    const data = Object.keys(monthCounts).sort().map(k => monthCounts[k]);
+
+    if (kpiChartMonthly) kpiChartMonthly.destroy();
+    kpiChartMonthly = new Chart(canvas, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Apoios',
+          data,
+          backgroundColor: data.map((_, i) => `hsla(${245 + i * 10}, 80%, 65%, 0.7)`),
+          borderColor: data.map((_, i) => `hsl(${245 + i * 10}, 80%, 65%)`),
+          borderWidth: 1,
+          borderRadius: 6,
+          borderSkipped: false
+        }]
+      },
+      options: getChartOptions('Quantidade de Apoios')
+    });
+  } else {
+    // Mês específico: agrupar por semana
+    const weekCounts = {};
+    filtered.forEach(h => {
+      if (h.data) {
+        const day = parseInt(h.data.substring(8, 10), 10);
+        const week = `Sem ${Math.ceil(day / 7)}`;
+        weekCounts[week] = (weekCounts[week] || 0) + 1;
+      }
+    });
+
+    const labels = Object.keys(weekCounts).sort();
+    const data = labels.map(k => weekCounts[k]);
+
+    if (kpiChartMonthly) kpiChartMonthly.destroy();
+    kpiChartMonthly = new Chart(canvas, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Apoios',
+          data,
+          backgroundColor: 'hsla(245, 80%, 65%, 0.7)',
+          borderColor: 'hsl(245, 80%, 65%)',
+          borderWidth: 1,
+          borderRadius: 6,
+          borderSkipped: false
+        }]
+      },
+      options: getChartOptions('Quantidade de Apoios')
+    });
+  }
+}
+
+// --- CHART: Apoios por Dia da Semana ---
+function renderKpiChartWeekday(filtered) {
+  const canvas = document.getElementById('kpi-chart-weekday');
+  if (!canvas || typeof Chart === 'undefined') return;
+
+  const diasSemana = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+  const dayCounts = [0, 0, 0, 0, 0, 0, 0];
+
+  filtered.forEach(h => {
+    if (h.data) {
+      const parts = h.data.split('-');
+      const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+      if (!isNaN(d.getTime())) {
+        dayCounts[d.getDay()]++;
+      }
+    }
+  });
+
+  const colors = [
+    'hsla(0, 70%, 55%, 0.7)',    // Dom
+    'hsla(210, 70%, 55%, 0.7)',  // Seg
+    'hsla(190, 80%, 50%, 0.7)',  // Ter
+    'hsla(142, 70%, 50%, 0.7)',  // Qua
+    'hsla(38, 80%, 55%, 0.7)',   // Qui
+    'hsla(280, 70%, 55%, 0.7)',  // Sex
+    'hsla(330, 70%, 55%, 0.7)'   // Sab
+  ];
+
+  if (kpiChartWeekday) kpiChartWeekday.destroy();
+  kpiChartWeekday = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels: diasSemana,
+      datasets: [{
+        label: 'Apoios',
+        data: dayCounts,
+        backgroundColor: colors,
+        borderColor: colors.map(c => c.replace('0.7', '1')),
+        borderWidth: 1,
+        borderRadius: 6,
+        borderSkipped: false
+      }]
+    },
+    options: getChartOptions('Quantidade')
+  });
+}
+
+// --- CHART: Distribuição por Característica ---
+function renderKpiChartRules(filtered) {
+  const canvas = document.getElementById('kpi-chart-rules');
+  if (!canvas || typeof Chart === 'undefined') return;
+
+  const ruleCounts = {};
+  SUPPORT_RULES.forEach(r => { ruleCounts[r.id] = 0; });
+
+  filtered.forEach(h => {
+    if (h.regras) {
+      h.regras.forEach(rid => {
+        ruleCounts[rid] = (ruleCounts[rid] || 0) + 1;
+      });
+    }
+  });
+
+  const labels = SUPPORT_RULES.map(r => `${r.id}: ${r.descricao.substring(0, 35)}${r.descricao.length > 35 ? '...' : ''}`);
+  const data = SUPPORT_RULES.map(r => ruleCounts[r.id] || 0);
+
+  if (kpiChartRules) kpiChartRules.destroy();
+  kpiChartRules = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Ocorrências',
+        data,
+        backgroundColor: SUPPORT_RULES.map((_, i) => `hsla(${200 + i * 12}, 75%, 55%, 0.7)`),
+        borderColor: SUPPORT_RULES.map((_, i) => `hsl(${200 + i * 12}, 75%, 55%)`),
+        borderWidth: 1,
+        borderRadius: 4,
+        borderSkipped: false
+      }]
+    },
+    options: {
+      ...getChartOptions('Ocorrências'),
+      indexAxis: 'y'
+    }
+  });
+}
+
+// --- Chart.js theme options ---
+function getChartOptions(yLabel) {
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: 'hsla(222, 47%, 12%, 0.95)',
+        titleColor: '#fff',
+        bodyColor: 'hsl(215, 20%, 75%)',
+        borderColor: 'hsla(222, 47%, 22%, 0.6)',
+        borderWidth: 1,
+        cornerRadius: 8,
+        padding: 12,
+        titleFont: { family: 'Inter', weight: '600' },
+        bodyFont: { family: 'Inter' }
+      }
+    },
+    scales: {
+      x: {
+        ticks: {
+          color: 'hsl(215, 16%, 50%)',
+          font: { family: 'Inter', size: 11 },
+          maxRotation: 45
+        },
+        grid: {
+          color: 'hsla(222, 47%, 22%, 0.3)',
+          drawBorder: false
+        }
+      },
+      y: {
+        beginAtZero: true,
+        title: {
+          display: true,
+          text: yLabel,
+          color: 'hsl(215, 16%, 50%)',
+          font: { family: 'Inter', size: 12 }
+        },
+        ticks: {
+          color: 'hsl(215, 16%, 50%)',
+          font: { family: 'Inter', size: 11 },
+          precision: 0
+        },
+        grid: {
+          color: 'hsla(222, 47%, 22%, 0.3)',
+          drawBorder: false
+        }
+      }
+    }
+  };
+}
+
+// --- TABELA: Top 15 Apoiadores ---
+function renderKpiTopApoiadores(filtered) {
+  const tbody = document.getElementById('kpi-top-apoiadores-body');
+  if (!tbody) return;
+
+  // Contar apoios por colaborador
+  const countMap = {};
+  const scoreMap = {};
+  filtered.forEach(h => {
+    countMap[h.usuarioId] = (countMap[h.usuarioId] || 0) + 1;
+    scoreMap[h.usuarioId] = (scoreMap[h.usuarioId] || 0) + h.pontuacao;
+  });
+
+  // Criar ranking
+  const ranking = Object.keys(countMap).map(uid => ({
+    id: uid,
+    nome: users.find(u => u.id === uid)?.nome || uid,
+    count: countMap[uid],
+    score: scoreMap[uid]
+  }));
+  ranking.sort((a, b) => b.count - a.count || a.score - b.score);
+
+  const top = ranking.slice(0, 15);
+  const maxCount = top.length > 0 ? top[0].count : 1;
+
+  if (top.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" class="kpi-no-data">Nenhum apoio registrado no período</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = top.map((r, i) => {
+    const medalClass = i === 0 ? 'kpi-rank-1' : i === 1 ? 'kpi-rank-2' : i === 2 ? 'kpi-rank-3' : 'kpi-rank-default';
+    const barPct = Math.round((r.count / maxCount) * 100);
+    return `
+      <tr>
+        <td><span class="kpi-rank-medal ${medalClass}">${i + 1}</span></td>
+        <td>
+          <strong style="color: var(--text-primary);">${r.nome}</strong>
+          <span style="font-size: 0.7rem; color: var(--text-muted); margin-left: 6px;">${r.id.toUpperCase()}</span>
+        </td>
+        <td style="text-align: center; font-weight: 700; color: var(--info);">${r.count}</td>
+        <td style="text-align: right; font-family: var(--font-mono); font-size: 0.8rem;">${r.score.toFixed(2)}</td>
+        <td>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <div class="kpi-bar-track">
+              <div class="kpi-bar-inline" style="width: ${barPct}%;"></div>
+            </div>
+            <span style="font-size: 0.7rem; color: var(--text-muted); min-width: 28px;">${barPct}%</span>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+
+// --- TABELA: Colaboradores sem Apoio ---
+function renderKpiSemApoio(filtered) {
+  const container = document.getElementById('kpi-sem-apoio-container');
+  if (!container) return;
+
+  const colabComApoio = new Set();
+  filtered.forEach(h => colabComApoio.add(h.usuarioId));
+
+  // Apenas operadores elegíveis (excluir GPI/OPMAN)
+  const semApoio = users.filter(u =>
+    u.cargo !== 'GPI' && u.cargo !== 'OPMAN' && !colabComApoio.has(u.id)
+  ).sort((a, b) => a.nome.localeCompare(b.nome));
+
+  if (semApoio.length === 0) {
+    container.innerHTML = '<div class="kpi-no-data" style="padding: 24px;">✅ Todos os colaboradores possuem pelo menos 1 apoio no período!</div>';
+    return;
+  }
+
+  let html = '<div class="table-responsive"><table class="ranking-table" style="width: 100%;"><thead><tr>';
+  html += '<th>Colaborador</th><th>Chave</th><th>Cargo</th><th>Nível</th>';
+  html += '</tr></thead><tbody>';
+
+  semApoio.forEach(u => {
+    html += `
+      <tr>
+        <td><strong style="color: var(--text-primary);">${u.nome}</strong></td>
+        <td style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-muted);">${u.id.toUpperCase()}</td>
+        <td>${u.cargo || 'Operador'}</td>
+        <td><span class="badge badge-${u.tipo === 'ADMINISTRADOR' ? 'assigned' : u.tipo === 'GERENTE' ? 'pending' : u.tipo === 'SUPERVISOR' ? 'open' : 'cancelled'}" style="font-size: 0.65rem;">${u.tipo}</span></td>
+      </tr>
+    `;
+  });
+
+  html += '</tbody></table></div>';
+  html += `<div style="padding: 8px 0 0; font-size: 0.75rem; color: var(--text-muted);">${semApoio.length} colaborador(es) sem apoio registrado no período</div>`;
+  container.innerHTML = html;
+}
+
+// --- TABELA: Infrações de WhatsApp ---
+function renderKpiInfracoes() {
+  const section = document.getElementById('kpi-infracoes-section');
+  const tbody = document.getElementById('kpi-infracoes-body');
+  if (!section || !tbody) return;
+
+  const comInfracoes = users.filter(u => u.infracoesWA && u.infracoesWA > 0)
+    .sort((a, b) => b.infracoesWA - a.infracoesWA);
+
+  if (comInfracoes.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+
+  section.style.display = 'block';
+  tbody.innerHTML = comInfracoes.map(u => `
+    <tr>
+      <td><strong style="color: var(--text-primary);">${u.nome}</strong></td>
+      <td style="font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-muted);">${u.id.toUpperCase()}</td>
+      <td style="text-align: center; font-weight: 700; color: var(--danger);">${u.infracoesWA}</td>
+      <td style="text-align: right; font-family: var(--font-mono); color: var(--danger);">+${(u.infracoesWA * 0.01).toFixed(2)}</td>
+    </tr>
+  `).join('');
+}
+
+// --- EXPORTAR CSV ---
+function exportKpiCsv() {
+  const filtered = getKpiFilteredHistory();
+
+  if (filtered.length === 0) {
+    showBanner('Nenhum dado para exportar no período selecionado.', 'warning');
+    return;
+  }
+
+  const headers = ['Data Apoio', 'Colaborador', 'Chave', 'Área/Atividade', 'Regras', 'Pontuação', 'Data Registro'];
+  const rows = filtered.map(h => {
+    const user = users.find(u => u.id === h.usuarioId);
+    return [
+      h.data,
+      user ? user.nome : h.usuarioId,
+      h.usuarioId.toUpperCase(),
+      `"${(h.subgrupo || '').replace(/"/g, '""')}"`,
+      (h.regras || []).join('+'),
+      h.pontuacao.toFixed(4),
+      h.dataRegistro || ''
+    ].join(',');
+  });
+
+  const csvContent = '\uFEFF' + [headers.join(','), ...rows].join('\n');
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `relatorio_apoios_rnest_${simulatedCurrentDate}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+
+  showBanner(`Relatório exportado com ${filtered.length} registro(s)!`, 'success');
+}
+
 // --- LEI DE APOIO POPUP & MARKDOWN PARSER ---
+
 
 async function openLeiModal() {
   leiModal.style.display = 'flex';
