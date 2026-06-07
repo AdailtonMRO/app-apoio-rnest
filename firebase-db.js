@@ -43,16 +43,19 @@ if (isFirebaseEnabled) {
 
     console.log("🔥 Firebase inicializado com sucesso!");
   } catch (error) {
-    console.error("Erro ao inicializar Firebase. Revertendo para modo offline (LocalStorage):", error);
+    console.error("Erro ao inicializar Firebase:", error);
+    throw error;
   }
 } else {
-  console.log("ℹ️ Firebase não configurado ou chaves em branco. Usando modo de simulação local (LocalStorage).");
+  console.warn("⚠️ Firebase não configurado ou chaves em branco. O sistema requer conexão online.");
 }
 
 // --- MÉTODOS DE AUTENTICAÇÃO ---
 
 export async function loginWithGoogle() {
-  if (!isFirebaseEnabled || !auth) return null;
+  if (!isFirebaseEnabled || !auth) {
+    throw new Error("Autenticação indisponível: Firebase não habilitado.");
+  }
   try {
     const result = await signInWithPopupFn(auth, googleProvider);
     return result.user;
@@ -72,7 +75,9 @@ export async function logout() {
 }
 
 export function onAuthChange(callback) {
-  if (!isFirebaseEnabled || !auth) return () => {};
+  if (!isFirebaseEnabled || !auth) {
+    return () => {};
+  }
   return onAuthStateChangedFn(auth, callback);
 }
 
@@ -80,16 +85,11 @@ export function onAuthChange(callback) {
 
 /**
  * Escuta mudanças em tempo real em um documento da coleção e aciona o callback.
- * Se o documento não existir, ele o cria (seed) com os dados iniciais.
+ * Se o documento não existir, ele o cria (seed) apenas com estruturas vazias ou configurações essenciais.
  */
 export function syncDocument(docName, defaultData, callback) {
   if (!isFirebaseEnabled || !db) {
-    // Fallback: LocalStorage
-    const local = localStorage.getItem(`rnest_law_${docName}_v5`);
-    const data = local ? JSON.parse(local) : defaultData;
-    callback(data);
-    
-    // Retorna uma função vazia para simular o unsubscribe
+    console.error(`Falha ao sincronizar documento '${docName}': Firebase não conectado.`);
     return () => {};
   }
 
@@ -100,12 +100,25 @@ export function syncDocument(docName, defaultData, callback) {
       const payload = snapshot.data();
       callback(payload.data);
     } else {
-      console.log(`Documento '${docName}' não encontrado no Firestore. Semeando com valores padrão...`);
+      console.log(`Documento '${docName}' não encontrado no Firestore. Inicializando base...`);
+      
+      // Define dados iniciais vazios ou essenciais (sem preencher com dados fictícios antigos)
+      let initialData;
+      if (docName === 'users' || docName === 'groups') {
+        // Mantém a lista de usuários e subgrupos essenciais para a aplicação funcionar
+        initialData = defaultData;
+      } else if (docName === 'candidatos') {
+        initialData = {};
+      } else {
+        // slots e history iniciam completamente limpos (sem dados padrão/mocados)
+        initialData = [];
+      }
+
       try {
-        await setDocFn(docRef, { data: defaultData });
-        callback(defaultData);
+        await setDocFn(docRef, { data: initialData });
+        callback(initialData);
       } catch (err) {
-        console.error(`Erro ao semear o documento ${docName}:`, err);
+        console.error(`Erro ao inicializar o documento ${docName}:`, err);
       }
     }
   }, (error) => {
@@ -118,9 +131,8 @@ export function syncDocument(docName, defaultData, callback) {
  */
 export async function updateDocument(docName, dataArrayOrObj) {
   if (!isFirebaseEnabled || !db) {
-    // Fallback: LocalStorage
-    localStorage.setItem(`rnest_law_${docName}_v5`, JSON.stringify(dataArrayOrObj));
-    return;
+    console.error(`Erro ao gravar documento '${docName}': Firebase não conectado.`);
+    throw new Error("Sem conexão com o Firebase.");
   }
 
   const docRef = docFn(db, 'rnest_database', docName);

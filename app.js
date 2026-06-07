@@ -328,7 +328,7 @@ function init() {
     if (e.target === leiModal) leiModal.style.display = 'none';
   });
 
-  // Render inicial se não estiver no modo Firebase (no modo Firebase, renderiza após carregar os documentos)
+  // Inicialização obrigatória do Firebase
   if (isFirebaseEnabled) {
     // 1. Mostrar overlay de login
     const loginOverlay = document.getElementById('login-overlay');
@@ -375,9 +375,8 @@ function init() {
       });
     }
   } else {
-    // Modo clássico LocalStorage
-    loadData();
-    renderAll();
+    // Sem Firebase: Exibir overlay de erro de conexão imediatamente
+    showConnectionError();
   }
 }
 
@@ -530,11 +529,7 @@ function loadData() {
   groups = data.groups;
   slots = data.slots;
   history = data.history;
-
-  const storedCands = localStorage.getItem('rnest_law_candidatos_v5');
-  if (storedCands) {
-    candidatos = JSON.parse(storedCands);
-  }
+  candidatos = {};
 
   currentUser = users.find(u => u.id === currentUserId) || users[0];
   currentUserId = currentUser.id;
@@ -548,9 +543,7 @@ function persistChanges() {
     updateDocument('history', history);
     updateDocument('candidatos', candidatos);
   } else {
-    saveStoredData({ users, groups, slots, history });
-    localStorage.setItem('rnest_law_candidatos_v5', JSON.stringify(candidatos));
-    renderAll();
+    showConnectionError();
   }
 }
 

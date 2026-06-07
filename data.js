@@ -83,24 +83,16 @@ export const INITIAL_SLOTS = [
   }
 ];
 
-// Nomes das chaves de armazenamento LocalStorage atualizadas para v4 (força reload dos dados)
+// Nomes das chaves de armazenamento LocalStorage desativadas (sistema online apenas)
 export const getStoredData = () => {
-  const users = localStorage.getItem('rnest_law_users_v5');
-  const groups = localStorage.getItem('rnest_law_groups_v5');
-  const slots = localStorage.getItem('rnest_law_slots_v5');
-  const history = localStorage.getItem('rnest_law_history_v5');
-
   return {
-    users: users ? JSON.parse(users) : INITIAL_USERS,
-    groups: groups ? JSON.parse(groups) : INITIAL_GROUPS,
-    slots: slots ? JSON.parse(slots) : INITIAL_SLOTS,
-    history: history ? JSON.parse(history) : INITIAL_HISTORY
+    users: INITIAL_USERS,
+    groups: INITIAL_GROUPS,
+    slots: [],
+    history: []
   };
 };
 
 export const saveStoredData = (data) => {
-  localStorage.setItem('rnest_law_users_v5', JSON.stringify(data.users));
-  localStorage.setItem('rnest_law_groups_v5', JSON.stringify(data.groups));
-  localStorage.setItem('rnest_law_slots_v5', JSON.stringify(data.slots));
-  localStorage.setItem('rnest_law_history_v5', JSON.stringify(data.history));
+  console.warn("Aviso: Tentativa de salvamento no LocalStorage bloqueada. O sistema opera apenas online.");
 };
