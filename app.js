@@ -132,6 +132,21 @@ const userFormNivel = document.getElementById('user-form-nivel');
 const userSearchInput = document.getElementById('user-search-input');
 const usersTableBody = document.getElementById('users-table-body');
 
+// Modais - CSV
+const csvModal = document.getElementById('csv-modal');
+const btnOpenCsvModal = document.getElementById('btn-open-csv-modal');
+const btnCloseCsvModalX = document.getElementById('btn-close-csv-modal-x');
+const btnCancelCsvModal = document.getElementById('btn-cancel-csv-modal');
+const btnExportUsers = document.getElementById('btn-export-users');
+const fileImportUsers = document.getElementById('file-import-users');
+const modeImportUsers = document.getElementById('mode-import-users');
+const btnExportSlots = document.getElementById('btn-export-slots');
+const fileImportSlots = document.getElementById('file-import-slots');
+const modeImportSlots = document.getElementById('mode-import-slots');
+const btnExportHistory = document.getElementById('btn-export-history');
+const fileImportHistory = document.getElementById('file-import-history');
+const modeImportHistory = document.getElementById('mode-import-history');
+
 // Modal - Lei de Apoio
 const leiModal = document.getElementById('lei-modal');
 const btnOpenLeiModal = document.getElementById('btn-open-lei-modal');
@@ -279,6 +294,35 @@ function init() {
   userForm.addEventListener('submit', handleSaveUser);
   userSearchInput.addEventListener('keyup', renderUsersTable);
 
+  // Modais - CSV
+  if (btnOpenCsvModal) {
+    btnOpenCsvModal.addEventListener('click', () => { csvModal.style.display = 'flex'; });
+  }
+  if (btnCloseCsvModalX) {
+    btnCloseCsvModalX.addEventListener('click', () => { csvModal.style.display = 'none'; });
+  }
+  if (btnCancelCsvModal) {
+    btnCancelCsvModal.addEventListener('click', () => { csvModal.style.display = 'none'; });
+  }
+  if (btnExportUsers) {
+    btnExportUsers.addEventListener('click', exportUsersToCSV);
+  }
+  if (btnExportSlots) {
+    btnExportSlots.addEventListener('click', exportSlotsToCSV);
+  }
+  if (btnExportHistory) {
+    btnExportHistory.addEventListener('click', exportHistoryToCSV);
+  }
+  if (fileImportUsers) {
+    fileImportUsers.addEventListener('change', handleImportUsersCSV);
+  }
+  if (fileImportSlots) {
+    fileImportSlots.addEventListener('change', handleImportSlotsCSV);
+  }
+  if (fileImportHistory) {
+    fileImportHistory.addEventListener('change', handleImportHistoryCSV);
+  }
+
   // Modal - Lei de Apoio
   if (btnOpenLeiModal) {
     btnOpenLeiModal.addEventListener('click', (e) => {
@@ -326,6 +370,7 @@ function init() {
     if (e.target === infracaoModal) infracaoModal.style.display = 'none';
     if (e.target === userModal) userModal.style.display = 'none';
     if (e.target === leiModal) leiModal.style.display = 'none';
+    if (e.target === csvModal) csvModal.style.display = 'none';
   });
 
   // Inicialização obrigatória do Firebase
@@ -1264,6 +1309,15 @@ function renderAdminBar() {
       btnInfracao.style.display = 'inline-flex';
     } else {
       btnInfracao.style.display = 'none';
+    }
+
+    // Apenas Admin abre o modal de importação/exportação CSV
+    if (btnOpenCsvModal) {
+      if (isCurrentUserAdminOnly()) {
+        btnOpenCsvModal.style.display = 'inline-flex';
+      } else {
+        btnOpenCsvModal.style.display = 'none';
+      }
     }
   } else {
     adminActionsBar.style.display = 'none';
@@ -3566,6 +3620,371 @@ function parseMarkdown(md) {
   });
   
   return parsedBlocks.join('\n');
+}
+
+// --- UTILITÁRIOS PARA IMPORTAÇÃO/EXPORTAÇÃO DE CSV ---
+
+function valueToCsvField(val) {
+  if (val === null || val === undefined) return '';
+  if (Array.isArray(val)) {
+    return val.join(';');
+  }
+  let str = String(val);
+  if (str.includes('"') || str.includes(',') || str.includes('\n') || str.includes('\r')) {
+    str = '"' + str.replace(/"/g, '""') + '"';
+  }
+  return str;
+}
+
+function parseCsv(text) {
+  const lines = [];
+  let row = [""];
+  let inQuotes = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    const next = text[i+1];
+
+    if (inQuotes) {
+      if (c === '"') {
+        if (next === '"') {
+          row[row.length - 1] += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        row[row.length - 1] += c;
+      }
+    } else {
+      if (c === '"') {
+        inQuotes = true;
+      } else if (c === ',') {
+        row.push("");
+      } else if (c === '\n' || c === '\r') {
+        if (c === '\r' && next === '\n') {
+          i++;
+        }
+        lines.push(row);
+        row = [""];
+      } else {
+        row[row.length - 1] += c;
+      }
+    }
+  }
+  if (row.length > 1 || row[0] !== "") {
+    lines.push(row);
+  }
+  return lines;
+}
+
+function downloadCSV(csvContent, filename) {
+  const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.setAttribute("href", url);
+  link.setAttribute("download", filename);
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+// 1. Exportação
+function exportUsersToCSV() {
+  const headers = ['id', 'nome', 'email', 'tipo', 'cargo', 'infracoesWA'];
+  let csv = headers.join(',') + '\n';
+  users.forEach(u => {
+    const row = [
+      u.id,
+      u.nome,
+      u.email,
+      u.tipo,
+      u.cargo,
+      u.infracoesWA !== undefined ? u.infracoesWA : 0
+    ];
+    csv += row.map(valueToCsvField).join(',') + '\n';
+  });
+  downloadCSV(csv, `usuarios_${getTodayStr()}.csv`);
+}
+
+function exportSlotsToCSV() {
+  const headers = ['id', 'grupoId', 'subgrupo', 'data', 'horario', 'status', 'usuarioId', 'observacao', 'regrasPrevistas'];
+  let csv = headers.join(',') + '\n';
+  slots.forEach(s => {
+    const row = [
+      s.id,
+      s.grupoId,
+      s.subgrupo,
+      s.data,
+      s.horario,
+      s.status,
+      s.usuarioId || '',
+      s.observacao || '',
+      s.regrasPrevistas || []
+    ];
+    csv += row.map(valueToCsvField).join(',') + '\n';
+  });
+  downloadCSV(csv, `vagas_apoio_${getTodayStr()}.csv`);
+}
+
+function exportHistoryToCSV() {
+  const headers = ['id', 'usuarioId', 'data', 'subgrupo', 'regras', 'pontuacao', 'dataRegistro', 'registradoPorId'];
+  let csv = headers.join(',') + '\n';
+  history.forEach(h => {
+    const row = [
+      h.id,
+      h.usuarioId,
+      h.data,
+      h.subgrupo,
+      h.regras || [],
+      h.pontuacao,
+      h.dataRegistro,
+      h.registradoPorId || ''
+    ];
+    csv += row.map(valueToCsvField).join(',') + '\n';
+  });
+  downloadCSV(csv, `historico_lancamentos_${getTodayStr()}.csv`);
+}
+
+// 2. Importação
+function handleImportUsersCSV(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  const mode = modeImportUsers.value;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const text = e.target.result;
+    const lines = parseCsv(text);
+    if (lines.length < 2) {
+      showBanner("Erro: O arquivo CSV está vazio ou inválido.", "danger");
+      return;
+    }
+    
+    const headers = lines[0].map(h => h.trim().toLowerCase());
+    const idIdx = headers.indexOf('id');
+    const nomeIdx = headers.indexOf('nome');
+    const emailIdx = headers.indexOf('email');
+    const tipoIdx = headers.indexOf('tipo');
+    const cargoIdx = headers.indexOf('cargo');
+    const infracoesIdx = headers.indexOf('infracoeswa');
+    
+    if (idIdx === -1 || nomeIdx === -1 || emailIdx === -1) {
+      showBanner("Erro: Colunas obrigatórias 'id', 'nome' e 'email' não encontradas.", "danger");
+      return;
+    }
+    
+    const confirmMessage = mode === 'replace' 
+      ? "ATENÇÃO: Isso irá SUBSTITUIR TODOS os usuários cadastrados. Confirma?" 
+      : "Isso irá MESCLAR/ATUALIZAR os usuários no sistema. Confirma?";
+      
+    if (!confirm(confirmMessage)) {
+      event.target.value = '';
+      return;
+    }
+    
+    const importedUsers = [];
+    for (let i = 1; i < lines.length; i++) {
+      const row = lines[i];
+      if (row.length < headers.length) continue;
+      const id = row[idIdx].trim().toUpperCase();
+      if (!id) continue;
+      
+      importedUsers.push({
+        id,
+        nome: row[nomeIdx].trim(),
+        email: row[emailIdx].trim(),
+        tipo: tipoIdx !== -1 ? row[tipoIdx].trim().toUpperCase() : 'OPERADOR',
+        cargo: cargoIdx !== -1 ? row[cargoIdx].trim() : 'Operador',
+        infracoesWA: infracoesIdx !== -1 ? parseInt(row[infracoesIdx], 10) || 0 : 0
+      });
+    }
+    
+    if (mode === 'replace') {
+      users = importedUsers;
+    } else {
+      // Mesclar
+      importedUsers.forEach(impUser => {
+        const existingIdx = users.findIndex(u => u.id === impUser.id);
+        if (existingIdx !== -1) {
+          users[existingIdx] = impUser;
+        } else {
+          users.push(impUser);
+        }
+      });
+    }
+    
+    persistChanges();
+    showBanner(`${importedUsers.length} usuários importados com sucesso!`, "success");
+    event.target.value = '';
+  };
+  reader.readAsText(file, 'utf-8');
+}
+
+function handleImportSlotsCSV(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  const mode = modeImportSlots.value;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const text = e.target.result;
+    const lines = parseCsv(text);
+    if (lines.length < 2) {
+      showBanner("Erro: O arquivo CSV está vazio ou inválido.", "danger");
+      return;
+    }
+    
+    const headers = lines[0].map(h => h.trim().toLowerCase());
+    const idIdx = headers.indexOf('id');
+    const grupoIdIdx = headers.indexOf('grupoid');
+    const subgrupoIdx = headers.indexOf('subgrupo');
+    const dataIdx = headers.indexOf('data');
+    const horarioIdx = headers.indexOf('horario');
+    const statusIdx = headers.indexOf('status');
+    const usuarioIdIdx = headers.indexOf('usuarioid');
+    const observacaoIdx = headers.indexOf('observacao');
+    const regrasPrevistasIdx = headers.indexOf('regrasprevistas');
+    
+    if (idIdx === -1 || grupoIdIdx === -1 || subgrupoIdx === -1 || dataIdx === -1) {
+      showBanner("Erro: Colunas obrigatórias 'id', 'grupoId', 'subgrupo' e 'data' não encontradas.", "danger");
+      return;
+    }
+    
+    const confirmMessage = mode === 'replace' 
+      ? "ATENÇÃO: Isso irá SUBSTITUIR TODAS as vagas de apoio cadastradas. Confirma?" 
+      : "Isso irá MESCLAR/ATUALIZAR as vagas de apoio no sistema. Confirma?";
+      
+    if (!confirm(confirmMessage)) {
+      event.target.value = '';
+      return;
+    }
+    
+    const importedSlots = [];
+    for (let i = 1; i < lines.length; i++) {
+      const row = lines[i];
+      if (row.length < headers.length) continue;
+      const id = row[idIdx].trim();
+      if (!id) continue;
+      
+      const regrasRaw = regrasPrevistasIdx !== -1 ? row[regrasPrevistasIdx].trim() : '';
+      const regrasPrevistas = regrasRaw ? regrasRaw.split(';') : ['R1'];
+      
+      importedSlots.push({
+        id,
+        grupoId: row[grupoIdIdx].trim(),
+        subgrupo: row[subgrupoIdx].trim(),
+        data: row[dataIdx].trim(),
+        horario: horarioIdx !== -1 ? row[horarioIdx].trim() : '07x19',
+        status: statusIdx !== -1 ? row[statusIdx].trim().toUpperCase() : 'LIVRE',
+        usuarioId: (usuarioIdIdx !== -1 && row[usuarioIdIdx].trim()) ? row[usuarioIdIdx].trim() : null,
+        observacao: observacaoIdx !== -1 ? row[observacaoIdx].trim() : '',
+        regrasPrevistas
+      });
+    }
+    
+    if (mode === 'replace') {
+      slots = importedSlots;
+    } else {
+      // Mesclar
+      importedSlots.forEach(impSlot => {
+        const existingIdx = slots.findIndex(s => s.id === impSlot.id);
+        if (existingIdx !== -1) {
+          slots[existingIdx] = impSlot;
+        } else {
+          slots.push(impSlot);
+        }
+      });
+    }
+    
+    persistChanges();
+    showBanner(`${importedSlots.length} vagas de apoio importadas com sucesso!`, "success");
+    event.target.value = '';
+  };
+  reader.readAsText(file, 'utf-8');
+}
+
+function handleImportHistoryCSV(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  
+  const mode = modeImportHistory.value;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const text = e.target.result;
+    const lines = parseCsv(text);
+    if (lines.length < 2) {
+      showBanner("Erro: O arquivo CSV está vazio ou inválido.", "danger");
+      return;
+    }
+    
+    const headers = lines[0].map(h => h.trim().toLowerCase());
+    const idIdx = headers.indexOf('id');
+    const usuarioIdIdx = headers.indexOf('usuarioid');
+    const dataIdx = headers.indexOf('data');
+    const subgrupoIdx = headers.indexOf('subgrupo');
+    const regrasIdx = headers.indexOf('regras');
+    const pontuacaoIdx = headers.indexOf('pontuacao');
+    const dataRegistroIdx = headers.indexOf('dataregistro');
+    const registradoPorIdIdx = headers.indexOf('registradoporid');
+    
+    if (idIdx === -1 || usuarioIdIdx === -1 || dataIdx === -1 || subgrupoIdx === -1) {
+      showBanner("Erro: Colunas obrigatórias 'id', 'usuarioId', 'data' e 'subgrupo' não encontradas.", "danger");
+      return;
+    }
+    
+    const confirmMessage = mode === 'replace' 
+      ? "ATENÇÃO: Isso irá SUBSTITUIR TODO o histórico de lançamentos cadastrado. Confirma?" 
+      : "Isso irá MESCLAR/ATUALIZAR o histórico de lançamentos no sistema. Confirma?";
+      
+    if (!confirm(confirmMessage)) {
+      event.target.value = '';
+      return;
+    }
+    
+    const importedHistory = [];
+    for (let i = 1; i < lines.length; i++) {
+      const row = lines[i];
+      if (row.length < headers.length) continue;
+      const id = row[idIdx].trim();
+      if (!id) continue;
+      
+      const regrasRaw = regrasIdx !== -1 ? row[regrasIdx].trim() : '';
+      const regras = regrasRaw ? regrasRaw.split(';') : ['R1'];
+      const score = pontuacaoIdx !== -1 ? parseFloat(row[pontuacaoIdx]) || 1.0 : 1.0;
+      
+      importedHistory.push({
+        id,
+        usuarioId: row[usuarioIdIdx].trim(),
+        data: row[dataIdx].trim(),
+        subgrupo: row[subgrupoIdx].trim(),
+        regras,
+        pontuacao: score,
+        dataRegistro: dataRegistroIdx !== -1 ? row[dataRegistroIdx].trim() : new Date().toISOString(),
+        registradoPorId: registradoPorIdIdx !== -1 ? row[registradoPorIdIdx].trim() : ''
+      });
+    }
+    
+    if (mode === 'replace') {
+      history = importedHistory;
+    } else {
+      // Mesclar
+      importedHistory.forEach(impHist => {
+        const existingIdx = history.findIndex(h => h.id === impHist.id);
+        if (existingIdx !== -1) {
+          history[existingIdx] = impHist;
+        } else {
+          history.push(impHist);
+        }
+      });
+    }
+    
+    persistChanges();
+    showBanner(`${importedHistory.length} registros de histórico importados com sucesso!`, "success");
+    event.target.value = '';
+  };
+  reader.readAsText(file, 'utf-8');
 }
 
 // Rodar na carga

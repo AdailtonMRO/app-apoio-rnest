@@ -116,6 +116,9 @@
               <button id="btn-open-infracao-modal" class="btn btn-danger">
                 ⚠️ Aplicar Multa WhatsApp (+0.01)
               </button>
+              <button id="btn-open-csv-modal" class="btn btn-secondary" style="display: none; background: #047857; color: white; border-color: #059669;">
+                📂 Importar/Exportar CSV
+              </button>
             </div>
 
             <div class="group-section">
@@ -706,6 +709,89 @@
               <button type="submit" id="btn-submit-user" class="btn btn-primary">Salvar Usuário</button>
             </div>
           </form>
+        </div>
+      </div>
+
+      <!-- MODAL: IMPORTAR / EXPORTAR CSV (ADMIN) -->
+      <div id="csv-modal" class="modal-overlay" style="display: none; z-index: 9999;">
+        <div class="modal-content glass-panel" style="max-width: 650px;">
+          <div class="modal-header">
+            <h2 class="modal-title">📂 Importar e Exportar Dados (CSV)</h2>
+            <button id="btn-close-csv-modal-x" style="background: transparent; border: none; color: #fff; font-size: 1.25rem; cursor: pointer;">✕</button>
+          </div>
+          
+          <p style="font-size: 0.85rem; color: var(--text-secondary);">
+            Gerencie os dados do sistema por meio de arquivos CSV. Você pode exportar o estado atual ou importar novos registros.
+          </p>
+
+          <div style="display: flex; flex-direction: column; gap: 24px; margin-top: 10px;">
+            <!-- SEÇÃO: USUÁRIOS -->
+            <div style="border-bottom: 1px solid var(--border-color); padding-bottom: 16px;">
+              <h3 style="font-size: 1rem; margin-bottom: 8px; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">👥 Usuários (users)</h3>
+              <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between;">
+                <button id="btn-export-users" class="btn btn-secondary" style="padding: 8px 16px; font-size: 0.85rem;">⬇️ Exportar Usuários</button>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <label class="btn btn-primary" style="padding: 8px 16px; font-size: 0.85rem; cursor: pointer; margin: 0; background: #047857;">
+                    🔌 Selecionar CSV
+                    <input type="file" id="file-import-users" accept=".csv" style="display: none;">
+                  </label>
+                  <select id="mode-import-users" class="role-select" style="padding: 6px 12px; font-size: 0.8rem; height: 35px;">
+                    <option value="merge">Mesclar / Atualizar</option>
+                    <option value="replace">Substituir Tudo</option>
+                  </select>
+                </div>
+              </div>
+              <span style="font-size: 0.72rem; color: var(--text-muted); display: block; margin-top: 6px;">
+                Colunas esperadas: <code>id</code>, <code>nome</code>, <code>email</code>, <code>tipo</code>, <code>cargo</code>, <code>infracoesWA</code>
+              </span>
+            </div>
+
+            <!-- SEÇÃO: SOLICITAÇÕES DE APOIO -->
+            <div style="border-bottom: 1px solid var(--border-color); padding-bottom: 16px;">
+              <h3 style="font-size: 1rem; margin-bottom: 8px; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">📅 Vagas de Apoio / Escalas (slots)</h3>
+              <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between;">
+                <button id="btn-export-slots" class="btn btn-secondary" style="padding: 8px 16px; font-size: 0.85rem;">⬇️ Exportar Vagas</button>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <label class="btn btn-primary" style="padding: 8px 16px; font-size: 0.85rem; cursor: pointer; margin: 0; background: #047857;">
+                    🔌 Selecionar CSV
+                    <input type="file" id="file-import-slots" accept=".csv" style="display: none;">
+                  </label>
+                  <select id="mode-import-slots" class="role-select" style="padding: 6px 12px; font-size: 0.8rem; height: 35px;">
+                    <option value="merge">Mesclar / Atualizar</option>
+                    <option value="replace">Substituir Tudo</option>
+                  </select>
+                </div>
+              </div>
+              <span style="font-size: 0.72rem; color: var(--text-muted); display: block; margin-top: 6px;">
+                Colunas esperadas: <code>id</code>, <code>grupoId</code>, <code>subgrupo</code>, <code>data</code>, <code>horario</code>, <code>status</code>, <code>usuarioId</code>, <code>observacao</code>, <code>regrasPrevistas</code>
+              </span>
+            </div>
+
+            <!-- SEÇÃO: HISTÓRICO DE LANÇAMENTOS -->
+            <div style="padding-bottom: 12px;">
+              <h3 style="font-size: 1rem; margin-bottom: 8px; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">📜 Histórico de Apoios (history)</h3>
+              <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between;">
+                <button id="btn-export-history" class="btn btn-secondary" style="padding: 8px 16px; font-size: 0.85rem;">⬇️ Exportar Histórico</button>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <label class="btn btn-primary" style="padding: 8px 16px; font-size: 0.85rem; cursor: pointer; margin: 0; background: #047857;">
+                    🔌 Selecionar CSV
+                    <input type="file" id="file-import-history" accept=".csv" style="display: none;">
+                  </label>
+                  <select id="mode-import-history" class="role-select" style="padding: 6px 12px; font-size: 0.8rem; height: 35px;">
+                    <option value="merge">Mesclar / Atualizar</option>
+                    <option value="replace">Substituir Tudo</option>
+                  </select>
+                </div>
+              </div>
+              <span style="font-size: 0.72rem; color: var(--text-muted); display: block; margin-top: 6px;">
+                Colunas esperadas: <code>id</code>, <code>usuarioId</code>, <code>data</code>, <code>subgrupo</code>, <code>regras</code>, <code>pontuacao</code>, <code>dataRegistro</code>, <code>registradoPorId</code>
+              </span>
+            </div>
+          </div>
+
+          <div class="modal-footer" style="border-top: 1px solid var(--border-color); padding-top: 16px; margin-top: 8px;">
+            <button id="btn-cancel-csv-modal" class="btn btn-secondary">Fechar</button>
+          </div>
         </div>
       </div>
 
