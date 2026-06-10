@@ -2160,6 +2160,15 @@ function renderFormGroupsOptions() {
     infHtml += `<option value="${u.id}">${u.nome} (${u.cargo})</option>`;
   });
   selectInfUsuario.innerHTML = infHtml;
+
+  const selectFormUsuario = document.getElementById('form-usuario');
+  if (selectFormUsuario) {
+    let formUserHtml = '<option value="">-- Vaga Livre / Sem Operador --</option>';
+    sortedRegUsers.forEach(u => {
+      formUserHtml += `<option value="${u.id}">${u.nome} (${u.cargo})</option>`;
+    });
+    selectFormUsuario.innerHTML = formUserHtml;
+  }
 }
 
 function renderRulesCheckboxes() {
@@ -2564,6 +2573,11 @@ function handleCancelarSlotModal() {
   const titleEl = document.getElementById('add-modal-title');
   if (titleEl) titleEl.textContent = 'Lançar Nova Solicitação de Apoio';
   addSlotForm.reset();
+
+  const formUsuario = document.getElementById('form-usuario');
+  if (formUsuario) {
+    formUsuario.value = '';
+  }
   
   // Hide delete button
   if (btnDeleteSlot) btnDeleteSlot.style.display = 'none';
@@ -2652,6 +2666,11 @@ function handleIniciarEdicaoEscala(slotId) {
   } else {
     document.querySelector('input[name="prioridade"][value="imediata"]').checked = true;
   }
+
+  const selectFormUsuario = document.getElementById('form-usuario');
+  if (selectFormUsuario) {
+    selectFormUsuario.value = slot.usuarioId || '';
+  }
 }
 
 function handleExcluirSlotAdmin() {
@@ -2705,6 +2724,7 @@ function handleCriarSolicitacaoSlot(e) {
 
   const modalCbs = modalRulesCheckboxes.querySelectorAll('input[name="modal-prev-regras"]:checked');
   const regrasPrevistas = Array.from(modalCbs).map(cb => cb.value);
+  const formUsuarioId = document.getElementById('form-usuario')?.value || null;
 
   if (!formSubgrupo) {
     showBanner('Preencha a atividade / subgrupo.', 'danger');
@@ -2769,44 +2789,94 @@ function handleCriarSolicitacaoSlot(e) {
 
   if (editingSlotId) {
     const formData = datesToCreate[0];
-    // 1. Encontrar o slot original para atualizar o histórico do voluntário se necessário
     const slot = slots.find(s => s.id === editingSlotId);
-    if (slot && slot.usuarioId) {
-      history = history.map(h => {
-        if (h.usuarioId === slot.usuarioId && h.data === slot.data) {
-          const finalRegras = h.regras.includes('R13') ? ['R13'] : regrasPrevistas;
-          return {
-            ...h,
+    if (slot) {
+      const oldUsuarioId = slot.usuarioId;
+      const newUsuarioId = formUsuarioId;
+
+      // 1. Gerenciar histórico correspondente
+      if (oldUsuarioId && oldUsuarioId !== newUsuarioId) {
+        // Se tinha um usuário e ele mudou ou foi removido, apaga o histórico do antigo para este dia
+        history = history.filter(h => !(h.usuarioId === oldUsuarioId && h.data === slot.data));
+      }
+
+      if (newUsuarioId) {
+        const regras = regrasPrevistas || ['R1'];
+        const supportDate = new Date(formData + 'T00:00:00');
+        const simDate = new Date(simulatedCurrentDate + 'T00:00:00');
+        const eAtrasado = (simDate - supportDate) > (3 * 24 * 60 * 60 * 1000);
+        const finalRegras = eAtrasado ? ['R13'] : regras;
+        const score = calculateSupportScore(finalRegras);
+
+        if (oldUsuarioId === newUsuarioId) {
+          // Se for o mesmo usuário, atualiza o registro existente no histórico
+          history = history.map(h => {
+            if (h.usuarioId === oldUsuarioId && h.data === slot.data) {
+              return {
+                ...h,
+                data: formData,
+                subgrupo: formSubgrupo,
+                regras: finalRegras,
+                pontuacao: score
+              };
+            }
+            return h;
+          });
+        } else {
+          // Se for um novo usuário atribuído a esta vaga, cria um novo histórico
+          const historyId = 'h_' + Date.now();
+          const novoHistorico = {
+            id: historyId,
+            usuarioId: newUsuarioId,
             data: formData,
             subgrupo: formSubgrupo,
             regras: finalRegras,
-            pontuacao: calculateSupportScore(finalRegras)
+            pontuacao: score,
+            dataRegistro: new Date(simulatedCurrentDate + 'T12:00:00').toISOString(),
+            registradoPorId: currentUser.id
           };
+          history = [...history, novoHistorico];
         }
-        return h;
+      }
+
+      // 2. Atualizar o slot
+      slots = slots.map(s => {
+        if (s.id === editingSlotId) {
+          const updated = {
+            ...s,
+            grupoId: formGrupo,
+            subgrupo: formSubgrupo,
+            data: formData,
+            horario: formHorario,
+            status: newUsuarioId ? 'ATRIBUIDO' : 'LIVRE',
+            usuarioId: newUsuarioId,
+            regrasPrevistas: regrasPrevistas
+          };
+          
+          if (newUsuarioId) {
+            const monthlyCount = getUserMonthlySupportCount(newUsuarioId, formData);
+            const needsAuthorization = monthlyCount >= 3;
+            updated.requerAutorizacao = needsAuthorization;
+            if (needsAuthorization) {
+              updated.autorizadoPorId = currentUser.id; // Pré-autorizado pelo admin
+            } else {
+              delete updated.autorizadoPorId;
+            }
+          } else {
+            delete updated.requerAutorizacao;
+            delete updated.autorizadoPorId;
+          }
+
+          if (formMotivo) {
+            updated.motivo = formMotivo;
+          } else {
+            delete updated.motivo;
+          }
+          return updated;
+        }
+        return s;
       });
     }
-
-    // 2. Atualizar o slot
-    slots = slots.map(s => {
-      if (s.id === editingSlotId) {
-        const updated = {
-          ...s,
-          grupoId: formGrupo,
-          subgrupo: formSubgrupo,
-          data: formData,
-          horario: formHorario,
-          regrasPrevistas: regrasPrevistas
-        };
-        if (formMotivo) {
-          updated.motivo = formMotivo;
-        } else {
-          delete updated.motivo;
-        }
-        return updated;
-      }
-      return s;
-    });
 
     // 3. Gerenciar disputa
     if (formPrioridade === 'disputa') {
@@ -2825,16 +2895,24 @@ function handleCriarSolicitacaoSlot(e) {
     // Criar novo slot ou múltiplos slots (para intervalo)
     datesToCreate.forEach((dStr, idx) => {
       const slotId = 's_' + Date.now() + '_' + idx;
+      
+      let needsAuthorization = false;
+      if (formUsuarioId) {
+        const monthlyCount = getUserMonthlySupportCount(formUsuarioId, dStr);
+        needsAuthorization = monthlyCount >= 3;
+      }
+
       const novoSlot = {
         id: slotId,
         grupoId: formGrupo,
         subgrupo: formSubgrupo,
         data: dStr,
         horario: formHorario,
-        status: 'LIVRE',
-        usuarioId: null,
+        status: formUsuarioId ? 'ATRIBUIDO' : 'LIVRE',
+        usuarioId: formUsuarioId,
         observacao: '',
-        requerAprovacao: false,
+        requerAutorizacao: formUsuarioId ? needsAuthorization : false,
+        autorizadoPorId: (formUsuarioId && needsAuthorization) ? currentUser.id : null,
         regrasPrevistas: regrasPrevistas
       };
 
@@ -2843,6 +2921,29 @@ function handleCriarSolicitacaoSlot(e) {
       }
 
       slots = [...slots, novoSlot];
+
+      if (formUsuarioId) {
+        // Criar registro de histórico
+        const historyId = 'h_' + Date.now() + '_' + idx;
+        const regras = regrasPrevistas || ['R1'];
+        const supportDate = new Date(dStr + 'T00:00:00');
+        const simDate = new Date(simulatedCurrentDate + 'T00:00:00');
+        const eAtrasado = (simDate - supportDate) > (3 * 24 * 60 * 60 * 1000);
+        const finalRegras = eAtrasado ? ['R13'] : regras;
+        const score = calculateSupportScore(finalRegras);
+
+        const novoHistorico = {
+          id: historyId,
+          usuarioId: formUsuarioId,
+          data: dStr,
+          subgrupo: formSubgrupo,
+          regras: finalRegras,
+          pontuacao: score,
+          dataRegistro: new Date(simulatedCurrentDate + 'T12:00:00').toISOString(),
+          registradoPorId: currentUser.id
+        };
+        history = [...history, novoHistorico];
+      }
 
       if (formPrioridade === 'disputa') {
         candidatos[slotId] = [];
@@ -2885,7 +2986,7 @@ function handleCriarSolicitacaoSlot(e) {
   if (elMotivo) elMotivo.value = '';
   modalRulesCheckboxes.querySelectorAll('input[name="modal-prev-regras"]').forEach(cb => cb.checked = false);
 
-  persistChanges(['slots', 'candidatos']);
+  persistChanges(['slots', 'history', 'candidatos']);
 }
 
 function handleAplicarInfracao(e) {
