@@ -15,6 +15,19 @@ let authenticatedGoogleUser = null;
 let dbConnected = false;
 let connectionTimeout = null;
 
+// Acompanha quais coleções foram carregadas com sucesso do Firebase
+let syncedDocs = {
+  users: false,
+  groups: false,
+  slots: false,
+  history: false,
+  candidatos: false
+};
+
+function areAllDocsSynced() {
+  return syncedDocs.users && syncedDocs.groups && syncedDocs.slots && syncedDocs.history && syncedDocs.candidatos;
+}
+
 // Funções Auxiliares de Permissão
 function isCurrentUserAdminOnly() {
   if (!currentUser) return false;
@@ -449,6 +462,13 @@ function stopRealtimeSync() {
     connectionTimeout = null;
   }
   dbConnected = false;
+  syncedDocs = {
+    users: false,
+    groups: false,
+    slots: false,
+    history: false,
+    candidatos: false
+  };
   hideConnectionError();
 }
 
@@ -468,9 +488,12 @@ function setupRealtimeSync() {
 
   // Sync users
   unsubscribers.push(syncDocument('users', INITIAL_USERS, (data) => {
-    dbConnected = true;
-    hideConnectionError();
-    if (connectionTimeout) clearTimeout(connectionTimeout);
+    syncedDocs.users = true;
+    if (areAllDocsSynced()) {
+      dbConnected = true;
+      hideConnectionError();
+      if (connectionTimeout) clearTimeout(connectionTimeout);
+    }
 
     users = data;
     
@@ -529,9 +552,12 @@ function setupRealtimeSync() {
 
   // Sync groups
   unsubscribers.push(syncDocument('groups', INITIAL_GROUPS, (data) => {
-    dbConnected = true;
-    hideConnectionError();
-    if (connectionTimeout) clearTimeout(connectionTimeout);
+    syncedDocs.groups = true;
+    if (areAllDocsSynced()) {
+      dbConnected = true;
+      hideConnectionError();
+      if (connectionTimeout) clearTimeout(connectionTimeout);
+    }
 
     groups = data;
     renderAll();
@@ -539,9 +565,12 @@ function setupRealtimeSync() {
 
   // Sync slots
   unsubscribers.push(syncDocument('slots', INITIAL_SLOTS, (data) => {
-    dbConnected = true;
-    hideConnectionError();
-    if (connectionTimeout) clearTimeout(connectionTimeout);
+    syncedDocs.slots = true;
+    if (areAllDocsSynced()) {
+      dbConnected = true;
+      hideConnectionError();
+      if (connectionTimeout) clearTimeout(connectionTimeout);
+    }
 
     slots = data;
     renderAll();
@@ -549,9 +578,12 @@ function setupRealtimeSync() {
 
   // Sync history
   unsubscribers.push(syncDocument('history', INITIAL_HISTORY, (data) => {
-    dbConnected = true;
-    hideConnectionError();
-    if (connectionTimeout) clearTimeout(connectionTimeout);
+    syncedDocs.history = true;
+    if (areAllDocsSynced()) {
+      dbConnected = true;
+      hideConnectionError();
+      if (connectionTimeout) clearTimeout(connectionTimeout);
+    }
 
     history = data;
     renderAll();
@@ -559,9 +591,12 @@ function setupRealtimeSync() {
 
   // Sync candidatos
   unsubscribers.push(syncDocument('candidatos', defaultCandidatos, (data) => {
-    dbConnected = true;
-    hideConnectionError();
-    if (connectionTimeout) clearTimeout(connectionTimeout);
+    syncedDocs.candidatos = true;
+    if (areAllDocsSynced()) {
+      dbConnected = true;
+      hideConnectionError();
+      if (connectionTimeout) clearTimeout(connectionTimeout);
+    }
 
     candidatos = data;
     renderAll();
@@ -580,13 +615,25 @@ function loadData() {
   currentUserId = currentUser.id;
 }
 
-function persistChanges() {
+function persistChanges(onlyDocName = null) {
   if (isFirebaseEnabled) {
-    updateDocument('users', users);
-    updateDocument('groups', groups);
-    updateDocument('slots', slots);
-    updateDocument('history', history);
-    updateDocument('candidatos', candidatos);
+    const docsToUpdate = onlyDocName 
+      ? (Array.isArray(onlyDocName) ? onlyDocName : [onlyDocName])
+      : ['users', 'groups', 'slots', 'history', 'candidatos'];
+
+    docsToUpdate.forEach(docName => {
+      // Salvaguarda crítica: nunca sobrescrever o Firebase se o documento ainda não foi sincronizado localmente.
+      if (!syncedDocs[docName]) {
+        console.warn(`⚠️ Persistência de '${docName}' ignorada porque os dados ainda não foram completamente sincronizados do Firebase.`);
+        return;
+      }
+
+      if (docName === 'users') updateDocument('users', users);
+      else if (docName === 'groups') updateDocument('groups', groups);
+      else if (docName === 'slots') updateDocument('slots', slots);
+      else if (docName === 'history') updateDocument('history', history);
+      else if (docName === 'candidatos') updateDocument('candidatos', candidatos);
+    });
   } else {
     showConnectionError();
   }
@@ -767,7 +814,7 @@ function handleSubstituirVaga(slotId) {
   } else {
     showBanner(`Você assumiu a vaga de ${oldUser?.nome || 'colaborador'} por possuir maior prioridade!`, 'success');
   }
-  persistChanges();
+  persistChanges(['slots', 'history']);
 }
 
 function handleDesistirVaga(slotId) {
@@ -792,7 +839,7 @@ function handleDesistirVaga(slotId) {
   slot.status = 'LIVRE';
 
   showBanner('Você desistiu do apoio. A vaga está disponível novamente.', 'info');
-  persistChanges();
+  persistChanges(['slots', 'history']);
 }
 
 // --- AUTORIZAÇÃO GERENCIAL (Limite de 3 apoios/mês) ---
@@ -815,7 +862,7 @@ function handleAutorizarApoio(slotId) {
 
   const user = users.find(u => u.id === slot.usuarioId);
   showBanner(`Apoio de ${user?.nome || 'colaborador'} em ${formatDatePt(slot.data)} autorizado com sucesso!`, 'success');
-  persistChanges();
+  persistChanges('slots');
 }
 
 function handleRejeitarAutorizacao(slotId) {
@@ -842,7 +889,7 @@ function handleRejeitarAutorizacao(slotId) {
     });
 
     showBanner(`Autorização rejeitada. Vaga de ${formatDatePt(slot.data)} liberada novamente.`, 'info');
-    persistChanges();
+    persistChanges(['slots', 'history']);
   }
 }
 
@@ -2049,7 +2096,7 @@ function handleSaveUser(e) {
   }
 
   userModal.style.display = 'none';
-  persistChanges();
+  persistChanges('users');
   renderUsersTable();
 }
 
@@ -2074,7 +2121,7 @@ function handleDeleteUser(chave) {
   if (confirm(`Tem certeza que deseja excluir o usuário ${user.nome} (${chave.toUpperCase()})?`)) {
     users = users.filter(u => u.id !== chave);
     showBanner(`Usuário ${user.nome} excluído com sucesso.`, 'info');
-    persistChanges();
+    persistChanges('users');
     renderUsersTable();
   }
 }
@@ -2282,7 +2329,7 @@ function handleAssumirVagaDireta(slotId) {
   } else {
     showBanner(`Vaga de apoio confirmada e registrada no histórico para ${formatDatePt(slot.data)} (${score.toFixed(2)} pts)!`, 'success');
   }
-  persistChanges();
+  persistChanges(['slots', 'history']);
 }
 
 function handleCandidatarDisputa(slotId) {
@@ -2301,7 +2348,7 @@ function handleCandidatarDisputa(slotId) {
 
   candidatos[slotId] = [...list, currentUser.id];
   showBanner(`Candidatura na fila registrada para a vaga de ${formatDatePt(slot.data)}!`, 'success');
-  persistChanges();
+  persistChanges('candidatos');
 }
 
 function handleSairDisputa(slotId) {
@@ -2314,7 +2361,7 @@ function handleSairDisputa(slotId) {
 
   candidatos[slotId] = list.filter(cid => cid !== currentUser.id);
   showBanner(`Você saiu da fila de prioridade para a vaga de ${formatDatePt(slot?.data || '')}.`, 'info');
-  persistChanges();
+  persistChanges('candidatos');
 }
 
 function handleEncerrarDisputa(slotId) {
@@ -2380,7 +2427,7 @@ function handleEncerrarDisputa(slotId) {
   }
   
   delete candidatos[slotId];
-  persistChanges();
+  persistChanges(['slots', 'history', 'candidatos']);
 }
 
 function handleAutoRegistroApoio(e) {
@@ -2482,7 +2529,7 @@ function handleAutoRegistroApoio(e) {
   if (regBypassLimit) regBypassLimit.checked = false;
   checkLateSubmission();
 
-  persistChanges();
+  persistChanges('history');
   switchView('historico');
 }
 
@@ -2508,7 +2555,7 @@ function handleCancelarVagaAdmin(slotId) {
   });
 
   showBanner(statusAtual === 'CANCELADO' ? 'Slot de escala reativado.' : 'Solicitação de apoio cancelada.', 'info');
-  persistChanges();
+  persistChanges('slots');
 }
 
 function handleCancelarSlotModal() {
@@ -2641,7 +2688,7 @@ function handleExcluirSlotAdmin() {
     
     // Fechar modal
     handleCancelarSlotModal();
-    persistChanges();
+    persistChanges(['slots', 'history', 'candidatos']);
   }
 }
 
@@ -2838,7 +2885,7 @@ function handleCriarSolicitacaoSlot(e) {
   if (elMotivo) elMotivo.value = '';
   modalRulesCheckboxes.querySelectorAll('input[name="modal-prev-regras"]').forEach(cb => cb.checked = false);
 
-  persistChanges();
+  persistChanges(['slots', 'candidatos']);
 }
 
 function handleAplicarInfracao(e) {
@@ -2862,7 +2909,7 @@ function handleAplicarInfracao(e) {
   infracaoModal.style.display = 'none';
   showBanner(`Penalidade aplicada a ${user.nome}! (+0.01 somado à classificação geral)`, 'warning');
   
-  persistChanges();
+  persistChanges('users');
 }
 
 function handleExcluirHistorico(historyId) {
@@ -2872,7 +2919,7 @@ function handleExcluirHistorico(historyId) {
   history = history.filter(h => h.id !== historyId);
   showBanner(`Registro do dia ${formatDatePt(item.data)} de ${user?.nome || 'colaborador'} excluído do histórico.`, 'info');
   
-  persistChanges();
+  persistChanges('history');
 }
 
 // --- INTEGRAÇÃO WHATSAPP ---
@@ -3815,7 +3862,7 @@ function handleImportUsersCSV(event) {
       });
     }
     
-    persistChanges();
+    persistChanges('users');
     showBanner(`${importedUsers.length} usuários importados com sucesso!`, "success");
     event.target.value = '';
   };
@@ -3898,7 +3945,7 @@ function handleImportSlotsCSV(event) {
       });
     }
     
-    persistChanges();
+    persistChanges('slots');
     showBanner(`${importedSlots.length} vagas de apoio importadas com sucesso!`, "success");
     event.target.value = '';
   };
@@ -3980,7 +4027,7 @@ function handleImportHistoryCSV(event) {
       });
     }
     
-    persistChanges();
+    persistChanges('history');
     showBanner(`${importedHistory.length} registros de histórico importados com sucesso!`, "success");
     event.target.value = '';
   };

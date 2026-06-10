@@ -1,6 +1,6 @@
-# Projeto de Lei Nº 0001/2025
+##Lei Nº 0001/2025
 
-## PROJETO DE LEI Nº 0001/2025
+## LEI Nº 0001/2025
 
 **Dispõe sobre o Sistema de Classificação e Priorização de Apoios na RNEST/TEU/UT**
 
