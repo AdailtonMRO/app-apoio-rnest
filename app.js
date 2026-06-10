@@ -280,7 +280,13 @@ function init() {
     });
   }
 
-  btnOpenAddModal.addEventListener('click', () => addModal.style.display = 'flex');
+  btnOpenAddModal.addEventListener('click', () => {
+    addModal.style.display = 'flex';
+    const elMotivo = document.getElementById('form-motivo');
+    if (elMotivo) {
+      elMotivo.disabled = !isCurrentUserAdminOnly();
+    }
+  });
   btnCloseAddModal.addEventListener('click', handleCancelarSlotModal);
   btnCancelAddModal.addEventListener('click', handleCancelarSlotModal);
   addSlotForm.addEventListener('submit', handleCriarSolicitacaoSlot);
@@ -777,14 +783,24 @@ function handleSubstituirVaga(slotId) {
   const needsAuthorization = monthlyCount >= 3;
 
   // 3. Reatribuir
-  slot.usuarioId = currentUser.id;
-  if (needsAuthorization) {
-    slot.requerAutorizacao = true;
-    delete slot.autorizadoPorId;
-  } else {
-    delete slot.requerAutorizacao;
-    delete slot.autorizadoPorId;
-  }
+  slots = slots.map(s => {
+    if (s.id === slotId) {
+      const updated = {
+        ...s,
+        status: 'ATRIBUIDO',
+        usuarioId: currentUser.id
+      };
+      if (needsAuthorization) {
+        updated.requerAutorizacao = true;
+        delete updated.autorizadoPorId;
+      } else {
+        delete updated.requerAutorizacao;
+        delete updated.autorizadoPorId;
+      }
+      return updated;
+    }
+    return s;
+  });
 
   // 4. Novo histórico
   const historyId = 'h_' + Date.now();
@@ -835,8 +851,19 @@ function handleDesistirVaga(slotId) {
   }
 
   // 2. Liberar a vaga
-  slot.usuarioId = null;
-  slot.status = 'LIVRE';
+  slots = slots.map(s => {
+    if (s.id === slotId) {
+      const updated = {
+        ...s,
+        status: 'LIVRE',
+        usuarioId: null
+      };
+      delete updated.requerAutorizacao;
+      delete updated.autorizadoPorId;
+      return updated;
+    }
+    return s;
+  });
 
   showBanner('Você desistiu do apoio. A vaga está disponível novamente.', 'info');
   persistChanges(['slots', 'history']);
@@ -2304,6 +2331,10 @@ function handleAssumirVagaDireta(slotId) {
       const updated = { ...s, status: 'ATRIBUIDO', usuarioId: currentUser.id };
       if (needsAuthorization) {
         updated.requerAutorizacao = true;
+        delete updated.autorizadoPorId;
+      } else {
+        delete updated.requerAutorizacao;
+        delete updated.autorizadoPorId;
       }
       return updated;
     }
@@ -2400,6 +2431,10 @@ function handleEncerrarDisputa(slotId) {
       const updated = { ...s, status: 'ATRIBUIDO', usuarioId: vencedor.id };
       if (needsAuthorization) {
         updated.requerAutorizacao = true;
+        delete updated.autorizadoPorId;
+      } else {
+        delete updated.requerAutorizacao;
+        delete updated.autorizadoPorId;
       }
       return updated;
     }
@@ -2578,6 +2613,12 @@ function handleCancelarSlotModal() {
   if (formUsuario) {
     formUsuario.value = '';
   }
+
+  const elMotivo = document.getElementById('form-motivo');
+  if (elMotivo) {
+    elMotivo.value = '';
+    elMotivo.disabled = false;
+  }
   
   // Hide delete button
   if (btnDeleteSlot) btnDeleteSlot.style.display = 'none';
@@ -2652,6 +2693,7 @@ function handleIniciarEdicaoEscala(slotId) {
   const elMotivo = document.getElementById('form-motivo');
   if (elMotivo) {
     elMotivo.value = slot.motivo || '';
+    elMotivo.disabled = !isCurrentUserAdminOnly();
   }
 
   // Preencher as regras previstas
@@ -2856,10 +2898,11 @@ function handleCriarSolicitacaoSlot(e) {
           if (newUsuarioId) {
             const monthlyCount = getUserMonthlySupportCount(newUsuarioId, formData);
             const needsAuthorization = monthlyCount >= 3;
-            updated.requerAutorizacao = needsAuthorization;
             if (needsAuthorization) {
+              updated.requerAutorizacao = true;
               updated.autorizadoPorId = currentUser.id; // Pré-autorizado pelo admin
             } else {
+              delete updated.requerAutorizacao;
               delete updated.autorizadoPorId;
             }
           } else {
