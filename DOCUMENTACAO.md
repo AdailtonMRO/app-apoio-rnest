@@ -23,6 +23,8 @@ A aplicação foi estruturada seguindo o modelo **Vanilla Web App Premium** (HTM
 ### Conexão em Tempo Real com Firestore
 *   O sistema utiliza a função `onSnapshot` do Firestore para manter os dados (usuários, vagas de escala, histórico de apoios e candidaturas) sincronizados entre todos os usuários ativos instantaneamente.
 *   Qualquer alteração feita por um operador ou administrador é refletida na tela de todos os outros em tempo real.
+*   **Salvaguardas contra Perda de Dados**: O sistema possui o objeto `syncedDocs` para monitorar individualmente o carregamento de cada coleção no início da sessão. Qualquer gravação externa (persistência) só é habilitada após a confirmação de sincronismo de todas as coleções, evitando que dados em nuvem sejam deletados por arrays locais vazios se a rede estiver lenta.
+*   **Persistência Segmentada**: As atualizações no Firestore são realizadas por meio de chamadas segmentadas à função `persistChanges(onlyDocName)`, atualizando apenas os documentos da coleção especificamente alterada para reduzir o uso de banda e prevenir conflitos.
 
 ### Mecanismo de Fallback (LocalStorage)
 *   Caso o Firebase não esteja configurado (credenciais em branco) ou ocorra uma falha de conexão inicial, o sistema reverte automaticamente para o **Modo Offline Simulador**.
@@ -87,6 +89,9 @@ $$(10 / 10) \times (8 / 10) = 1.0 \times 0.8 = 0.8 \text{ pontos}$$
 *   Botões especiais de **Aprovar (Autorizar)** e **Recusar (Rejeitar)** aparecem para usuários com nível de Supervisor, Gerente ou Administrador.
 *   Se o apoio for autorizado, ele é confirmado e armazena o ID do gestor que o aprovou. Se for rejeitado, a vaga volta a ficar livre e o histórico associado é removido.
 *   No widget **"Meu Painel"**, o operador visualiza um indicador de controle mensal: "Apoios no Mês: X / 3", com alertas visuais amarelados ou avermelhados quando atinge ou supera o limite gratuito.
+*   **Atribuição Direta por Administrador**: Administradores podem atribuir operadores diretamente às vagas de apoio na criação ou edição no painel administrativo. O sistema lida com o gerenciamento de histórico (criando para o novo operador, movendo ou removendo no caso de mudança de colaborador) e gera automaticamente o aviso de limite mensal caso o operador escolhido tenha 3 ou mais apoios no mês.
+*   **Motivo da Solicitação**: Há um campo opcional de motivo de solicitação na criação/edição de escalas. Esse campo só é editável por administradores e serve para documentar a escala (ex: dobra por falta de pessoal), ficando armazenado de forma segura no Firebase, mas sendo omitido do template de WhatsApp para evitar ruídos de comunicação.
+*   **Sincronismo Dinâmico de Avisos**: Os avisos de aprovação de limite mensal ("Aguardando Aprovação Gerencial") são limpos dinamicamente se a vaga for liberada (voltando a ser livre) ou se o ocupante for substituído por outro operador que não atinja o limite mensal.
 
 ---
 
@@ -104,4 +109,8 @@ Para evitar que operadores assumam vagas na escala e esqueçam de registrar no h
 ## 💬 7. Gerador de Templates para WhatsApp
 
 *   Para facilitar a comunicação, o sistema gera dinamicamente relatórios de escala formatados com emojis e listas ordenadas de vagas ocupadas e livres, prontos para copiar e colar no grupo oficial do WhatsApp.
+*   **Indicadores Visuais de Status**: O gerador de relatórios inclui uma sinalização visual de status no início de cada linha de vaga:
+    - `🟢` (bola verde) para vagas com status **Livre** (exibindo explicitamente o texto `: Livre` no lugar de um nome em branco).
+    - `🔴` (bola vermelha) para vagas **Atribuídas** (exibindo a identificação e o nome do colaborador).
+    - `⚪` (bola branca) para vagas com status **Cancelado**.
 *   **Link de Acesso**: Todo template gerado anexa automaticamente no rodapé o link da aplicação (`https://adailtonmro.github.io/app-apoio-rnest/`), facilitando o clique direto dos operadores a partir do celular para acessar o sistema.

@@ -56,10 +56,9 @@ Os dados iniciais foram preenchidos exatamente com as informações e nomes das 
 - Ao mudar o perfil para **Gerente**, botões de "Aprovar" e "Recusar" aparecem nestas vagas pendentes.
 
 ### 📊 Ranking de Prioridade (Google Sheets integrado)
-- O painel exibe um ranking anual de colaboradores com base nos dados que hoje você controla na planilha Google.
-- **Janela de Prioridade**: Ao criar uma vaga como administrador, você pode ativar a "Fila de Prioridade".
-- Vários apoiadores podem se candidatar à vaga. O sistema lista os candidatos em tempo real e calcula automaticamente quem é o **Líder da Disputa** (quem tiver a menor pontuação de apoios no ano).
-- O Administrador clica em **"Fechar Janela e Atribuir Vencedor"** para que a vaga seja dada automaticamente ao candidato prioritário.
+- O painel exibe um ranking anual de colaboradores com base nos dados de apoios do ano corrente.
+- **Substituição por Prioridade (Bumping)**: As vagas são de Acesso Direto. Caso um colaborador com menor prioridade (pontuação maior no ranking) assuma uma vaga, outro com maior prioridade (pontuação menor) pode clicar em "Substituir" para assumir o apoio correspondente, respeitando o regulamento de preferência. A antiga "Fila de Disputa" foi desativada.
+- **Atribuição Direta por Admin**: Administradores podem selecionar e atribuir colaboradores diretamente às vagas na criação ou edição no painel administrativo.
 
 ### 💬 Gerador de Escala para WhatsApp
-- Para administradores e gerentes, um botão **"Gerar Template WhatsApp"** cria o relatório textual completo atualizado no formato exato com os emojis e dados atuais, pronto para ser copiado e colado no grupo!
+- Para administradores e gerentes, o botão **"Gerar Template WhatsApp"** cria o relatório textual formatado com emojis de status (`🟢` Livre, `🔴` Ocupada, `⚪` Cancelada) e link de acesso direto ao sistema, omitindo os motivos de solicitação internos dos administradores.

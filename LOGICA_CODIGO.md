@@ -46,10 +46,12 @@ Representa cada vaga de apoio solicitada pela administração.
   "usuarioId": null,
   "regrasPrevistas": ["R1", "R5"],
   "requerAutorizacao": false,
-  "autorizadoPorId": null
+  "autorizadoPorId": null,
+  "motivo": "Dobra emergencial por falta de pessoal no turno"
 }
 ```
 *   `status`: Estado da vaga (`LIVRE` - disponível, `ATRIBUIDO` - confirmada para um colaborador). A opção de vagas em disputa (`EM_DISPUTA`) foi desativada, tornando todas as vagas de acesso direto.
+*   `motivo`: Campo de preenchimento opcional do motivo da solicitação, editável apenas por administradores no painel.
 *   `regrasPrevistas`: Características planejadas para o apoio, usadas para simular/estimar os pontos.
 *   `requerAutorizacao`: Define se o apoio requer aprovação por exceder o limite mensal de 3 apoios.
 
@@ -256,6 +258,9 @@ Se o usuário já possuir **3 ou mais apoios** no mês da escala, a propriedade 
 *   **Autorizar (`handleAutorizarApoio`)**: Limpa `requerAutorizacao` e define `autorizadoPorId` com a chave do gestor ativo. O lançamento no histórico permanece válido.
 *   **Rejeitar (`handleRejeitarAutorizacao`)**: Remove o lançamento correspondente do histórico, limpa o `usuarioId` da vaga, retorna o status da escala para `LIVRE` e apaga as propriedades de autorização.
 
+### C. Limpeza de Estado (Aviso de Aprovação Gerencial)
+Sempre que a vaga retorna ao estado `LIVRE` ou seu ocupante é alterado para outro colaborador que não atinge o limite mensal de 3 apoios, as propriedades de autorização (`requerAutorizacao` e `autorizadoPorId`) são deletadas do slot. A manipulação de slots nas funções `handleSubstituirVaga`, `handleDesistirVaga`, `handleAssumirVagaDireta`, e `handleEncerrarDisputa` usa atualizações funcionais do array (`slots = slots.map(...)`) para garantir a limpeza reativa correta dessas chaves.
+
 ---
 
 ## 🔍 5. Lógica da Tabela de Auditoria de Lançamentos
@@ -319,3 +324,8 @@ A sincronização de dados funciona com carregamento assíncrono em duas etapas 
 *   **Modo Local (Offline)**:
     *   `syncDocument` tenta ler do `localStorage`. Se não existir, semeia com os valores padrões (`INITIAL_*`) e chama o callback imediatamente.
     *   `updateDocument` salva a coleção serializada no `localStorage` usando `JSON.stringify()`.
+
+### C. Salvaguarda Contra Perda de Dados e Escritas Incompletas
+O carregamento assíncrono das coleções do Firebase gera risco de corrida caso um usuário interaja com a aplicação antes que todas as coleções tenham sido sincronizadas do Firestore. 
+1. **syncedDocs**: Objeto global que registra o status de sincronização de cada coleção (`users`, `groups`, `slots`, `history`, `candidatos`). A tela de carregamento só é liberada se todos os valores de `syncedDocs` forem `true`.
+2. **Gravação Segmentada**: O método `persistChanges` foi refatorado para receber o nome da coleção que foi efetivamente modificada (ex. `persistChanges('slots')`). A função verifica se aquela coleção específica já concluiu sua sincronização inicial antes de realizar o `setDoc`. Caso contrário, a escrita é abortada para evitar que coleções em branco no estado local sobrescrevam e apaguem dados populados na nuvem.
