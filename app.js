@@ -3095,13 +3095,13 @@ function generateWhatsappTemplate() {
       slotsBySubgrupo[sub].forEach(s => {
         const u = users.find(user => user.id === s.usuarioId);
         let userText = '';
-        const isDisp = false; // Vagas são apenas de acesso Direto
+        let emoji = '🟢';
 
         if (s.status === 'CANCELADO') {
           userText = '*CANCELADO*';
-        } else if (isDisp) {
-          userText = '';
+          emoji = '⚪';
         } else if (s.status === 'ATRIBUIDO') {
+          emoji = '🔴';
           if (u) {
             const primeiroNome = u.nome ? u.nome.trim().split(' ')[0] : '';
             const monthlyCount = getUserMonthlySupportCount(u.id, s.data);
@@ -3109,9 +3109,12 @@ function generateWhatsappTemplate() {
           } else {
             userText = 'Desconhecido';
           }
+        } else {
+          emoji = '🟢';
+          userText = 'Livre';
         }
 
-        output += `${formatDatePt(s.data)} - ${s.horario}: ${userText}\n`;
+        output += `${emoji} ${formatDatePt(s.data)} - ${s.horario}: ${userText}\n`;
       });
       
       output += `\n`;
