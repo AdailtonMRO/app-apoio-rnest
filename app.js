@@ -771,6 +771,11 @@ function handleSubstituirVaga(slotId) {
     return;
   }
 
+  if (slot.data === simulatedCurrentDate) {
+    showBanner('Não é possível substituir vagas de apoio do dia atual.', 'danger');
+    return;
+  }
+
   const oldAssigneeId = slot.usuarioId;
   const oldUser = users.find(u => u.id === oldAssigneeId);
 
@@ -1577,7 +1582,9 @@ function attachSlotActionsListeners(filteredSlots) {
           const occupantIsExcluido = occupant && (occupant.cargo === 'GPI' || occupant.cargo === 'OPMAN');
           const hasPriority = occupantIsExcluido || hasHigherPriority(currentUser.id, slot.usuarioId);
           
-          if (hasPriority) {
+          if (slot.data === simulatedCurrentDate) {
+            actionHtml = `<button class="btn btn-secondary" style="width: 100%; cursor: not-allowed;" disabled>🔒 Ocupado (Substituição Indisponível no Dia)</button>`;
+          } else if (hasPriority) {
             actionHtml = `<button class="btn btn-primary btn-substituir" style="width: 100%;">🔄 Substituir (Maior Prioridade)</button>`;
           } else {
             actionHtml = `<button class="btn btn-secondary" style="width: 100%; cursor: not-allowed;" disabled>🔒 Ocupado (Maior Prioridade)</button>`;
