@@ -2,8 +2,8 @@
 // Preencha com as credenciais do seu projeto no Firebase Console:
 // https://console.firebase.google.com/
 //
-// Se as chaves ficarem em branco, o sistema automaticamente usará o 
-// LocalStorage local como simulação.
+// ATENÇÃO: A conexão com o Firebase é obrigatória. O modo local (fallback)
+// foi desativado por motivos de segurança.
 export const firebaseConfig = {
   apiKey: "AIzaSyDoogLg4L_etWVGWh7rmQuLqs30oTwG98E",
   authDomain: "app-apoio-rnest.firebaseapp.com",

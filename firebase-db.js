@@ -47,7 +47,7 @@ if (isFirebaseEnabled) {
     throw error;
   }
 } else {
-  console.warn("⚠️ Firebase não configurado ou chaves em branco. O sistema requer conexão online.");
+  console.error("❌ ERRO CRÍTICO: Firebase não configurado ou chaves em branco! O sistema requer conexão online obrigatória.");
 }
 
 // --- MÉTODOS DE AUTENTICAÇÃO ---
@@ -100,26 +100,10 @@ export function syncDocument(docName, defaultData, callback) {
       const payload = snapshot.data();
       callback(payload.data);
     } else {
-      console.log(`Documento '${docName}' não encontrado no Firestore. Inicializando base...`);
-      
-      // Define dados iniciais vazios ou essenciais (sem preencher com dados fictícios antigos)
-      let initialData;
-      if (docName === 'users' || docName === 'groups') {
-        // Mantém a lista de usuários e subgrupos essenciais para a aplicação funcionar
-        initialData = defaultData;
-      } else if (docName === 'candidatos') {
-        initialData = {};
-      } else {
-        // slots e history iniciam completamente limpos (sem dados padrão/mocados)
-        initialData = [];
-      }
-
-      try {
-        await setDocFn(docRef, { data: initialData });
-        callback(initialData);
-      } catch (err) {
-        console.error(`Erro ao inicializar o documento ${docName}:`, err);
-      }
+      console.error(`❌ ERRO CRÍTICO: O documento '${docName}' não existe no Firestore! A inicialização automática pelo cliente foi bloqueada para segurança dos dados de produção.`);
+      // Fornece dados padrão em memória para evitar crashes na interface, mas sem realizar escritas no banco
+      let initialData = (docName === 'users' || docName === 'groups') ? defaultData : (docName === 'candidatos' ? {} : []);
+      callback(initialData);
     }
   }, (error) => {
     console.error(`Erro ao escutar o documento ${docName}:`, error);

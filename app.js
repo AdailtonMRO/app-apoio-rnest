@@ -77,7 +77,6 @@ let candidatos = {};
 
 // --- ELEMENTOS DO DOM ---
 const roleSelect = document.getElementById('role-select');
-const btnResetDemo = document.getElementById('btn-reset-demo');
 const simCurrentDateInput = document.getElementById('sim-current-date');
 const tabContainer = document.getElementById('tab-container');
 const slotsCount = document.getElementById('slots-count');
@@ -236,9 +235,6 @@ function init() {
   // Listeners de simulação com salvaguardas (elementos removidos em produção)
   if (roleSelect) {
     roleSelect.addEventListener('change', handleRoleChange);
-  }
-  if (btnResetDemo) {
-    btnResetDemo.addEventListener('click', resetDemo);
   }
   if (simCurrentDateInput) {
     simCurrentDateInput.addEventListener('change', handleSimDateChange);
@@ -439,8 +435,14 @@ function init() {
       });
     }
   } else {
-    // Sem Firebase: Exibir overlay de erro de conexão imediatamente
+    // Sem Firebase: Exibir overlay de erro de conexão e travar a UI de forma definitiva
     showConnectionError();
+    const errorTitle = document.querySelector('#connection-error-overlay h2');
+    const errorText = document.querySelector('#connection-error-overlay p');
+    const errorBtn = document.getElementById('btn-reload-connection-error');
+    if (errorTitle) errorTitle.textContent = "Erro de Configuração";
+    if (errorText) errorText.textContent = "O Firebase é obrigatório para o funcionamento deste sistema. A operação em modo local (offline) está desativada.";
+    if (errorBtn) errorBtn.style.display = 'none';
   }
 }
 
@@ -977,46 +979,7 @@ function handleSimDateChange(e) {
   checkLateSubmission();
   showBanner(`Data simulada alterada para: ${formatDatePt(simulatedCurrentDate)}`, 'info');
   renderAll();
-}
-
-function resetDemo() {
-  if (isFirebaseEnabled) {
-    showBanner('Ação desabilitada: A base de dados de produção do Firebase não pode ser resetada.', 'danger');
-    return;
-  }
-
-  const defaultCandidatos = {
-    's_f1': ['Ab5a', 'Kbvx'],
-    's_f2': ['Ab3r'],
-    's_f3': ['Kva8 ', 'ab1j']
-  };
-
-  currentUserId = 'AB2U'; // Syan Addy
-  simulatedCurrentDate = getTodayStr();
-  if (simCurrentDateInput) {
-    simCurrentDateInput.value = simulatedCurrentDate;
-  }
-  regDataLancamentoInput.value = formatDatePt(simulatedCurrentDate);
-
-  localStorage.removeItem('rnest_law_users_v5');
-  localStorage.removeItem('rnest_law_groups_v5');
-  localStorage.removeItem('rnest_law_slots_v5');
-  localStorage.removeItem('rnest_law_history_v5');
-  localStorage.removeItem('rnest_law_candidatos_v5');
-
-  candidatos = defaultCandidatos;
-  escalaDateFilter = 'future';
-  if (btnDateFuture && btnDatePast) {
-    btnDateFuture.classList.add('active');
-    btnDatePast.classList.remove('active');
-  }
-  if (slotsTitle) slotsTitle.textContent = 'Apoios Solicitados';
-  loadData();
-  renderAll();
-  showBanner('Simulação e histórico resetados!', 'info');
-}
-
-// --- CÁLCULOS DA LEI DE APOIO (FÓRMULAS OFICIAIS) ---
+}// --- CÁLCULOS DA LEI DE APOIO (FÓRMULAS OFICIAIS) ---
 
 function calculateSupportScore(regrasArray) {
   if (regrasArray.length === 0) return 0.0;
