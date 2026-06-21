@@ -168,6 +168,7 @@ const leiModalBody = document.getElementById('lei-modal-body');
 
 // Formulário de Auto-Registro
 const regUsuarioSelect = document.getElementById('reg-usuario');
+const regGrupoSelect = document.getElementById('reg-grupo');
 const regSubgrupoInput = document.getElementById('reg-subgrupo');
 const regDataInput = document.getElementById('reg-data');
 const regDataLancamentoInput = document.getElementById('reg-data-lancamento');
@@ -776,6 +777,13 @@ function handleSubstituirVaga(slotId) {
     return;
   }
 
+  // O operador não pode assumir mais de 1 apoio na mesma data
+  const alreadyHasSupport = slots.some(s => s.usuarioId === currentUser.id && s.data === slot.data && s.status === 'ATRIBUIDO' && s.id !== slotId);
+  if (alreadyHasSupport) {
+    showBanner('Você já possui um apoio atribuído para esta data.', 'danger');
+    return;
+  }
+
   const oldAssigneeId = slot.usuarioId;
   const oldUser = users.find(u => u.id === oldAssigneeId);
 
@@ -823,6 +831,7 @@ function handleSubstituirVaga(slotId) {
     id: historyId,
     usuarioId: currentUser.id,
     data: slot.data,
+    grupoId: slot.grupoId || '',
     subgrupo: slot.subgrupo,
     regras: finalRegras,
     pontuacao: score,
@@ -935,6 +944,9 @@ function handleIniciarEdicaoHistorico(historyId) {
   switchView('registro');
 
   regUsuarioSelect.value = item.usuarioId;
+  if (regGrupoSelect && item.grupoId) {
+    regGrupoSelect.value = item.grupoId;
+  }
   regSubgrupoInput.value = item.subgrupo;
   regDataInput.value = item.data;
 
@@ -953,6 +965,7 @@ function handleCancelarEdicaoApoio() {
   editingHistoryId = null;
   regSubgrupoInput.value = '';
   regDataInput.value = '';
+  if (regGrupoSelect) regGrupoSelect.selectedIndex = 0;
   rulesCheckboxContainer.querySelectorAll('input[name="reg-regras"]').forEach(cb => cb.checked = false);
   if (regBypassLimit) regBypassLimit.checked = false;
   
@@ -1406,17 +1419,18 @@ function renderSlots() {
 
     const isPast = slot.data < simulatedCurrentDate;
     const cardStatusClass = isPast ? 'concluido' : (isDisputa ? 'pendente' : slot.status.toLowerCase());
+    const isSelfSlot = slot.usuarioId === currentUser.id;
 
     html += `
-      <div class="slot-card glass-panel status-${cardStatusClass}">
+      <div class="slot-card glass-panel status-${cardStatusClass} ${isSelfSlot ? 'my-assigned-slot' : ''}">
         <div class="slot-meta">
           <span class="slot-subgrupo">${slot.subgrupo}</span>
           ${isDisputa ? `
             <span class="badge badge-pending">Em Disputa</span>
           ` : `
-            <span class="badge ${isPast ? 'badge-concluido' : `badge-${slot.status.toLowerCase()}`}">
+            <span class="badge ${isPast ? 'badge-concluido' : (isSelfSlot ? 'badge-self' : `badge-${slot.status.toLowerCase()}`)}">
               ${isPast ? 'Concluído' : (slot.status === 'LIVRE' ? 'Disponível' : 
-                slot.status === 'CANCELADO' ? 'Cancelado' : 'Fechada')}
+                slot.status === 'CANCELADO' ? 'Cancelado' : (isSelfSlot ? 'Seu Apoio ⭐' : 'Fechada'))}
             </span>
           `}
         </div>
@@ -1863,6 +1877,8 @@ function renderHistoryTable() {
   filteredHistory.forEach(h => {
     const user = users.find(u => u.id === h.usuarioId);
     const regBy = users.find(u => u.id === h.registradoPorId);
+    const group = groups.find(g => g.id === h.grupoId);
+    const groupName = group ? group.nome : '';
     
     const canEdit = isCurrentUserGestor() || h.usuarioId === currentUser.id || h.registradoPorId === currentUser.id;
     const canDelete = isCurrentUserAdminOnly();
@@ -1871,7 +1887,10 @@ function renderHistoryTable() {
       <tr>
         <td><strong>${formatDatePt(h.data)}</strong></td>
         <td>${user?.nome || 'Desconhecido'}</td>
-        <td>${h.subgrupo}</td>
+        <td>
+          ${groupName ? `<span style="font-size: 0.72rem; font-weight: bold; text-transform: uppercase; color: var(--info); display: block; margin-bottom: 2px;">${groupName}</span>` : ''}
+          <span style="font-size: 0.85rem;">${h.subgrupo}</span>
+        </td>
         <td>
           ${h.regras.map(rid => {
             const rule = SUPPORT_RULES.find(r => r.id === rid);
@@ -2131,6 +2150,10 @@ function renderFormGroupsOptions() {
   });
   selectGrupo.innerHTML = html;
 
+  if (regGrupoSelect) {
+    regGrupoSelect.innerHTML = html;
+  }
+
   const selectRegUsuario = document.getElementById('reg-usuario');
   let userHtml = '';
   const sortedRegUsers = [...users]
@@ -2292,6 +2315,13 @@ function handleAssumirVagaDireta(slotId) {
     return;
   }
 
+  // O operador não pode assumir mais de 1 apoio na mesma data
+  const alreadyHasSupport = slots.some(s => s.usuarioId === currentUser.id && s.data === slot.data && s.status === 'ATRIBUIDO' && s.id !== slotId);
+  if (alreadyHasSupport) {
+    showBanner('Você já possui um apoio atribuído para esta data.', 'danger');
+    return;
+  }
+
   // Verificar limite mensal de 3 apoios
   const monthlyCount = getUserMonthlySupportCount(currentUser.id, slot.data);
   const needsAuthorization = monthlyCount >= 3;
@@ -2325,6 +2355,7 @@ function handleAssumirVagaDireta(slotId) {
     id: historyId,
     usuarioId: currentUser.id,
     data: slot.data,
+    grupoId: slot.grupoId || '',
     subgrupo: slot.subgrupo,
     regras: finalRegras,
     pontuacao: score,
@@ -2425,6 +2456,7 @@ function handleEncerrarDisputa(slotId) {
     id: historyId,
     usuarioId: vencedor.id,
     data: slot.data,
+    grupoId: slot.grupoId || '',
     subgrupo: slot.subgrupo,
     regras: finalRegras,
     pontuacao: score,
@@ -2448,6 +2480,7 @@ function handleAutoRegistroApoio(e) {
   e.preventDefault();
 
   const regUserId = regUsuarioSelect.value;
+  const regGrupo = regGrupoSelect?.value || '';
   const regSubgrupo = regSubgrupoInput.value;
   const regData = regDataInput.value;
 
@@ -2504,6 +2537,7 @@ function handleAutoRegistroApoio(e) {
         return {
           ...h,
           usuarioId: regUserId,
+          grupoId: regGrupo,
           data: regData,
           subgrupo: regSubgrupo,
           regras: regras,
@@ -2523,6 +2557,7 @@ function handleAutoRegistroApoio(e) {
     const novoHistorico = {
       id: historyId,
       usuarioId: regUserId,
+      grupoId: regGrupo,
       data: regData,
       subgrupo: regSubgrupo,
       regras: regras,
@@ -2539,6 +2574,7 @@ function handleAutoRegistroApoio(e) {
 
   regSubgrupoInput.value = '';
   regDataInput.value = '';
+  if (regGrupoSelect) regGrupoSelect.selectedIndex = 0;
   rulesCheckboxContainer.querySelectorAll('input[name="reg-regras"]').forEach(cb => cb.checked = false);
   if (regBypassLimit) regBypassLimit.checked = false;
   checkLateSubmission();
@@ -2555,7 +2591,13 @@ function handleCancelarVagaAdmin(slotId) {
   }
 
   const slot = slots.find(s => s.id === slotId);
+  if (!slot) return;
   const statusAtual = slot.status;
+  const oldAssigneeId = slot.usuarioId;
+
+  if (oldAssigneeId) {
+    history = history.filter(h => !(h.usuarioId === oldAssigneeId && h.data === slot.data));
+  }
 
   slots = slots.map(s => {
     if (s.id === slotId) {
@@ -2569,7 +2611,7 @@ function handleCancelarVagaAdmin(slotId) {
   });
 
   showBanner(statusAtual === 'CANCELADO' ? 'Slot de escala reativado.' : 'Solicitação de apoio cancelada.', 'info');
-  persistChanges('slots');
+  persistChanges(['slots', 'history']);
 }
 
 function handleCancelarSlotModal() {
@@ -2827,6 +2869,7 @@ function handleCriarSolicitacaoSlot(e) {
               return {
                 ...h,
                 data: formData,
+                grupoId: formGrupo,
                 subgrupo: formSubgrupo,
                 regras: finalRegras,
                 pontuacao: score
@@ -2841,6 +2884,7 @@ function handleCriarSolicitacaoSlot(e) {
             id: historyId,
             usuarioId: newUsuarioId,
             data: formData,
+            grupoId: formGrupo,
             subgrupo: formSubgrupo,
             regras: finalRegras,
             pontuacao: score,
@@ -2949,6 +2993,7 @@ function handleCriarSolicitacaoSlot(e) {
           id: historyId,
           usuarioId: formUsuarioId,
           data: dStr,
+          grupoId: formGrupo,
           subgrupo: formSubgrupo,
           regras: finalRegras,
           pontuacao: score,
@@ -3045,6 +3090,32 @@ function openWhatsappExporter() {
 function generateWhatsappTemplate() {
   let output = '';
 
+  // Chamada de atenção para vagas em aberto hoje e amanhã
+  const todayStr = simulatedCurrentDate;
+  const todayDate = new Date(todayStr + 'T00:00:00');
+  const tomorrowDate = new Date(todayDate);
+  tomorrowDate.setDate(todayDate.getDate() + 1);
+  const yyyy = tomorrowDate.getFullYear();
+  const mm = String(tomorrowDate.getMonth() + 1).padStart(2, '0');
+  const dd = String(tomorrowDate.getDate()).padStart(2, '0');
+  const tomorrowStr = `${yyyy}-${mm}-${dd}`;
+
+  const openSlotsTodayOrTomorrow = slots.filter(s => 
+    (s.data === todayStr || s.data === tomorrowStr) && 
+    s.status === 'LIVRE'
+  );
+
+  if (openSlotsTodayOrTomorrow.length > 0) {
+    output += `🚨 *ATENÇÃO: VAGAS DE APOIO EM ABERTO HOJE/AMANHÃ!* 🚨\n`;
+    openSlotsTodayOrTomorrow.forEach(s => {
+      const group = groups.find(g => g.id === s.grupoId);
+      const groupName = group ? group.nome : 'Sem Grupo';
+      output += `• *${groupName}* - ${s.subgrupo} em *${formatDatePt(s.data)}* (${s.horario})\n`;
+    });
+    output += `\n👉 Cadastre-se no sistema antes que as vagas sejam preenchidas!\n`;
+    output += `*===================================*\n\n`;
+  }
+
   groups.forEach(group => {
     const groupSlots = slots.filter(s => s.grupoId === group.id && s.data >= simulatedCurrentDate);
     if (groupSlots.length === 0) return;
@@ -3075,7 +3146,12 @@ function generateWhatsappTemplate() {
           if (u) {
             const primeiroNome = u.nome ? u.nome.trim().split(' ')[0] : '';
             const monthlyCount = getUserMonthlySupportCount(u.id, s.data);
-            userText = `${u.id.trim().toUpperCase()} - ${primeiroNome} (${monthlyCount})`;
+            if (u.id === currentUser.id) {
+              userText = `👉 *${u.id.trim().toUpperCase()} - ${primeiroNome} (${monthlyCount}) (VOCÊ)* 👈`;
+              emoji = '⭐';
+            } else {
+              userText = `${u.id.trim().toUpperCase()} - ${primeiroNome} (${monthlyCount})`;
+            }
           } else {
             userText = 'Desconhecido';
           }

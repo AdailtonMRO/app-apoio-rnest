@@ -155,12 +155,18 @@
                     </select>
                   </div>
                   <div class="form-group">
-                    <label class="form-label">Área / Atividade Realizada:</label>
-                    <input type="text" id="reg-subgrupo" class="input-field" placeholder="Ex: Painel Térmico, Campo Caldeira, Águas" required>
+                    <label class="form-label">Grupo / Categoria:</label>
+                    <select id="reg-grupo" class="input-field" required>
+                      <!-- Preenchido via JS -->
+                    </select>
                   </div>
                 </div>
 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                  <div class="form-group">
+                    <label class="form-label">Área / Atividade Realizada:</label>
+                    <input type="text" id="reg-subgrupo" class="input-field" placeholder="Ex: Painel Térmico, Campo Caldeira, Águas" required>
+                  </div>
                   <div class="form-group">
                     <label class="form-label">Data de Término do Apoio:</label>
                     <input type="date" id="reg-data" class="input-field" required>
@@ -168,19 +174,22 @@
                       ⚠️ Lançamento fora do prazo de 72 horas! Será aplicada a penalidade R13 automaticamente.
                     </span>
                   </div>
-                  
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
                   <div class="form-group">
                     <label class="form-label">Data de Lançamento (Hoje):</label>
                     <input type="text" id="reg-data-lancamento" class="input-field" readonly style="opacity: 0.75; background: hsla(222, 47%, 5%, 0.5);">
                   </div>
-                </div>
-
-                <!-- Checkbox de Ajuste Administrativo (Bypass de 72h) -->
-                <div id="reg-bypass-container" class="form-group" style="display: none; align-items: center; gap: 8px;">
-                  <label style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--warning); cursor: pointer;">
-                    <input type="checkbox" id="reg-bypass-limit" style="width: auto;">
-                    <span>Ignorar prazo de 72h (Ajuste Administrativo sem penalidade R13)</span>
-                  </label>
+                  <div style="display: flex; align-items: center; padding-top: 24px;">
+                    <!-- Checkbox de Ajuste Administrativo (Bypass de 72h) -->
+                    <div id="reg-bypass-container" class="form-group" style="display: none; align-items: center; gap: 8px; margin-bottom: 0;">
+                      <label style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--warning); cursor: pointer; margin-bottom: 0;">
+                        <input type="checkbox" id="reg-bypass-limit" style="width: auto;">
+                        <span>Ignorar prazo de 72h (Ajuste Administrativo sem penalidade R13)</span>
+                      </label>
+                    </div>
+                  </div>
                 </div>
 
                 <div class="form-group">
