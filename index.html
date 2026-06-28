@@ -87,6 +87,7 @@
             <button id="tab-btn-escalas" class="view-tab-btn active">📅 Escalas (Vagas de Apoio)</button>
             <button id="tab-btn-registro" class="view-tab-btn">✍️ Registrar Meu Apoio</button>
             <button id="tab-btn-historico" class="view-tab-btn">📜 Histórico de Lançamentos</button>
+            <button id="tab-btn-autotrocas" class="view-tab-btn" style="display: none;">🔄 Autotrocas</button>
             <button id="tab-btn-usuarios" class="view-tab-btn" style="display: none;">👥 Usuários</button>
             <button id="tab-btn-auditoria" class="view-tab-btn" style="display: none;">🔍 Auditoria de Apoios</button>
             <button id="tab-btn-relatorios" class="view-tab-btn" style="display: none;">📊 Relatórios (KPI)</button>
@@ -197,6 +198,19 @@
                         <span>Ignorar prazo de 72h (Ajuste Administrativo sem penalidade R13)</span>
                       </label>
                     </div>
+                  </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 12px; padding: 12px; border: 1px dashed var(--info); border-radius: var(--radius-sm); background: rgba(99, 102, 241, 0.05);">
+                  <div class="form-group" style="margin-bottom: 0; display: flex; align-items: center; height: 100%;">
+                    <label style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: var(--info); cursor: pointer; margin-bottom: 0;">
+                      <input type="checkbox" id="reg-is-autotroca" style="width: auto;">
+                      <strong>Registrar como Autotroca</strong>
+                    </label>
+                  </div>
+                  <div class="form-group" id="container-reg-data-folga" style="margin-bottom: 0; display: none;">
+                    <label class="form-label" style="font-size: 0.8rem; color: var(--info); margin-bottom: 4px;">Data da Folga Pretendida:</label>
+                    <input type="date" id="reg-data-folga" class="input-field" style="border-color: var(--info);">
                   </div>
                 </div>
 
@@ -498,6 +512,71 @@
             </div>
           </div>
 
+          <!-- 7. VIEW DE CONTROLE DE AUTOTROCAS (EXCLUSIVO GESTORES) -->
+          <div id="view-autotrocas" class="app-view-section" style="display: none;">
+            <div class="glass-panel" style="padding: 24px;">
+              <div class="group-header" style="margin-bottom: 20px;">
+                <div>
+                  <h2>🔄 Controle de Autotrocas (Créditos e Débitos)</h2>
+                  <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;">
+                    Gerenciamento administrativo do sistema de autotrocas. Aprove solicitações de folgas (autotrocas normais) ou gerencie operadores devedores (autotrocas contrárias).
+                  </p>
+                </div>
+              </div>
+
+              <!-- Filtros de Autotroca e Ações Administrativas -->
+              <div style="display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; margin-bottom: 20px; flex-wrap: wrap;">
+                <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label" for="autotroca-filter-user">🔎 Filtrar por Colaborador:</label>
+                    <select id="autotroca-filter-user" class="input-field" style="width: 220px;">
+                      <option value="all">-- Todos --</option>
+                    </select>
+                  </div>
+                  <div class="form-group" style="margin-bottom: 0;">
+                    <label class="form-label" for="autotroca-filter-status">📋 Status:</label>
+                    <select id="autotroca-filter-status" class="input-field" style="width: 180px;">
+                      <option value="all">-- Todos --</option>
+                      <option value="debito">Em Débito (Deve Apoio)</option>
+                      <option value="credito_pendente">Pendente de Folga (Aguardando Aprovação)</option>
+                      <option value="credito_aprovado">Com Folga Aprovada</option>
+                      <option value="concluido">Concluídas</option>
+                    </select>
+                  </div>
+                </div>
+                
+                <div style="display: flex; gap: 12px;">
+                  <button id="btn-open-autotroca-contraria-modal" class="btn btn-primary" style="background: var(--warning); color: black; border: none;">
+                    ✚ Registrar Folga Direta (Débito)
+                  </button>
+                </div>
+              </div>
+
+              <!-- Indicadores Rápidos -->
+              <div id="autotrocas-summary" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px;">
+                <!-- Preenchido via JS -->
+              </div>
+
+              <div class="table-responsive">
+                <table class="ranking-table" style="width: 100%;">
+                  <thead>
+                    <tr>
+                      <th>Colaborador</th>
+                      <th>Tipo de Operação</th>
+                      <th>Data do Apoio</th>
+                      <th>Data da Folga</th>
+                      <th>Status Geral</th>
+                      <th style="text-align: center;">Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody id="autotrocas-table-body">
+                    <!-- Preenchido via JS -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
         </main>
 
         <!-- SIDEBAR DIREITA (PLANILHA GOOGLE / RANKING) -->
@@ -613,6 +692,17 @@
               <select id="form-usuario" class="input-field">
                 <!-- Preenchido dinamicamente via JS -->
               </select>
+            </div>
+
+            <!-- Atribuir Operador em Débito de Autotroca -->
+            <div class="form-group" id="container-form-usuario-debito">
+              <label class="form-label" for="form-usuario-debito">Atribuir por Débito de Autotroca (Bloqueia Escala):</label>
+              <select id="form-usuario-debito" class="input-field" style="border-color: var(--warning);">
+                <!-- Preenchido dinamicamente via JS -->
+              </select>
+              <span style="font-size: 0.72rem; color: var(--warning); display: block; margin-top: 4px;">
+                ⚠️ Selecionar um operador aqui irá quitá-lo de um débito. A vaga ficará travada para ele, sem possibilidade de substituição/desistência.
+              </span>
             </div>
 
             <!-- Motivo da Solicitação (Editável apenas por Administradores) -->
@@ -903,6 +993,103 @@
           <div class="modal-footer" style="margin-top: 16px; display: flex; justify-content: flex-end;">
             <button id="btn-close-lei-modal-ok" class="btn btn-secondary">Fechar</button>
           </div>
+        </div>
+      </div>
+
+      <!-- MODAL: CONFIRMAR ASSUMIR VAGA (NORMAL vs AUTOTROCA) -->
+      <div id="confirm-assume-modal" class="modal-overlay" style="display: none; z-index: 9999;">
+        <div class="modal-content glass-panel" style="max-width: 450px;">
+          <div class="modal-header">
+            <h2 class="modal-title">Assumir Vaga de Apoio</h2>
+            <button id="btn-close-confirm-modal" style="background: transparent; border: none; color: #fff; font-size: 1.25rem; cursor: pointer;">✕</button>
+          </div>
+          
+          <p id="confirm-modal-text" style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 10px;">
+            Selecione a modalidade na qual você deseja assumir este apoio:
+          </p>
+
+          <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 20px;">
+            <button id="btn-confirm-normal" class="btn btn-primary" style="width: 100%; padding: 12px;">
+              🟢 Apoio Normal
+            </button>
+            
+            <div id="confirm-autotroca-wrapper" style="border: 1px dashed var(--info); border-radius: var(--radius-sm); padding: 12px; background: rgba(99, 102, 241, 0.05); display: flex; flex-direction: column; gap: 8px;">
+              <button id="btn-confirm-autotroca" class="btn btn-secondary" style="width: 100%; padding: 12px; border-color: var(--info); color: var(--info); margin-bottom: 4px;">
+                🔄 Autotroca (Crédito de Folga)
+              </button>
+              <div class="form-group" style="margin-bottom: 0;">
+                <label class="form-label" style="font-size: 0.8rem; color: var(--info); margin-bottom: 4px;">Data em que deseja folgar (Obrigatório):</label>
+                <input type="date" id="confirm-data-folga" class="input-field" style="border-color: var(--info);">
+              </div>
+            </div>
+          </div>
+
+          <div class="modal-footer" style="margin-top: 20px; display: flex; justify-content: flex-end;">
+            <button id="btn-cancel-confirm-modal" class="btn btn-secondary">Cancelar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- MODAL: REGISTRAR AUTOTROCA CONTRÁRIA (FOLGA) -->
+      <div id="autotroca-contraria-modal" class="modal-overlay" style="display: none; z-index: 9999;">
+        <div class="modal-content glass-panel" style="max-width: 450px;">
+          <div class="modal-header">
+            <h2 class="modal-title">Registrar Folga (Autotroca Contrária)</h2>
+            <button id="btn-close-autotroca-modal" style="background: transparent; border: none; color: #fff; font-size: 1.25rem; cursor: pointer;">✕</button>
+          </div>
+          
+          <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 8px;">
+            Registre a folga inicial do operador. Ele entrará no saldo de **Débito** (devedor de apoio) e a pontuação será registrada somente quando trabalhar no apoio de reposição.
+          </p>
+
+          <form id="autotroca-contraria-form" style="display: flex; flex-direction: column; gap: 16px; margin-top: 10px;">
+            <div class="form-group" id="container-at-usuario">
+              <label class="form-label">Colaborador:</label>
+              <select id="at-usuario" class="input-field">
+                <!-- Apoiadores preenchidos via JS -->
+              </select>
+            </div>
+            
+            <div class="form-group">
+              <label class="form-label">Data da Folga Gozada:</label>
+              <input type="date" id="at-data-folga" class="input-field" required />
+            </div>
+
+            <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 12px;">
+              <button type="button" id="btn-cancel-autotroca-modal" class="btn btn-secondary">Cancelar</button>
+              <button type="submit" class="btn btn-primary" style="background: var(--warning); color: black; border: none;">
+                💾 Registrar Folga e Gerar Débito
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- MODAL: AGENDAR DATA DE PAGAMENTO (FOLGA) -->
+      <div id="agendar-pagamento-modal" class="modal-overlay" style="display: none; z-index: 9999;">
+        <div class="modal-content glass-panel" style="max-width: 450px;">
+          <div class="modal-header">
+            <h2 class="modal-title">Definir Data da Folga</h2>
+            <button id="btn-close-agendar-modal" style="background: transparent; border: none; color: #fff; font-size: 1.25rem; cursor: pointer;">✕</button>
+          </div>
+          
+          <p id="agendar-modal-text" style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 8px;">
+            Defina a data em que o operador irá gozar a sua folga referente a esta autotrocra.
+          </p>
+
+          <form id="agendar-pagamento-form" style="display: flex; flex-direction: column; gap: 16px; margin-top: 10px;">
+            <input type="hidden" id="agendar-at-id" value="">
+            
+            <div class="form-group">
+              <label class="form-label">Data da Folga Programada:</label>
+              <input type="date" id="agendar-data" class="input-field" required />
+            </div>
+
+            <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 12px;">
+              <button type="button" id="btn-cancel-agendar-modal" class="btn btn-secondary">Cancelar</button>
+              <button type="submit" class="btn btn-primary">💾 Salvar Definição</button>
+            </div>
+          </form>
         </div>
       </div>
 

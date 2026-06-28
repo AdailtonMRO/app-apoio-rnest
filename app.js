@@ -6,6 +6,7 @@ let users = [];
 let groups = [];
 let slots = [];
 let history = [];
+let autotrocas = [];
 
 // Perfil simulado ativo
 let currentUserId = 'AB2U'; // Syan Addy Vasconcellos por padrão (Operador)
@@ -21,11 +22,12 @@ let syncedDocs = {
   groups: false,
   slots: false,
   history: false,
-  candidatos: false
+  candidatos: false,
+  autotrocas: false
 };
 
 function areAllDocsSynced() {
-  return syncedDocs.users && syncedDocs.groups && syncedDocs.slots && syncedDocs.history && syncedDocs.candidatos;
+  return syncedDocs.users && syncedDocs.groups && syncedDocs.slots && syncedDocs.history && syncedDocs.candidatos && syncedDocs.autotrocas;
 }
 
 // Funções Auxiliares de Permissão
@@ -127,6 +129,8 @@ let simulatedCurrentDate = getTodayStr();
 
 // Candidaturas a vagas em disputa (Iniciada vazia para apenas Acesso Direto)
 let candidatos = {};
+let currentModalSlotId = null;
+let currentModalIsSub = false;
 
 // --- ELEMENTOS DO DOM ---
 const roleSelect = document.getElementById('role-select');
@@ -146,15 +150,46 @@ const adminActionsBar = document.getElementById('admin-actions-bar');
 const tabBtnEscalas = document.getElementById('tab-btn-escalas');
 const tabBtnRegistro = document.getElementById('tab-btn-registro');
 const tabBtnHistorico = document.getElementById('tab-btn-historico');
+const tabBtnAutotrocas = document.getElementById('tab-btn-autotrocas');
 const tabBtnUsuarios = document.getElementById('tab-btn-usuarios');
 const tabBtnAuditoria = document.getElementById('tab-btn-auditoria');
 const tabBtnRelatorios = document.getElementById('tab-btn-relatorios');
 const viewEscalas = document.getElementById('view-escalas');
 const viewRegistro = document.getElementById('view-registro');
 const viewHistorico = document.getElementById('view-historico');
+const viewAutotrocas = document.getElementById('view-autotrocas');
 const viewUsuarios = document.getElementById('view-usuarios');
 const viewAuditoria = document.getElementById('view-auditoria');
 const viewRelatorios = document.getElementById('view-relatorios');
+
+// Elementos de Autotroca
+const confirmAssumeModal = document.getElementById('confirm-assume-modal');
+const btnConfirmNormal = document.getElementById('btn-confirm-normal');
+const btnConfirmAutotroca = document.getElementById('btn-confirm-autotroca');
+const confirmDataFolga = document.getElementById('confirm-data-folga');
+const btnCancelConfirmModal = document.getElementById('btn-cancel-confirm-modal');
+const btnCloseConfirmModal = document.getElementById('btn-close-confirm-modal');
+
+const autotrocaContrariaModal = document.getElementById('autotroca-contraria-modal');
+const atUsuarioSelect = document.getElementById('at-usuario');
+const atDataFolgaInput = document.getElementById('at-data-folga');
+const autotrocaContrariaForm = document.getElementById('autotroca-contraria-form');
+const btnOpenAutotrocaContrariaModal = document.getElementById('btn-open-autotroca-contraria-modal');
+const btnCancelAutotrocaModal = document.getElementById('btn-cancel-autotroca-modal');
+const btnCloseAutotrocaModal = document.getElementById('btn-close-autotroca-modal');
+
+const agendarPagamentoModal = document.getElementById('agendar-pagamento-modal');
+const agendarAtIdInput = document.getElementById('agendar-at-id');
+const agendarDataInput = document.getElementById('agendar-data');
+const agendarPagamentoForm = document.getElementById('agendar-pagamento-form');
+const btnCancelAgendarModal = document.getElementById('btn-cancel-agendar-modal');
+const btnCloseAgendarModal = document.getElementById('btn-close-agendar-modal');
+
+const formUsuarioDebitoSelect = document.getElementById('form-usuario-debito');
+
+const regIsAutotrocaCheckbox = document.getElementById('reg-is-autotroca');
+const containerRegDataFolga = document.getElementById('container-reg-data-folga');
+const regDataFolgaInput = document.getElementById('reg-data-folga');
 
 // Modais - Escalas
 const addModal = document.getElementById('add-modal');
@@ -342,6 +377,7 @@ function init() {
     if (elMotivo) {
       elMotivo.disabled = !isCurrentUserAdminOnly();
     }
+    populateDebtorsSelect();
   });
   btnCloseAddModal.addEventListener('click', handleCancelarSlotModal);
   btnCancelAddModal.addEventListener('click', handleCancelarSlotModal);
@@ -469,6 +505,40 @@ function init() {
     filterMyAreasCheck.addEventListener('change', renderSlots);
   }
 
+  // Ouvintes de Eventos da Autotroca
+  if (tabBtnAutotrocas) {
+    tabBtnAutotrocas.addEventListener('click', () => switchView('autotrocas'));
+  }
+
+  const atFilterUser = document.getElementById('autotroca-filter-user');
+  const atFilterStatus = document.getElementById('autotroca-filter-status');
+  if (atFilterUser) atFilterUser.addEventListener('change', renderAutotrocasTable);
+  if (atFilterStatus) atFilterStatus.addEventListener('change', renderAutotrocasTable);
+
+  if (btnConfirmNormal) btnConfirmNormal.addEventListener('click', () => handleConfirmAssumeSelection(false));
+  if (btnConfirmAutotroca) btnConfirmAutotroca.addEventListener('click', () => handleConfirmAssumeSelection(true));
+  if (btnCancelConfirmModal) btnCancelConfirmModal.addEventListener('click', () => { confirmAssumeModal.style.display = 'none'; });
+  if (btnCloseConfirmModal) btnCloseConfirmModal.addEventListener('click', () => { confirmAssumeModal.style.display = 'none'; });
+
+  if (btnOpenAutotrocaContrariaModal) {
+    btnOpenAutotrocaContrariaModal.addEventListener('click', () => {
+      populateAutotrocaContrariaUsers();
+      autotrocaContrariaModal.style.display = 'flex';
+    });
+  }
+  if (btnCloseAutotrocaModal) btnCloseAutotrocaModal.addEventListener('click', () => { autotrocaContrariaModal.style.display = 'none'; });
+  if (btnCancelAutotrocaModal) btnCancelAutotrocaModal.addEventListener('click', () => { autotrocaContrariaModal.style.display = 'none'; });
+  if (autotrocaContrariaForm) autotrocaContrariaForm.addEventListener('submit', handleSaveAutotrocaContraria);
+
+  if (regIsAutotrocaCheckbox) {
+    regIsAutotrocaCheckbox.addEventListener('change', () => {
+      if (containerRegDataFolga) {
+        containerRegDataFolga.style.display = regIsAutotrocaCheckbox.checked ? 'block' : 'none';
+        regDataFolgaInput.required = regIsAutotrocaCheckbox.checked;
+      }
+    });
+  }
+
   // Fechar modais ao clicar fora
   window.addEventListener('click', (e) => {
     if (e.target === addModal) handleCancelarSlotModal();
@@ -478,6 +548,9 @@ function init() {
     if (e.target === operatorAreasModal) operatorAreasModal.style.display = 'none';
     if (e.target === leiModal) leiModal.style.display = 'none';
     if (e.target === csvModal) csvModal.style.display = 'none';
+    if (e.target === confirmAssumeModal) confirmAssumeModal.style.display = 'none';
+    if (e.target === autotrocaContrariaModal) autotrocaContrariaModal.style.display = 'none';
+    if (e.target === agendarPagamentoModal) agendarPagamentoModal.style.display = 'none';
   });
 
   // Inicialização obrigatória do Firebase
@@ -567,7 +640,8 @@ function stopRealtimeSync() {
     groups: false,
     slots: false,
     history: false,
-    candidatos: false
+    candidatos: false,
+    autotrocas: false
   };
   hideConnectionError();
 }
@@ -706,6 +780,19 @@ function setupRealtimeSync() {
     candidatos = data;
     renderAll();
   }));
+
+  // Sync autotrocas
+  unsubscribers.push(syncDocument('autotrocas', [], (data) => {
+    syncedDocs.autotrocas = true;
+    if (areAllDocsSynced()) {
+      dbConnected = true;
+      hideConnectionError();
+      if (connectionTimeout) clearTimeout(connectionTimeout);
+    }
+
+    autotrocas = data;
+    renderAll();
+  }));
 }
 
 function loadData() {
@@ -715,6 +802,7 @@ function loadData() {
   slots = data.slots;
   history = data.history;
   candidatos = {};
+  autotrocas = [];
 
   currentUser = users.find(u => u.id === currentUserId) || users[0];
   currentUserId = currentUser.id;
@@ -724,7 +812,7 @@ function persistChanges(onlyDocName = null) {
   if (isFirebaseEnabled) {
     const docsToUpdate = onlyDocName 
       ? (Array.isArray(onlyDocName) ? onlyDocName : [onlyDocName])
-      : ['users', 'groups', 'slots', 'history', 'candidatos'];
+      : ['users', 'groups', 'slots', 'history', 'candidatos', 'autotrocas'];
 
     docsToUpdate.forEach(docName => {
       // Salvaguarda crítica: nunca sobrescrever o Firebase se o documento ainda não foi sincronizado localmente.
@@ -738,6 +826,7 @@ function persistChanges(onlyDocName = null) {
       else if (docName === 'slots') updateDocument('slots', slots);
       else if (docName === 'history') updateDocument('history', history);
       else if (docName === 'candidatos') updateDocument('candidatos', candidatos);
+      else if (docName === 'autotrocas') updateDocument('autotrocas', autotrocas);
     });
   } else {
     showConnectionError();
@@ -758,6 +847,9 @@ function switchView(view) {
   if (tabBtnRelatorios) {
     tabBtnRelatorios.classList.toggle('active', view === 'relatorios');
   }
+  if (tabBtnAutotrocas) {
+    tabBtnAutotrocas.classList.toggle('active', view === 'autotrocas');
+  }
 
   // Atualizar contêineres
   viewEscalas.style.display = view === 'escalas' ? 'block' : 'none';
@@ -770,6 +862,9 @@ function switchView(view) {
   if (viewRelatorios) {
     viewRelatorios.style.display = view === 'relatorios' ? 'block' : 'none';
   }
+  if (viewAutotrocas) {
+    viewAutotrocas.style.display = view === 'autotrocas' ? 'block' : 'none';
+  }
 
   if (view === 'auditoria') {
     renderAuditoriaTable();
@@ -777,6 +872,10 @@ function switchView(view) {
 
   if (view === 'relatorios') {
     renderRelatorios();
+  }
+
+  if (view === 'autotrocas') {
+    renderAutotrocasTable();
   }
 
   if (view === 'registro') {
@@ -863,6 +962,11 @@ function handleSubstituirVaga(slotId) {
   const slot = slots.find(s => s.id === slotId);
   if (!slot) return;
 
+  if (slot.autotrocaPayback) {
+    showBanner('Esta vaga está bloqueada para quitação de autotroca e não pode ser substituída.', 'danger');
+    return;
+  }
+
   // Verificar compatibilidade de áreas/funções
   if (slot.areasFuncoes && slot.areasFuncoes.length > 0) {
     const userAreas = currentUser.areasFuncoes || [];
@@ -883,21 +987,25 @@ function handleSubstituirVaga(slotId) {
     return;
   }
 
-  // O operador não pode assumir mais de 1 apoio na mesma data
   const alreadyHasSupport = slots.some(s => s.usuarioId === currentUser.id && s.data === slot.data && s.status === 'ATRIBUIDO' && s.id !== slotId);
   if (alreadyHasSupport) {
     showBanner('Você já possui um apoio atribuído para esta data.', 'danger');
     return;
   }
 
+  openConfirmAssumeModal(slotId, true);
+}
+
+function executeSubstituirVaga(slotId, isAutotroca, folgaDate = '') {
+  const slot = slots.find(s => s.id === slotId);
+  if (!slot) return;
+
   const oldAssigneeId = slot.usuarioId;
   const oldUser = users.find(u => u.id === oldAssigneeId);
 
-  // 1. Remover histórico do antigo
-  const indexToRemove = history.findIndex(h => h.usuarioId === oldAssigneeId && h.data === slot.data);
-  if (indexToRemove !== -1) {
-    history.splice(indexToRemove, 1);
-  }
+  // 1. Remover histórico do antigo e qualquer autotroca normal associada a ele neste slot
+  history = history.filter(h => !(h.usuarioId === oldAssigneeId && h.data === slot.data));
+  autotrocas = autotrocas.filter(at => !(at.usuarioId === oldAssigneeId && at.slotId === slotId));
 
   // 2. Verificar limite mensal de 3 apoios para o novo usuário
   const monthlyCount = getUserMonthlySupportCount(currentUser.id, slot.data);
@@ -911,6 +1019,13 @@ function handleSubstituirVaga(slotId) {
         status: 'ATRIBUIDO',
         usuarioId: currentUser.id
       };
+      if (isAutotroca) {
+        updated.autotroca = true;
+        updated.dataFolgaPretendida = folgaDate;
+      } else {
+        delete updated.autotroca;
+        delete updated.dataFolgaPretendida;
+      }
       if (needsAuthorization) {
         updated.requerAutorizacao = true;
         delete updated.autorizadoPorId;
@@ -938,26 +1053,52 @@ function handleSubstituirVaga(slotId) {
     usuarioId: currentUser.id,
     data: slot.data,
     grupoId: slot.grupoId || '',
-    subgrupo: slot.subgrupo,
+    subgrupo: isAutotroca ? slot.subgrupo + ' (Autotroca)' : slot.subgrupo,
     regras: finalRegras,
     pontuacao: score,
     dataRegistro: new Date(simulatedCurrentDate + 'T12:00:00').toISOString(),
     registradoPorId: currentUser.id
   };
+  if (isAutotroca) {
+    novoHistorico.isAutotroca = true;
+  }
 
-  history.push(novoHistorico);
+  history = [...history, novoHistorico];
+
+  if (isAutotroca) {
+    const autotrocaId = 'at_' + Date.now();
+    const novaAutotroca = {
+      id: autotrocaId,
+      usuarioId: currentUser.id,
+      tipo: 'NORMAL',
+      status: 'PENDENTE_APROVACAO',
+      dataSolicitacao: simulatedCurrentDate,
+      dataApoio: slot.data,
+      dataFolga: folgaDate,
+      scheduledPaybackDate: folgaDate,
+      paybackFulfilled: false,
+      slotId: slot.id
+    };
+    autotrocas = [...autotrocas, novaAutotroca];
+  }
 
   if (needsAuthorization) {
-    showBanner(`Você assumiu a vaga de ${oldUser?.nome || 'colaborador'}, mas este é o seu ${monthlyCount + 1}º apoio no mês. Aguardando autorização gerencial.`, 'warning');
+    showBanner(`Você substituiu ${oldUser?.nome || 'o colaborador'} por maior prioridade! Este é o seu ${monthlyCount + 1}º apoio no mês. Aguardando autorização.`, 'warning');
   } else {
-    showBanner(`Você assumiu a vaga de ${oldUser?.nome || 'colaborador'} por possuir maior prioridade!`, 'success');
+    showBanner(`Você substituiu ${oldUser?.nome || 'o colaborador'} por maior prioridade!`, 'success');
   }
-  persistChanges(['slots', 'history']);
+  
+  persistChanges(['slots', 'history', 'autotrocas']);
 }
 
 function handleDesistirVaga(slotId) {
   const slot = slots.find(s => s.id === slotId);
   if (!slot) return;
+
+  if (slot.autotrocaPayback) {
+    showBanner('Desistência não permitida. Vaga bloqueada para quitação de autotroca. Contate a supervisão.', 'danger');
+    return;
+  }
 
   if (slot.data < simulatedCurrentDate) {
     showBanner('Não é possível desistir de vagas de apoio do histórico (datas passadas).', 'danger');
@@ -972,6 +1113,9 @@ function handleDesistirVaga(slotId) {
     history.splice(indexToRemove, 1);
   }
 
+  // Remover autotrocas normais (crédito) associadas a esta desistência
+  autotrocas = autotrocas.filter(at => !(at.usuarioId === assigneeId && at.slotId === slotId));
+
   // 2. Liberar a vaga
   slots = slots.map(s => {
     if (s.id === slotId) {
@@ -982,13 +1126,15 @@ function handleDesistirVaga(slotId) {
       };
       delete updated.requerAutorizacao;
       delete updated.autorizadoPorId;
+      delete updated.autotroca;
+      delete updated.dataFolgaPretendida;
       return updated;
     }
     return s;
   });
 
   showBanner('Você desistiu do apoio. A vaga está disponível novamente.', 'info');
-  persistChanges(['slots', 'history']);
+  persistChanges(['slots', 'history', 'autotrocas']);
 }
 
 // --- AUTORIZAÇÃO GERENCIAL (Limite de 3 apoios/mês) ---
@@ -1396,6 +1542,269 @@ function renderAuditoriaTable() {
   tableBody.innerHTML = html;
 }
 
+function populateAutotrocasFilterUsers() {
+  const selectFilter = document.getElementById('autotroca-filter-user');
+  if (!selectFilter) return;
+
+  const prevValue = selectFilter.value;
+  let html = '<option value="all">-- Todos os Colaboradores --</option>';
+  
+  const sortedRegUsers = [...users]
+    .filter(u => u.cargo !== 'GPI' && u.cargo !== 'OPMAN')
+    .sort((a, b) => a.nome.localeCompare(b.nome));
+
+  sortedRegUsers.forEach(u => {
+    html += `<option value="${u.id}">${u.nome}</option>`;
+  });
+
+  selectFilter.innerHTML = html;
+  if (prevValue && selectFilter.querySelector(`option[value="${prevValue}"]`)) {
+    selectFilter.value = prevValue;
+  }
+}
+
+function populateAutotrocaContrariaUsers() {
+  const selectUser = document.getElementById('at-usuario');
+  if (!selectUser) return;
+
+  let html = '';
+  const sortedRegUsers = [...users]
+    .filter(u => u.cargo !== 'GPI' && u.cargo !== 'OPMAN')
+    .sort((a, b) => a.nome.localeCompare(b.nome));
+
+  sortedRegUsers.forEach(u => {
+    html += `<option value="${u.id}">${u.nome} (${u.cargo})</option>`;
+  });
+
+  selectUser.innerHTML = html;
+}
+
+function populateDebtorsSelect() {
+  const selectDeb = document.getElementById('form-usuario-debito');
+  if (!selectDeb) return;
+
+  let html = '<option value="">-- Selecione Operador em Débito (Opcional) --</option>';
+  
+  const pendingDebts = autotrocas.filter(at => at.tipo === 'CONTRARIA' && at.status === 'PENDENTE');
+  const debtorIds = [...new Set(pendingDebts.map(at => at.usuarioId))];
+  
+  const debtors = debtorIds.map(uid => users.find(u => u.id === uid)).filter(Boolean);
+  debtors.sort((a, b) => a.nome.localeCompare(b.nome));
+
+  debtors.forEach(u => {
+    html += `<option value="${u.id}">${u.nome} (${u.cargo})</option>`;
+  });
+
+  selectDeb.innerHTML = html;
+}
+
+function renderAutotrocasSummary(filteredList) {
+  const summaryEl = document.getElementById('autotrocas-summary');
+  if (!summaryEl) return;
+
+  const totalDebito = autotrocas.filter(at => at.tipo === 'CONTRARIA' && at.status === 'PENDENTE').length;
+  const totalCreditoPendente = autotrocas.filter(at => at.tipo === 'NORMAL' && at.status === 'PENDENTE_APROVACAO').length;
+  const totalCreditoAprovado = autotrocas.filter(at => at.tipo === 'NORMAL' && at.status === 'APROVADA').length;
+  const totalConcluidas = autotrocas.filter(at => at.status === 'CONCLUIDO').length;
+
+  summaryEl.innerHTML = `
+    <div class="glass-panel" style="padding: 12px 16px; text-align: center; border: 1px solid hsla(38, 92%, 50%, 0.3);">
+      <span style="font-size: 0.75rem; color: var(--text-muted); display: block;">Em Débito (Devem Apoio)</span>
+      <strong style="font-size: 1.3rem; color: var(--warning);">${totalDebito}</strong>
+    </div>
+    <div class="glass-panel" style="padding: 12px 16px; text-align: center; border: 1px solid hsla(190, 90%, 50%, 0.3);">
+      <span style="font-size: 0.75rem; color: var(--text-muted); display: block;">Pendentes de Folga</span>
+      <strong style="font-size: 1.3rem; color: var(--info);">${totalCreditoPendente}</strong>
+    </div>
+    <div class="glass-panel" style="padding: 12px 16px; text-align: center; border: 1px solid hsla(142, 72%, 45%, 0.3);">
+      <span style="font-size: 0.75rem; color: var(--text-muted); display: block;">Folgas Aprovadas</span>
+      <strong style="font-size: 1.3rem; color: var(--success);">${totalCreditoAprovado}</strong>
+    </div>
+    <div class="glass-panel" style="padding: 12px 16px; text-align: center; border: 1px solid var(--border-color);">
+      <span style="font-size: 0.75rem; color: var(--text-muted); display: block;">Operações Concluídas</span>
+      <strong style="font-size: 1.3rem; color: var(--text-secondary);">${totalConcluidas}</strong>
+    </div>
+  `;
+}
+
+function renderAutotrocasTable() {
+  const tableBody = document.getElementById('autotrocas-table-body');
+  if (!tableBody) return;
+
+  populateAutotrocasFilterUsers();
+  populateAutotrocaContrariaUsers();
+
+  const filterUser = document.getElementById('autotroca-filter-user')?.value || 'all';
+  const filterStatus = document.getElementById('autotroca-filter-status')?.value || 'all';
+
+  let filtered = [...autotrocas];
+
+  if (filterUser !== 'all') {
+    filtered = filtered.filter(at => at.usuarioId === filterUser);
+  }
+
+  if (filterStatus !== 'all') {
+    if (filterStatus === 'debito') {
+      filtered = filtered.filter(at => at.tipo === 'CONTRARIA' && at.status === 'PENDENTE');
+    } else if (filterStatus === 'credito_pendente') {
+      filtered = filtered.filter(at => at.tipo === 'NORMAL' && at.status === 'PENDENTE_APROVACAO');
+    } else if (filterStatus === 'credito_aprovado') {
+      filtered = filtered.filter(at => at.tipo === 'NORMAL' && at.status === 'APROVADA');
+    } else if (filterStatus === 'concluido') {
+      filtered = filtered.filter(at => at.status === 'CONCLUIDO');
+    }
+  }
+
+  filtered.sort((a, b) => {
+    if (a.status !== b.status) {
+      if (a.status === 'CONCLUIDO') return 1;
+      if (b.status === 'CONCLUIDO') return -1;
+    }
+    return new Date(b.dataSolicitacao || '') - new Date(a.dataSolicitacao || '');
+  });
+
+  renderAutotrocasSummary(filtered);
+
+  let html = '';
+  filtered.forEach(at => {
+    const user = users.find(u => u.id === at.usuarioId);
+    const userName = user ? user.nome : 'Desconhecido';
+    
+    const isNormal = at.tipo === 'NORMAL';
+    const typeLabel = isNormal 
+      ? '<span class="badge badge-info" style="background: rgba(99, 102, 241, 0.15); color: var(--info); border: 1px solid var(--info);">🔄 Normal (Apoio ➔ Folga)</span>'
+      : '<span class="badge badge-warning" style="background: rgba(245, 158, 11, 0.15); color: var(--warning); border: 1px solid var(--warning);">⏳ Contrária (Folga ➔ Apoio)</span>';
+
+    const dataApoioLabel = at.dataApoio ? formatDatePt(at.dataApoio) : '<span style="color: var(--text-muted);">Pendente</span>';
+    const dataFolgaLabel = at.dataFolga ? formatDatePt(at.dataFolga) : '<span style="color: var(--text-muted);">Pendente</span>';
+
+    let statusBadge = '';
+    let actionsHtml = '';
+
+    if (at.status === 'PENDENTE_APROVACAO') {
+      statusBadge = '<span class="badge" style="background: rgba(239, 68, 68, 0.15); color: var(--danger); border: 1px solid var(--danger);">Aguardando Aprov. Folga</span>';
+      actionsHtml = `
+        <button class="btn btn-primary btn-at-aprovar" style="padding: 4px 8px; font-size: 0.72rem; background: var(--success); border: none;" data-at-id="${at.id}">✅ Aprovar Folga</button>
+      `;
+    } else if (at.status === 'APROVADA') {
+      statusBadge = '<span class="badge" style="background: rgba(16, 185, 129, 0.15); color: var(--success); border: 1px solid var(--success);">Folga Aprovada</span>';
+      actionsHtml = `
+        <button class="btn btn-primary btn-at-concluir" style="padding: 4px 8px; font-size: 0.72rem; background: var(--info); border: none;" data-at-id="${at.id}">✓ Confirmar Gozo de Folga</button>
+      `;
+    } else if (at.status === 'PENDENTE' && at.tipo === 'CONTRARIA') {
+      statusBadge = '<span class="badge" style="background: rgba(245, 158, 11, 0.15); color: var(--warning); border: 1px solid var(--warning);">Em Débito</span>';
+      actionsHtml = `<span style="font-size: 0.75rem; color: var(--text-muted);">Escalar no painel para quitar</span>`;
+    } else {
+      statusBadge = '<span class="badge badge-concluido">✓ Concluído</span>';
+      actionsHtml = `<span style="font-size: 0.75rem; color: var(--text-muted);">-</span>`;
+    }
+
+    actionsHtml += `
+      <button class="btn btn-danger btn-at-excluir" style="padding: 4px 8px; font-size: 0.72rem; margin-left: 6px;" data-at-id="${at.id}">✕ Excluir</button>
+    `;
+
+    html += `
+      <tr>
+        <td style="font-weight: 600; color: var(--text-primary);">${userName}</td>
+        <td>${typeLabel}</td>
+        <td>${dataApoioLabel}</td>
+        <td>${dataFolgaLabel}</td>
+        <td>${statusBadge}</td>
+        <td style="text-align: center; white-space: nowrap;">
+          ${actionsHtml}
+        </td>
+      </tr>
+    `;
+  });
+
+  tableBody.innerHTML = html || '<tr><td colspan="6" style="text-align:center; color: var(--text-muted);">Nenhum registro encontrado.</td></tr>';
+
+  tableBody.querySelectorAll('.btn-at-aprovar').forEach(btn => {
+    btn.addEventListener('click', () => handleAprovarFolga(btn.getAttribute('data-at-id')));
+  });
+
+  tableBody.querySelectorAll('.btn-at-concluir').forEach(btn => {
+    btn.addEventListener('click', () => handleConcluirFolga(btn.getAttribute('data-at-id')));
+  });
+
+  tableBody.querySelectorAll('.btn-at-excluir').forEach(btn => {
+    btn.addEventListener('click', () => handleDeleteAutotroca(btn.getAttribute('data-at-id')));
+  });
+}
+
+function handleAprovarFolga(atId) {
+  autotrocas = autotrocas.map(at => {
+    if (at.id === atId) {
+      return { ...at, status: 'APROVADA' };
+    }
+    return at;
+  });
+  showBanner('Solicitação de folga aprovada com sucesso!', 'success');
+  persistChanges('autotrocas');
+  renderAutotrocasTable();
+  renderMyPanel();
+}
+
+function handleConcluirFolga(atId) {
+  autotrocas = autotrocas.map(at => {
+    if (at.id === atId) {
+      return { ...at, status: 'CONCLUIDO', paybackFulfilled: true };
+    }
+    return at;
+  });
+  showBanner('Folga marcada como gozada. Autotroca concluída!', 'success');
+  persistChanges('autotrocas');
+  renderAutotrocasTable();
+  renderMyPanel();
+}
+
+function handleDeleteAutotroca(atId) {
+  if (!confirm('Deseja realmente excluir este registro de autotrocra?')) return;
+  autotrocas = autotrocas.filter(at => at.id !== atId);
+  showBanner('Registro de autotrocra excluído.', 'success');
+  persistChanges('autotrocas');
+  renderAutotrocasTable();
+  renderMyPanel();
+}
+
+function handleSaveAutotrocaContraria(e) {
+  e.preventDefault();
+
+  const userId = atUsuarioSelect.value;
+  const dataFolga = atDataFolgaInput.value;
+
+  if (!userId || !dataFolga) {
+    showBanner('Preencha todos os campos.', 'danger');
+    return;
+  }
+
+  const user = users.find(u => u.id === userId);
+  if (!user) return;
+
+  const autotrocaId = 'at_' + Date.now();
+  const novaAutotroca = {
+    id: autotrocaId,
+    usuarioId: userId,
+    tipo: 'CONTRARIA',
+    status: 'PENDENTE',
+    dataSolicitacao: simulatedCurrentDate,
+    dataApoio: '',
+    dataFolga: dataFolga,
+    scheduledPaybackDate: '',
+    paybackFulfilled: false,
+    slotId: ''
+  };
+
+  autotrocas = [...autotrocas, novaAutotroca];
+  persistChanges('autotrocas');
+  autotrocaContrariaModal.style.display = 'none';
+  atDataFolgaInput.value = '';
+  showBanner(`Folga de ${user.nome} registrada! Operador entrou em débito de apoio.`, 'warning');
+  
+  renderAutotrocasTable();
+  renderMyPanel();
+}
+
 function renderRoleSelect() {
   if (!roleSelect) return;
   let html = '';
@@ -1433,10 +1842,12 @@ function renderTabs() {
     tabBtnUsuarios.style.display = 'inline-flex';
     if (tabBtnAuditoria) tabBtnAuditoria.style.display = 'inline-flex';
     if (tabBtnRelatorios) tabBtnRelatorios.style.display = 'inline-flex';
+    if (tabBtnAutotrocas) tabBtnAutotrocas.style.display = 'inline-flex';
   } else {
     tabBtnUsuarios.style.display = 'none';
     if (tabBtnAuditoria) tabBtnAuditoria.style.display = 'none';
     if (tabBtnRelatorios) tabBtnRelatorios.style.display = 'none';
+    if (tabBtnAutotrocas) tabBtnAutotrocas.style.display = 'none';
   }
 
   let html = `<button class="tab-btn ${activeTab === 'all' ? 'active' : ''}" data-tab="all">Todas as Escalas</button>`;
@@ -1550,14 +1961,18 @@ function renderSlots() {
       <div class="slot-card glass-panel status-${cardStatusClass} ${isSelfSlot ? 'my-assigned-slot' : ''}">
         <div class="slot-meta">
           <span class="slot-subgrupo">${slot.subgrupo}</span>
-          ${isDisputa ? `
-            <span class="badge badge-pending">Em Disputa</span>
-          ` : `
-            <span class="badge ${isPast ? 'badge-concluido' : (isSelfSlot ? 'badge-self' : `badge-${slot.status.toLowerCase()}`)}">
-              ${isPast ? 'Concluído' : (slot.status === 'LIVRE' ? 'Disponível' : 
-                slot.status === 'CANCELADO' ? 'Cancelado' : (isSelfSlot ? 'Seu Apoio ⭐' : 'Fechada'))}
-            </span>
-          `}
+          <div style="display: flex; gap: 6px; align-items: center;">
+            ${slot.autotroca ? `<span class="badge" style="background: rgba(99, 102, 241, 0.2); color: var(--info); border: 1px solid var(--info); font-size: 0.65rem; padding: 2px 6px;">🔄 Autotroca</span>` : ''}
+            ${slot.autotrocaPayback ? `<span class="badge" style="background: rgba(245, 158, 11, 0.2); color: var(--warning); border: 1px solid var(--warning); font-size: 0.65rem; padding: 2px 6px;">🔒 Quitação Débito</span>` : ''}
+            ${isDisputa ? `
+              <span class="badge badge-pending">Em Disputa</span>
+            ` : `
+              <span class="badge ${isPast ? 'badge-concluido' : (isSelfSlot ? 'badge-self' : `badge-${slot.status.toLowerCase()}`)}">
+                ${isPast ? 'Concluído' : (slot.status === 'LIVRE' ? 'Disponível' : 
+                  slot.status === 'CANCELADO' ? 'Cancelado' : (isSelfSlot ? 'Seu Apoio ⭐' : 'Fechada'))}
+              </span>
+            `}
+          </div>
         </div>
 
         <div class="slot-schedule">
@@ -1722,13 +2137,19 @@ function attachSlotActionsListeners(filteredSlots) {
       else if (slot.status === 'ATRIBUIDO' && !isDisputa && isCurrentUserOperador()) {
         const isExcluido = currentUser.cargo === 'GPI' || currentUser.cargo === 'OPMAN';
         if (slot.usuarioId === currentUser.id) {
-          actionHtml = `<button class="btn btn-danger btn-desistir-vaga" style="width: 100%;">❌ Desistir do Apoio (Liberar Vaga)</button>`;
+          if (slot.autotrocaPayback) {
+            actionHtml = `<button class="btn btn-secondary" style="width: 100%; cursor: not-allowed; border-color: var(--warning); color: var(--warning);" disabled>🔒 Bloqueado por Quitação de Autotroca</button>`;
+          } else {
+            actionHtml = `<button class="btn btn-danger btn-desistir-vaga" style="width: 100%;">❌ Desistir do Apoio (Liberar Vaga)</button>`;
+          }
         } else if (!isExcluido) {
           const occupant = users.find(u => u.id === slot.usuarioId);
           const occupantIsExcluido = occupant && (occupant.cargo === 'GPI' || occupant.cargo === 'OPMAN');
           const hasPriority = occupantIsExcluido || hasHigherPriority(currentUser.id, slot.usuarioId);
           
-          if (slot.data === simulatedCurrentDate) {
+          if (slot.autotrocaPayback) {
+            actionHtml = `<button class="btn btn-secondary" style="width: 100%; cursor: not-allowed;" disabled>🔒 Vaga Reservada (Quitação de Débito)</button>`;
+          } else if (slot.data === simulatedCurrentDate) {
             actionHtml = `<button class="btn btn-secondary" style="width: 100%; cursor: not-allowed;" disabled>🔒 Ocupado (Substituição Indisponível no Dia)</button>`;
           } else if (hasPriority) {
             actionHtml = `<button class="btn btn-primary btn-substituir" style="width: 100%;">🔄 Substituir (Maior Prioridade)</button>`;
@@ -1852,6 +2273,22 @@ function renderMyPanel() {
               ${monthlyCount}/3
             </strong>
             ${monthlyCount >= 3 ? '<span style="font-size: 0.65rem; color: var(--warning); display: block;">Requer autorização</span>' : ''}
+          </div>
+        </div>
+
+        <div style="border-top: 1px solid var(--border-color); padding-top: 10px; margin-top: 5px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div>
+            <span style="color: var(--text-muted); display: block;">🔄 Saldo de Folgas (Crédito):</span>
+            <strong style="font-size: 1rem; color: var(--success)">
+              ${autotrocas.filter(at => at.usuarioId === currentUser.id && at.tipo === 'NORMAL' && at.status === 'APROVADA').length} <span style="font-size: 0.72rem; color: var(--text-secondary); font-weight: normal;">liberadas</span>
+              ${autotrocas.filter(at => at.usuarioId === currentUser.id && at.tipo === 'NORMAL' && at.status === 'PENDENTE_APROVACAO').length > 0 ? `<br><span style="font-size: 0.7rem; color: var(--info); font-weight: normal;">(+${autotrocas.filter(at => at.usuarioId === currentUser.id && at.tipo === 'NORMAL' && at.status === 'PENDENTE_APROVACAO').length} aguardando aprovação)</span>` : ''}
+            </strong>
+          </div>
+          <div>
+            <span style="color: var(--text-muted); display: block;">⚠️ Débitos de Apoio:</span>
+            <strong style="font-size: 1rem; color: ${autotrocas.filter(at => at.usuarioId === currentUser.id && at.tipo === 'CONTRARIA' && at.status === 'PENDENTE').length > 0 ? 'var(--warning)' : 'var(--text-secondary)'}">
+              ${autotrocas.filter(at => at.usuarioId === currentUser.id && at.tipo === 'CONTRARIA' && at.status === 'PENDENTE').length > 0 ? `${autotrocas.filter(at => at.usuarioId === currentUser.id && at.tipo === 'CONTRARIA' && at.status === 'PENDENTE').length} pendente(s)` : 'Nenhum'}
+            </strong>
           </div>
         </div>
 
@@ -2540,14 +2977,56 @@ function checkLateSubmission() {
 
 // --- EVENT HANDLERS ---
 
+function openConfirmAssumeModal(slotId, isSub) {
+  const slot = slots.find(s => s.id === slotId);
+  if (!slot) return;
+
+  currentModalSlotId = slotId;
+  currentModalIsSub = isSub;
+
+  const pesoPrevisao = calculateSupportScore(slot.regrasPrevistas || ['R1']);
+  const scoreText = pesoPrevisao.toFixed(4);
+
+  const confirmModalText = document.getElementById('confirm-modal-text');
+  
+  if (confirmModalText) {
+    confirmModalText.textContent = isSub 
+      ? "Você está prestes a substituir o operador atual por possuir maior prioridade no ranking. Selecione a modalidade de acúmulo:" 
+      : "Selecione a modalidade na qual você deseja assumir este apoio:";
+  }
+
+  if (confirmDataFolga) {
+    confirmDataFolga.value = '';
+  }
+
+  confirmAssumeModal.style.display = 'flex';
+}
+
+function handleConfirmAssumeSelection(isAutotroca) {
+  const folgaDate = confirmDataFolga ? confirmDataFolga.value : '';
+
+  if (isAutotroca && !folgaDate) {
+    showBanner('Por favor, informe a data em que deseja folgar.', 'danger');
+    return;
+  }
+
+  confirmAssumeModal.style.display = 'none';
+
+  if (currentModalIsSub) {
+    executeSubstituirVaga(currentModalSlotId, isAutotroca, folgaDate);
+  } else {
+    executeAssumirVagaDireta(currentModalSlotId, isAutotroca, folgaDate);
+  }
+}
+
 function handleAssumirVagaDireta(slotId) {
+  const slot = slots.find(s => s.id === slotId);
+  if (!slot) return;
+
   if (!currentUser || !isCurrentUserOperador()) {
     showBanner('Apenas apoiadores podem assumir escalas.', 'danger');
     return;
   }
-
-  const slot = slots.find(s => s.id === slotId);
-  if (!slot) return;
 
   // Verificar compatibilidade de áreas/funções
   if (slot.areasFuncoes && slot.areasFuncoes.length > 0) {
@@ -2564,20 +3043,37 @@ function handleAssumirVagaDireta(slotId) {
     return;
   }
 
-  // O operador não pode assumir mais de 1 apoio na mesma data
   const alreadyHasSupport = slots.some(s => s.usuarioId === currentUser.id && s.data === slot.data && s.status === 'ATRIBUIDO' && s.id !== slotId);
   if (alreadyHasSupport) {
     showBanner('Você já possui um apoio atribuído para esta data.', 'danger');
     return;
   }
 
-  // Verificar limite mensal de 3 apoios
+  openConfirmAssumeModal(slotId, false);
+}
+
+function executeAssumirVagaDireta(slotId, isAutotroca, folgaDate = '') {
+  if (!currentUser || !isCurrentUserOperador()) {
+    showBanner('Apenas apoiadores podem assumir escalas.', 'danger');
+    return;
+  }
+
+  const slot = slots.find(s => s.id === slotId);
+  if (!slot) return;
+
   const monthlyCount = getUserMonthlySupportCount(currentUser.id, slot.data);
   const needsAuthorization = monthlyCount >= 3;
 
   slots = slots.map(s => {
     if (s.id === slotId) {
       const updated = { ...s, status: 'ATRIBUIDO', usuarioId: currentUser.id };
+      if (isAutotroca) {
+        updated.autotroca = true;
+        updated.dataFolgaPretendida = folgaDate;
+      } else {
+        delete updated.autotroca;
+        delete updated.dataFolgaPretendida;
+      }
       if (needsAuthorization) {
         updated.requerAutorizacao = true;
         delete updated.autorizadoPorId;
@@ -2605,21 +3101,42 @@ function handleAssumirVagaDireta(slotId) {
     usuarioId: currentUser.id,
     data: slot.data,
     grupoId: slot.grupoId || '',
-    subgrupo: slot.subgrupo,
+    subgrupo: isAutotroca ? slot.subgrupo + ' (Autotroca)' : slot.subgrupo,
     regras: finalRegras,
     pontuacao: score,
     dataRegistro: new Date(simulatedCurrentDate + 'T12:00:00').toISOString(),
     registradoPorId: currentUser.id
   };
+  if (isAutotroca) {
+    novoHistorico.isAutotroca = true;
+  }
 
   history = [...history, novoHistorico];
+
+  if (isAutotroca) {
+    const autotrocaId = 'at_' + Date.now();
+    const novaAutotroca = {
+      id: autotrocaId,
+      usuarioId: currentUser.id,
+      tipo: 'NORMAL',
+      status: 'PENDENTE_APROVACAO',
+      dataSolicitacao: simulatedCurrentDate,
+      dataApoio: slot.data,
+      dataFolga: folgaDate,
+      scheduledPaybackDate: folgaDate,
+      paybackFulfilled: false,
+      slotId: slot.id
+    };
+    autotrocas = [...autotrocas, novaAutotroca];
+  }
 
   if (needsAuthorization) {
     showBanner(`Vaga assumida para ${formatDatePt(slot.data)}, mas este é o seu ${monthlyCount + 1}º apoio no mês. Aguardando autorização gerencial.`, 'warning');
   } else {
-    showBanner(`Vaga de apoio confirmada e registrada no histórico para ${formatDatePt(slot.data)} (${score.toFixed(2)} pts)!`, 'success');
+    showBanner(`Vaga de apoio confirmada para ${formatDatePt(slot.data)} (${score.toFixed(2)} pts)!`, 'success');
   }
-  persistChanges(['slots', 'history']);
+  
+  persistChanges(['slots', 'history', 'autotrocas']);
 }
 
 function handleCandidatarDisputa(slotId) {
@@ -2743,8 +3260,16 @@ function handleAutoRegistroApoio(e) {
   const regSubgrupo = regSubgrupoInput.value;
   const regData = regDataInput.value;
 
+  const isAutotroca = regIsAutotrocaCheckbox && regIsAutotrocaCheckbox.checked;
+  const dataFolga = regDataFolgaInput?.value || '';
+
   if (!regSubgrupo || !regData) {
     showBanner('Preencha os campos obrigatórios.', 'danger');
+    return;
+  }
+
+  if (isAutotroca && !dataFolga) {
+    showBanner('Para registrar como Autotroca, você deve informar a data da folga pretendida.', 'danger');
     return;
   }
 
@@ -2784,12 +3309,10 @@ function handleAutoRegistroApoio(e) {
   // Se for operador, aplicar restrições de hierarquia (Art. 9º)
   if (!isGestor) {
     if (regUserId !== currentUser.id) {
-      // Tentando registrar para outra pessoa
       if (!isLate) {
         showBanner('Você só pode registrar apoios dentro do prazo para si mesmo. Lançamentos para terceiros só são permitidos após 72h com a penalidade R13 aplicada.', 'danger');
         return;
       }
-      // Se estiver atrasado, é permitido mas com R13 forçado
     }
   }
 
@@ -2816,12 +3339,13 @@ function handleAutoRegistroApoio(e) {
           usuarioId: regUserId,
           grupoId: regGrupo,
           data: regData,
-          subgrupo: regSubgrupo,
+          subgrupo: isAutotroca ? regSubgrupo + ' (Autotroca)' : regSubgrupo,
           regras: regras,
           pontuacao: score,
           dataRegistro: new Date(simulatedCurrentDate + 'T12:00:00').toISOString(),
           registradoPorId: currentUser.id,
-          areasFuncoes: regAreas
+          areasFuncoes: regAreas,
+          isAutotroca: isAutotroca || undefined
         };
       }
       return h;
@@ -2837,15 +3361,35 @@ function handleAutoRegistroApoio(e) {
       usuarioId: regUserId,
       grupoId: regGrupo,
       data: regData,
-      subgrupo: regSubgrupo,
+      subgrupo: isAutotroca ? regSubgrupo + ' (Autotroca)' : regSubgrupo,
       regras: regras,
       pontuacao: score,
       dataRegistro: new Date(simulatedCurrentDate + 'T12:00:00').toISOString(),
       registradoPorId: currentUser.id,
       areasFuncoes: regAreas
     };
+    if (isAutotroca) {
+      novoHistorico.isAutotroca = true;
+    }
 
     history = [...history, novoHistorico];
+
+    if (isAutotroca) {
+      const autotrocaId = 'at_' + Date.now();
+      const novaAutotroca = {
+        id: autotrocaId,
+        usuarioId: regUserId,
+        tipo: 'NORMAL',
+        status: 'PENDENTE_APROVACAO',
+        dataSolicitacao: simulatedCurrentDate,
+        dataApoio: regData,
+        dataFolga: dataFolga,
+        scheduledPaybackDate: dataFolga,
+        paybackFulfilled: false,
+        slotId: ''
+      };
+      autotrocas = [...autotrocas, novaAutotroca];
+    }
 
     const user = users.find(u => u.id === regUserId);
     showBanner(`Apoio registrado para ${user.nome}! Pontuação calculada: ${score.toFixed(4)} pts.`, 'success');
@@ -2857,9 +3401,12 @@ function handleAutoRegistroApoio(e) {
   rulesCheckboxContainer.querySelectorAll('input[name="reg-regras"]').forEach(cb => cb.checked = false);
   document.querySelectorAll('input[name="reg-areas-funcoes"]').forEach(cb => cb.checked = false);
   if (regBypassLimit) regBypassLimit.checked = false;
+  if (regIsAutotrocaCheckbox) regIsAutotrocaCheckbox.checked = false;
+  if (regDataFolgaInput) regDataFolgaInput.value = '';
+  if (containerRegDataFolga) containerRegDataFolga.style.display = 'none';
   checkLateSubmission();
 
-  persistChanges('history');
+  persistChanges(['history', 'autotrocas']);
   switchView('historico');
 }
 
@@ -3007,7 +3554,25 @@ function handleIniciarEdicaoEscala(slotId) {
 
   const selectFormUsuario = document.getElementById('form-usuario');
   if (selectFormUsuario) {
-    selectFormUsuario.value = slot.usuarioId || '';
+    selectFormUsuario.value = slot.autotrocaPayback ? '' : (slot.usuarioId || '');
+  }
+
+  // Preencher seletor de débito
+  populateDebtorsSelect();
+  if (slot.autotrocaPayback && slot.usuarioId) {
+    const optionExists = Array.from(formUsuarioDebitoSelect.options).some(opt => opt.value === slot.usuarioId);
+    if (!optionExists) {
+      const user = users.find(u => u.id === slot.usuarioId);
+      if (user) {
+        const opt = document.createElement('option');
+        opt.value = user.id;
+        opt.textContent = `${user.nome} (${user.cargo})`;
+        formUsuarioDebitoSelect.appendChild(opt);
+      }
+    }
+    formUsuarioDebitoSelect.value = slot.usuarioId;
+  } else {
+    formUsuarioDebitoSelect.value = '';
   }
 
   // Preencher as áreas direcionadas da vaga
@@ -3044,6 +3609,12 @@ function handleExcluirSlotAdmin() {
       history = history.filter(h => !(h.usuarioId === slot.usuarioId && h.data === slot.data));
     }
 
+    if (slot.autotrocaPayback) {
+      revertAutotrocaPayback(slot.id);
+    }
+    // Remover autotrocas normais (créditos) associadas a esta vaga
+    autotrocas = autotrocas.filter(at => at.slotId !== slot.id);
+
     // 2. Remover da fila de candidaturas se houver disputa
     delete candidatos[editingSlotId];
 
@@ -3054,7 +3625,42 @@ function handleExcluirSlotAdmin() {
     
     // Fechar modal
     handleCancelarSlotModal();
-    persistChanges(['slots', 'history', 'candidatos']);
+    persistChanges(['slots', 'history', 'candidatos', 'autotrocas']);
+  }
+}
+
+function revertAutotrocaPayback(slotId) {
+  autotrocas = autotrocas.map(at => {
+    if (at.slotId === slotId && at.tipo === 'CONTRARIA') {
+      return {
+        ...at,
+        status: 'PENDENTE',
+        paybackFulfilled: false,
+        dataApoio: '',
+        slotId: ''
+      };
+    }
+    return at;
+  });
+}
+
+function fulfillAutotrocaPayback(userId, slotId, date) {
+  const pendingDebts = autotrocas.filter(at => at.usuarioId === userId && at.tipo === 'CONTRARIA' && at.status === 'PENDENTE');
+  if (pendingDebts.length > 0) {
+    pendingDebts.sort((a, b) => new Date(a.dataFolga) - new Date(b.dataFolga));
+    const oldestDebt = pendingDebts[0];
+    autotrocas = autotrocas.map(at => {
+      if (at.id === oldestDebt.id) {
+        return {
+          ...at,
+          status: 'CONCLUIDO',
+          paybackFulfilled: true,
+          dataApoio: date,
+          slotId: slotId
+        };
+      }
+      return at;
+    });
   }
 }
 
@@ -3071,7 +3677,10 @@ function handleCriarSolicitacaoSlot(e) {
 
   const modalCbs = modalRulesCheckboxes.querySelectorAll('input[name="modal-prev-regras"]:checked');
   const regrasPrevistas = Array.from(modalCbs).map(cb => cb.value);
+  
   const formUsuarioId = document.getElementById('form-usuario')?.value || null;
+  const formUsuarioDebitoId = formUsuarioDebitoSelect?.value || null;
+  const selectedUsuarioId = formUsuarioDebitoId || formUsuarioId;
 
   if (!formSubgrupo) {
     showBanner('Preencha a atividade / subgrupo.', 'danger');
@@ -3086,8 +3695,8 @@ function handleCriarSolicitacaoSlot(e) {
     return;
   }
 
-  if (formUsuarioId) {
-    const targetUser = users.find(u => u.id === formUsuarioId);
+  if (selectedUsuarioId) {
+    const targetUser = users.find(u => u.id === selectedUsuarioId);
     if (targetUser) {
       const userAreas = targetUser.areasFuncoes || [];
       const isCompatible = slotAreas.some(area => userAreas.includes(area));
@@ -3159,12 +3768,19 @@ function handleCriarSolicitacaoSlot(e) {
     const slot = slots.find(s => s.id === editingSlotId);
     if (slot) {
       const oldUsuarioId = slot.usuarioId;
-      const newUsuarioId = formUsuarioId;
+      const newUsuarioId = selectedUsuarioId;
+
+      if (slot.autotrocaPayback && oldUsuarioId !== newUsuarioId) {
+        revertAutotrocaPayback(slot.id);
+        slot.autotrocaPayback = false;
+      }
 
       // 1. Gerenciar histórico correspondente
       if (oldUsuarioId && oldUsuarioId !== newUsuarioId) {
         // Se tinha um usuário e ele mudou ou foi removido, apaga o histórico do antigo para este dia
         history = history.filter(h => !(h.usuarioId === oldUsuarioId && h.data === slot.data));
+        // Remove também o registro de autotrocra normal (crédito) do antigo
+        autotrocas = autotrocas.filter(at => !(at.usuarioId === oldUsuarioId && at.slotId === slot.id));
       }
 
       if (newUsuarioId) {
@@ -3238,6 +3854,16 @@ function handleCriarSolicitacaoSlot(e) {
             delete updated.autorizadoPorId;
           }
 
+          if (formUsuarioDebitoId) {
+            updated.autotrocaPayback = true;
+            fulfillAutotrocaPayback(formUsuarioDebitoId, slot.id, formData);
+          }
+
+          if (oldUsuarioId !== newUsuarioId || !newUsuarioId) {
+            delete updated.autotroca;
+            delete updated.dataFolgaPretendida;
+          }
+
           if (formMotivo) {
             updated.motivo = formMotivo;
           } else {
@@ -3268,8 +3894,8 @@ function handleCriarSolicitacaoSlot(e) {
       const slotId = 's_' + Date.now() + '_' + idx;
       
       let needsAuthorization = false;
-      if (formUsuarioId) {
-        const monthlyCount = getUserMonthlySupportCount(formUsuarioId, dStr);
+      if (selectedUsuarioId) {
+        const monthlyCount = getUserMonthlySupportCount(selectedUsuarioId, dStr);
         needsAuthorization = monthlyCount >= 3;
       }
 
@@ -3279,14 +3905,19 @@ function handleCriarSolicitacaoSlot(e) {
         subgrupo: formSubgrupo,
         data: dStr,
         horario: formHorario,
-        status: formUsuarioId ? 'ATRIBUIDO' : 'LIVRE',
-        usuarioId: formUsuarioId,
+        status: selectedUsuarioId ? 'ATRIBUIDO' : 'LIVRE',
+        usuarioId: selectedUsuarioId,
         observacao: '',
-        requerAutorizacao: formUsuarioId ? needsAuthorization : false,
-        autorizadoPorId: (formUsuarioId && needsAuthorization) ? currentUser.id : null,
+        requerAutorizacao: selectedUsuarioId ? needsAuthorization : false,
+        autorizadoPorId: (selectedUsuarioId && needsAuthorization) ? currentUser.id : null,
         regrasPrevistas: regrasPrevistas,
         areasFuncoes: slotAreas
       };
+
+      if (formUsuarioDebitoId) {
+        novoSlot.autotrocaPayback = true;
+        fulfillAutotrocaPayback(formUsuarioDebitoId, slotId, dStr);
+      }
 
       if (formMotivo) {
         novoSlot.motivo = formMotivo;
@@ -3294,7 +3925,7 @@ function handleCriarSolicitacaoSlot(e) {
 
       slots = [...slots, novoSlot];
 
-      if (formUsuarioId) {
+      if (selectedUsuarioId) {
         // Criar registro de histórico
         const historyId = 'h_' + Date.now() + '_' + idx;
         const regras = regrasPrevistas || ['R1'];
@@ -3306,7 +3937,7 @@ function handleCriarSolicitacaoSlot(e) {
 
         const novoHistorico = {
           id: historyId,
-          usuarioId: formUsuarioId,
+          usuarioId: selectedUsuarioId,
           data: dStr,
           grupoId: formGrupo,
           subgrupo: formSubgrupo,
@@ -3330,36 +3961,9 @@ function handleCriarSolicitacaoSlot(e) {
     }
   }
 
-  addModal.style.display = 'none';
-
-  // Limpar formulário
-  document.getElementById('form-subgrupo').value = '';
-  document.getElementById('form-data').value = '';
-  document.getElementById('form-data-inicio').value = '';
-  document.getElementById('form-data-fim').value = '';
-  const selectTipoData = document.getElementById('form-tipo-data');
-  if (selectTipoData) {
-    selectTipoData.disabled = false;
-    selectTipoData.value = 'unica';
-  }
-  
-  // Reset visibility
-  const containerDataUnica = document.getElementById('container-data-unica');
-  const containerDataIntervalo = document.getElementById('container-data-intervalo');
-  const formDataInput = document.getElementById('form-data');
-  const formDataInicioInput = document.getElementById('form-data-inicio');
-  const formDataFimInput = document.getElementById('form-data-fim');
-  
-  if (containerDataUnica) containerDataUnica.style.display = 'block';
-  if (containerDataIntervalo) containerDataIntervalo.style.display = 'none';
-  if (formDataInput) formDataInput.required = true;
-  if (formDataInicioInput) formDataInicioInput.required = false;
-  if (formDataFimInput) formDataFimInput.required = false;
-
-  if (elMotivo) elMotivo.value = '';
-  modalRulesCheckboxes.querySelectorAll('input[name="modal-prev-regras"]').forEach(cb => cb.checked = false);
-
-  persistChanges(['slots', 'history', 'candidatos']);
+  // Limpar formulário e fechar modal
+  handleCancelarSlotModal();
+  persistChanges(['slots', 'history', 'candidatos', 'autotrocas']);
 }
 
 function handleAplicarInfracao(e) {
