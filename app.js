@@ -1009,8 +1009,23 @@ function getDebtExpirationDays(at, simDateStr) {
   return isNaN(diffDays) ? null : diffDays;
 }
 
-function getUserMinDebtExpirationDays(userId, simDateStr) {
-  const debts = autotrocas.filter(at => at.usuarioId === userId && at.tipo === 'CONTRARIA' && at.status === 'PENDENTE');
+function getUserMinDebtExpirationDays(userId, simDateStr, includePaybackSlotId = null) {
+  let debts = autotrocas.filter(at => at.usuarioId === userId && at.tipo === 'CONTRARIA' && at.status === 'PENDENTE');
+  
+  // Se estamos avaliando substituição de um slot de payback, o débito que o ocupante
+  // está quitando (CONCLUIDO) voltará para PENDENTE se for bumped — incluir na comparação
+  if (includePaybackSlotId) {
+    const paybackDebt = autotrocas.find(at =>
+      at.usuarioId === userId &&
+      at.tipo === 'CONTRARIA' &&
+      at.status === 'CONCLUIDO' &&
+      at.slotId === includePaybackSlotId
+    );
+    if (paybackDebt) {
+      debts = [...debts, paybackDebt];
+    }
+  }
+  
   if (debts.length === 0) return null;
   
   let minDays = Infinity;
@@ -1030,9 +1045,10 @@ function getUserMinDebtExpirationDays(userId, simDateStr) {
   return hasValid ? minDays : null;
 }
 
-function hasHigherPriority(userAId, userBId) {
+function hasHigherPriority(userAId, userBId, slotId = null) {
+  // Para o ocupante (B), incluir o débito do slot de payback (se houver) pois ele voltará a PENDENTE se bumped
   const minDaysA = getUserMinDebtExpirationDays(userAId, simulatedCurrentDate);
-  const minDaysB = getUserMinDebtExpirationDays(userBId, simulatedCurrentDate);
+  const minDaysB = getUserMinDebtExpirationDays(userBId, simulatedCurrentDate, slotId);
   
   const hasDebtA = minDaysA !== null && !isNaN(minDaysA) && minDaysA !== Infinity;
   const hasDebtB = minDaysB !== null && !isNaN(minDaysB) && minDaysB !== Infinity;
@@ -1082,7 +1098,7 @@ function handleSubstituirVaga(slotId) {
 
   const occupant = users.find(u => u.id === slot.usuarioId);
   const occupantIsExcluido = occupant && (occupant.cargo === 'GPI' || occupant.cargo === 'OPMAN');
-  const hasPriority = occupantIsExcluido || hasHigherPriority(currentUser.id, slot.usuarioId);
+  const hasPriority = occupantIsExcluido || hasHigherPriority(currentUser.id, slot.usuarioId, slot.id);
   
   if (!hasPriority) {
     showBanner('Você não possui prioridade suficiente para substituir este operador.', 'danger');
@@ -2347,7 +2363,7 @@ function attachSlotActionsListeners(filteredSlots) {
         } else if (!isExcluido) {
           const occupant = users.find(u => u.id === slot.usuarioId);
           const occupantIsExcluido = occupant && (occupant.cargo === 'GPI' || occupant.cargo === 'OPMAN');
-          const hasPriority = occupantIsExcluido || hasHigherPriority(currentUser.id, slot.usuarioId);
+          const hasPriority = occupantIsExcluido || hasHigherPriority(currentUser.id, slot.usuarioId, slot.id);
           
           if (slot.data === simulatedCurrentDate) {
             actionHtml = `<button class="btn btn-secondary" style="width: 100%; cursor: not-allowed;" disabled>🔒 Ocupado (Substituição Indisponível no Dia)</button>`;
