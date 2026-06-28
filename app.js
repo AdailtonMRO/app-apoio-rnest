@@ -1073,15 +1073,13 @@ function handleSubstituirVaga(slotId) {
   const slot = slots.find(s => s.id === slotId);
   if (!slot) return;
 
-  if (slot.autotrocaPayback) {
-    const occupant = users.find(u => u.id === slot.usuarioId);
-    const occupantIsExcluido = occupant && (occupant.cargo === 'GPI' || occupant.cargo === 'OPMAN');
-    const hasPriority = occupantIsExcluido || hasHigherPriority(currentUser.id, slot.usuarioId);
-    
-    if (!hasPriority) {
-      showBanner('Esta vaga está bloqueada para quitação de autotroca e não pode ser substituída por pessoas de menor prioridade.', 'danger');
-      return;
-    }
+  const occupant = users.find(u => u.id === slot.usuarioId);
+  const occupantIsExcluido = occupant && (occupant.cargo === 'GPI' || occupant.cargo === 'OPMAN');
+  const hasPriority = occupantIsExcluido || hasHigherPriority(currentUser.id, slot.usuarioId);
+  
+  if (!hasPriority) {
+    showBanner('Você não possui prioridade suficiente para substituir este operador.', 'danger');
+    return;
   }
 
   // Verificar compatibilidade de áreas/funções
@@ -3844,8 +3842,15 @@ function handleExcluirSlotAdmin() {
 }
 
 function revertAutotrocaPayback(slotId) {
+  // Buscar o slot para identificar o usuário que estava ocupando
+  const slot = slots.find(s => s.id === slotId);
+  const occupantId = slot ? slot.usuarioId : null;
+
   autotrocas = autotrocas.map(at => {
-    if (at.slotId === slotId && at.tipo === 'CONTRARIA') {
+    // Reverter pelo slotId (forma primária) ou pelo userId+status CONCLUIDO (fallback)
+    const matchBySlot = at.slotId === slotId && at.tipo === 'CONTRARIA';
+    const matchByUser = occupantId && at.usuarioId === occupantId && at.tipo === 'CONTRARIA' && at.status === 'CONCLUIDO' && at.paybackFulfilled;
+    if (matchBySlot || matchByUser) {
       return {
         ...at,
         status: 'PENDENTE',
@@ -3861,7 +3866,14 @@ function revertAutotrocaPayback(slotId) {
 function fulfillAutotrocaPayback(userId, slotId, date) {
   const pendingDebts = autotrocas.filter(at => at.usuarioId === userId && at.tipo === 'CONTRARIA' && at.status === 'PENDENTE');
   if (pendingDebts.length > 0) {
-    pendingDebts.sort((a, b) => new Date(a.dataFolga) - new Date(b.dataFolga));
+    pendingDebts.sort((a, b) => {
+      const dateA = parseDateRobust(a.dataFolga);
+      const dateB = parseDateRobust(b.dataFolga);
+      if (!dateA && !dateB) return 0;
+      if (!dateA) return 1;
+      if (!dateB) return -1;
+      return dateA - dateB;
+    });
     const oldestDebt = pendingDebts[0];
     autotrocas = autotrocas.map(at => {
       if (at.id === oldestDebt.id) {
