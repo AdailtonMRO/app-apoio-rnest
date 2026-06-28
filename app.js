@@ -1,4 +1,4 @@
-import { getStoredData, saveStoredData, SUPPORT_RULES, INITIAL_USERS, INITIAL_GROUPS, INITIAL_SLOTS, INITIAL_HISTORY } from './data.js';
+import { getStoredData, saveStoredData, SUPPORT_RULES, INITIAL_USERS, INITIAL_GROUPS, INITIAL_SLOTS, INITIAL_HISTORY, AREAS_FUNCOES } from './data.js';
 import { isFirebaseEnabled, loginWithGoogle, logout, onAuthChange, syncDocument, updateDocument } from './firebase-db.js';
 
 // --- ESTADO GLOBAL DA APLICAÇÃO ---
@@ -53,6 +53,59 @@ function isCurrentUserOperador() {
     return adminViewMode === 'operator';
   }
   return currentUser.tipo === 'OPERADOR';
+}
+
+function getDefaultAreasForUser(user) {
+  if (user.tipo === 'SUPERVISOR' || (user.cargo && user.cargo.toLowerCase().includes('supervisor'))) {
+    return ['SUPERVISORES'];
+  }
+  
+  const cargoLower = (user.cargo || '').toLowerCase();
+  const nomeLower = (user.nome || '').toLowerCase();
+  
+  if (cargoLower.includes('elétrica') || cargoLower.includes('eletrica') || nomeLower.includes('elétrica') || nomeLower.includes('eletrica')) {
+    return ['CAMPO ELÉTRICA', 'PAINEL ELÉTRICO', 'APOIO TÉCNICO ELÉTRICA'];
+  }
+  if (cargoLower.includes('térmica') || cargoLower.includes('termica') || cargoLower.includes('caldeira') || nomeLower.includes('térmica') || nomeLower.includes('termica')) {
+    return ['CALDEIRAS', 'AUXILIARES', 'PAINEL TÉRMICO'];
+  }
+  if (cargoLower.includes('águas') || cargoLower.includes('aguas') || cargoLower.includes('etdi') || nomeLower.includes('águas') || nomeLower.includes('aguas')) {
+    return ['TORRES', 'ETDI', 'ÁGUAS', 'PAINEL ÁGUAS'];
+  }
+  
+  // Distribuição padrão baseada no caractere da chave/id
+  const charCode = user.id ? user.id.charCodeAt(0) : 0;
+  if (charCode % 3 === 0) {
+    return ['CAMPO ELÉTRICA', 'PAINEL ELÉTRICO'];
+  } else if (charCode % 3 === 1) {
+    return ['CALDEIRAS', 'AUXILIARES', 'PAINEL TÉRMICO'];
+  } else {
+    return ['TORRES', 'ETDI', 'ÁGUAS'];
+  }
+}
+
+function renderAreasCheckboxList(containerId, checkboxName) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+
+  let html = '';
+  Object.keys(AREAS_FUNCOES).forEach(grupo => {
+    html += `
+      <div style="margin-bottom: 8px;">
+        <div style="font-weight: bold; color: var(--primary); margin-bottom: 4px; border-bottom: 1px solid var(--border-color); padding-bottom: 2px; font-size: 0.85rem;">${grupo}</div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding-left: 6px;">
+          ${AREAS_FUNCOES[grupo].map(area => `
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; cursor: pointer; color: var(--text-secondary); margin-bottom: 0;">
+              <input type="checkbox" name="${checkboxName}" value="${area}" style="width: auto;">
+              <span>${area}</span>
+            </label>
+          `).join('')}
+        </div>
+      </div>
+    `;
+  });
+
+  container.innerHTML = html;
 }
 
 // Abas de visualização principal e escalas
@@ -143,6 +196,12 @@ const userFormCargo = document.getElementById('user-form-cargo');
 const userFormNivel = document.getElementById('user-form-nivel');
 const userSearchInput = document.getElementById('user-search-input');
 const usersTableBody = document.getElementById('users-table-body');
+
+// Modal - Autogerenciamento de Áreas
+const operatorAreasModal = document.getElementById('operator-areas-modal');
+const btnCloseOperatorAreasModal = document.getElementById('btn-close-operator-areas-modal');
+const btnCancelOperatorAreasModal = document.getElementById('btn-cancel-operator-areas-modal');
+const operatorAreasForm = document.getElementById('operator-areas-form');
 
 // Modais - CSV
 const csvModal = document.getElementById('csv-modal');
@@ -379,12 +438,41 @@ function init() {
   renderFormGroupsOptions();
   renderRulesCheckboxes();
 
+  // Inicializar checkboxes de áreas e funções
+  renderAreasCheckboxList('user-areas-checkboxes-container', 'user-areas-funcoes');
+  renderAreasCheckboxList('slot-areas-checkboxes-container', 'slot-areas-funcoes');
+  renderAreasCheckboxList('reg-areas-checkboxes-container', 'reg-areas-funcoes');
+  renderAreasCheckboxList('operator-areas-checkboxes-container', 'operator-areas-funcoes');
+
+  // Adicionar listeners para botões do modal de autogerenciamento
+  if (btnCloseOperatorAreasModal) {
+    btnCloseOperatorAreasModal.addEventListener('click', () => { operatorAreasModal.style.display = 'none'; });
+  }
+  if (btnCancelOperatorAreasModal) {
+    btnCancelOperatorAreasModal.addEventListener('click', () => { operatorAreasModal.style.display = 'none'; });
+  }
+  if (operatorAreasForm) {
+    operatorAreasForm.addEventListener('submit', handleSaveOperatorAreas);
+  }
+
+  // Monitorar alterações nos checkboxes do slot para atualizar a compatibilidade dos usuários
+  document.querySelectorAll('input[name="slot-areas-funcoes"]').forEach(cb => {
+    cb.addEventListener('change', updateFormUsuarioSelectCompatibility);
+  });
+
+  // Evento do filtro de compatibilidade do operador
+  const filterMyAreasCheck = document.getElementById('filter-my-areas');
+  if (filterMyAreasCheck) {
+    filterMyAreasCheck.addEventListener('change', renderSlots);
+  }
+
   // Fechar modais ao clicar fora
   window.addEventListener('click', (e) => {
     if (e.target === addModal) handleCancelarSlotModal();
     if (e.target === whatsappModal) whatsappModal.style.display = 'none';
     if (e.target === infracaoModal) infracaoModal.style.display = 'none';
     if (e.target === userModal) userModal.style.display = 'none';
+    if (e.target === operatorAreasModal) operatorAreasModal.style.display = 'none';
     if (e.target === leiModal) leiModal.style.display = 'none';
     if (e.target === csvModal) csvModal.style.display = 'none';
   });
@@ -504,7 +592,12 @@ function setupRealtimeSync() {
       if (connectionTimeout) clearTimeout(connectionTimeout);
     }
 
-    users = data;
+    users = data.map(u => {
+      if (!u.areasFuncoes) {
+        return { ...u, areasFuncoes: getDefaultAreasForUser(u) };
+      }
+      return u;
+    });
     
     if (isFirebaseEnabled && authenticatedGoogleUser) {
       // Encontrar usuário correspondente
@@ -767,6 +860,16 @@ function handleSubstituirVaga(slotId) {
   const slot = slots.find(s => s.id === slotId);
   if (!slot) return;
 
+  // Verificar compatibilidade de áreas/funções
+  if (slot.areasFuncoes && slot.areasFuncoes.length > 0) {
+    const userAreas = currentUser.areasFuncoes || [];
+    const isCompatible = slot.areasFuncoes.some(area => userAreas.includes(area));
+    if (!isCompatible) {
+      showBanner('Você não possui as áreas/funções de atuação necessárias para substituir este apoio.', 'danger');
+      return;
+    }
+  }
+
   if (slot.data < simulatedCurrentDate) {
     showBanner('Não é possível substituir vagas de apoio do histórico (datas passadas).', 'danger');
     return;
@@ -954,6 +1057,11 @@ function handleIniciarEdicaoHistorico(historyId) {
     cb.checked = item.regras.includes(cb.value);
   });
 
+  const regAreas = item.areasFuncoes || [];
+  document.querySelectorAll('input[name="reg-areas-funcoes"]').forEach(cb => {
+    cb.checked = regAreas.includes(cb.value);
+  });
+
   regFormTitle.textContent = 'Editar Apoio Concluído';
   btnCancelEditReg.style.display = 'inline-flex';
   btnSubmitReg.textContent = '💾 Salvar Alterações e Recalcular Ranking';
@@ -967,6 +1075,7 @@ function handleCancelarEdicaoApoio() {
   regDataInput.value = '';
   if (regGrupoSelect) regGrupoSelect.selectedIndex = 0;
   rulesCheckboxContainer.querySelectorAll('input[name="reg-regras"]').forEach(cb => cb.checked = false);
+  document.querySelectorAll('input[name="reg-areas-funcoes"]').forEach(cb => cb.checked = false);
   if (regBypassLimit) regBypassLimit.checked = false;
   
   switchView('historico');
@@ -1395,6 +1504,19 @@ function renderSlots() {
     filtered = filtered.filter(s => s.grupoId === activeTab);
   }
 
+  const operatorFilterBar = document.getElementById('operator-filter-bar');
+  if (operatorFilterBar) {
+    operatorFilterBar.style.display = (currentUser && isCurrentUserOperador()) ? 'flex' : 'none';
+  }
+
+  const filterMyAreasCheck = document.getElementById('filter-my-areas');
+  if (filterMyAreasCheck && filterMyAreasCheck.checked && currentUser && isCurrentUserOperador()) {
+    const userAreas = currentUser.areasFuncoes || [];
+    filtered = filtered.filter(s => {
+      return !s.areasFuncoes || s.areasFuncoes.length === 0 || s.areasFuncoes.some(area => userAreas.includes(area));
+    });
+  }
+
   slotsCount.textContent = `${filtered.length} vaga(s) encontrada(s)`;
 
   if (filtered.length === 0) {
@@ -1440,6 +1562,13 @@ function renderSlots() {
           <span>${formatDatePt(slot.data)}</span>
           <span>•</span>
           <span>Turno: ${slot.horario}</span>
+        </div>
+
+        <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 4px;">
+          <strong>Áreas/Funções:</strong> 
+          <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; margin-bottom: 8px;">
+            ${(slot.areasFuncoes || []).map(area => `<span class="badge" style="font-size: 0.65rem; padding: 2px 6px; background: hsla(220, 50%, 50%, 0.15); border: 1px solid hsla(220, 50%, 50%, 0.25); text-transform: uppercase; color: hsl(220, 50%, 80%);">${area}</span>`).join('') || '<span style="font-style: italic; color: var(--text-muted);">Não direcionada</span>'}
+          </div>
         </div>
 
         <div style="font-size: 0.8rem; color: var(--text-secondary);">
@@ -1723,6 +1852,19 @@ function renderMyPanel() {
           </div>
         </div>
 
+        <div>
+          <span style="color: var(--text-muted); display: block;">Minhas Áreas de Atuação:</span>
+          <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px;">
+            ${(currentUser.areasFuncoes || []).map(area => `<span class="badge" style="font-size: 0.65rem; padding: 2px 6px; background: hsla(200, 100%, 30%, 0.15); border: 1px solid hsla(200, 100%, 40%, 0.25); text-transform: uppercase; color: hsl(200, 100%, 80%);">${area}</span>`).join('') || '<span style="font-style: italic; color: var(--text-muted); font-size: 0.8rem;">Nenhuma área configurada</span>'}
+          </div>
+        </div>
+
+        <div style="margin-top: 5px;">
+          <button id="btn-edit-my-areas" class="btn btn-secondary" style="width: 100%; font-size: 0.8rem; padding: 6px 12px; display: flex; align-items: center; justify-content: center; gap: 6px;">
+            ⚙️ Editar Minhas Áreas/Funções
+          </button>
+        </div>
+
         ${currentUser.infracoesWA > 0 ? `
           <div style="font-size: 0.72rem; color: var(--danger); background: var(--danger-glow); padding: 8px; border-radius: 4px; border: 1px solid hsla(0, 84%, 60%, 0.2)">
             ⚠️ Infrações WhatsApp: <strong>${currentUser.infracoesWA}</strong> (+${(currentUser.infracoesWA * 0.01).toFixed(2)} pts aplicados no Geral)
@@ -1736,6 +1878,11 @@ function renderMyPanel() {
         ` : ''}
       </div>
     `;
+
+    const btnEditMyAreas = document.getElementById('btn-edit-my-areas');
+    if (btnEditMyAreas) {
+      btnEditMyAreas.addEventListener('click', openOperatorAreasModal);
+    }
   } else {
     myPanelWidget.style.display = 'none';
   }
@@ -1969,7 +2116,12 @@ function renderUsersTable() {
       <tr>
         <td><strong style="color: var(--primary);">${u.id.toUpperCase()}</strong></td>
         <td><span style="font-weight: 600;">${u.nome}</span></td>
-        <td>${u.cargo}</td>
+        <td>
+          <div>${u.cargo}</div>
+          <div style="display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; max-width: 250px;">
+            ${(u.areasFuncoes || []).map(area => `<span class="badge" style="font-size: 0.6rem; padding: 1px 4px; background: hsla(200, 100%, 30%, 0.15); border: 1px solid hsla(200, 100%, 40%, 0.25); text-transform: uppercase; color: hsl(200, 100%, 80%);">${area}</span>`).join('') || '<span style="font-size: 0.65rem; color: var(--text-muted); font-style: italic;">Nenhuma área</span>'}
+          </div>
+        </td>
         <td>
           <span class="badge ${
             u.tipo === 'ADMINISTRADOR' ? 'badge-cancelled' : 
@@ -2030,6 +2182,7 @@ function openUserModal(mode, id = '') {
   userForm.reset();
   userFormMode.value = mode;
 
+  let userAreas = [];
   if (mode === 'add') {
     userModalTitle.textContent = 'Cadastrar Novo Colaborador';
     userFormChave.disabled = false;
@@ -2047,8 +2200,13 @@ function openUserModal(mode, id = '') {
       userFormEmail.value = user.email || '';
       userFormCargo.value = user.cargo;
       userFormNivel.value = user.tipo;
+      userAreas = user.areasFuncoes || [];
     }
   }
+
+  document.querySelectorAll('input[name="user-areas-funcoes"]').forEach(cb => {
+    cb.checked = userAreas.includes(cb.value);
+  });
 
   userModal.style.display = 'flex';
 }
@@ -2074,6 +2232,9 @@ function handleSaveUser(e) {
     return;
   }
 
+  const checkedAreasCbs = document.querySelectorAll('input[name="user-areas-funcoes"]:checked');
+  const areasFuncoes = Array.from(checkedAreasCbs).map(cb => cb.value);
+
   if (mode === 'add') {
     // Verificar se a chave já existe
     const existe = users.some(u => u.id.toUpperCase() === newChave.toUpperCase());
@@ -2088,7 +2249,8 @@ function handleSaveUser(e) {
       email: email,
       tipo: nivel,
       cargo: cargo,
-      infracoesWA: 0
+      infracoesWA: 0,
+      areasFuncoes: areasFuncoes
     };
 
     users = [...users, novoUser];
@@ -2102,7 +2264,8 @@ function handleSaveUser(e) {
           nome: nome,
           email: email,
           cargo: cargo,
-          tipo: nivel
+          tipo: nivel,
+          areasFuncoes: areasFuncoes
         };
       }
       return u;
@@ -2140,6 +2303,41 @@ function handleDeleteUser(chave) {
     persistChanges('users');
     renderUsersTable();
   }
+}
+
+function openOperatorAreasModal() {
+  if (!currentUser) return;
+  const userAreas = currentUser.areasFuncoes || [];
+  
+  document.querySelectorAll('input[name="operator-areas-funcoes"]').forEach(cb => {
+    cb.checked = userAreas.includes(cb.value);
+  });
+  
+  operatorAreasModal.style.display = 'flex';
+}
+
+function handleSaveOperatorAreas(e) {
+  e.preventDefault();
+  
+  if (!currentUser) return;
+  
+  const checkedAreasCbs = document.querySelectorAll('input[name="operator-areas-funcoes"]:checked');
+  const areasFuncoes = Array.from(checkedAreasCbs).map(cb => cb.value);
+  
+  users = users.map(u => {
+    if (u.id === currentUser.id) {
+      const updated = { ...u, areasFuncoes: areasFuncoes };
+      currentUser = updated; // Atualizar usuário ativo
+      return updated;
+    }
+    return u;
+  });
+  
+  showBanner('Suas áreas e funções de atuação foram atualizadas com sucesso!', 'success');
+  
+  operatorAreasModal.style.display = 'none';
+  persistChanges('users');
+  renderAll();
 }
 
 function renderFormGroupsOptions() {
@@ -2181,13 +2379,37 @@ function renderFormGroupsOptions() {
   });
   selectInfUsuario.innerHTML = infHtml;
 
+  updateFormUsuarioSelectCompatibility();
+}
+
+function updateFormUsuarioSelectCompatibility() {
   const selectFormUsuario = document.getElementById('form-usuario');
-  if (selectFormUsuario) {
-    let formUserHtml = '<option value="">-- Vaga Livre / Sem Operador --</option>';
-    sortedRegUsers.forEach(u => {
-      formUserHtml += `<option value="${u.id}">${u.nome} (${u.cargo})</option>`;
-    });
-    selectFormUsuario.innerHTML = formUserHtml;
+  if (!selectFormUsuario) return;
+  
+  const selectedUser = selectFormUsuario.value;
+  
+  const checkedCbs = document.querySelectorAll('input[name="slot-areas-funcoes"]:checked');
+  const selectedAreas = Array.from(checkedCbs).map(cb => cb.value);
+  
+  const sortedRegUsers = [...users]
+    .filter(u => u.cargo !== 'GPI' && u.cargo !== 'OPMAN')
+    .sort((a, b) => a.nome.localeCompare(b.nome));
+    
+  let formUserHtml = '<option value="">-- Vaga Livre / Sem Operador --</option>';
+  sortedRegUsers.forEach(u => {
+    const userAreas = u.areasFuncoes || [];
+    const isCompatible = selectedAreas.length === 0 || selectedAreas.some(area => userAreas.includes(area));
+    const label = isCompatible ? '' : ' (⚠️ Área Incompatível)';
+    formUserHtml += `<option value="${u.id}">${u.nome} (${u.cargo})${label}</option>`;
+  });
+  
+  selectFormUsuario.innerHTML = formUserHtml;
+  
+  // Tenta restaurar valor anterior, caso ainda esteja disponível no novo HTML
+  if (sortedRegUsers.some(u => u.id === selectedUser)) {
+    selectFormUsuario.value = selectedUser;
+  } else {
+    selectFormUsuario.value = "";
   }
 }
 
@@ -2310,6 +2532,16 @@ function handleAssumirVagaDireta(slotId) {
   const slot = slots.find(s => s.id === slotId);
   if (!slot) return;
 
+  // Verificar compatibilidade de áreas/funções
+  if (slot.areasFuncoes && slot.areasFuncoes.length > 0) {
+    const userAreas = currentUser.areasFuncoes || [];
+    const isCompatible = slot.areasFuncoes.some(area => userAreas.includes(area));
+    if (!isCompatible) {
+      showBanner('Você não possui as áreas/funções de atuação necessárias para assumir este apoio.', 'danger');
+      return;
+    }
+  }
+
   if (slot.data < simulatedCurrentDate) {
     showBanner('Não é possível assumir vagas de apoio do histórico (datas passadas).', 'danger');
     return;
@@ -2381,6 +2613,16 @@ function handleCandidatarDisputa(slotId) {
 
   const slot = slots.find(s => s.id === slotId);
   const list = candidatos[slotId] || [];
+
+  // Verificar compatibilidade de áreas/funções
+  if (slot.areasFuncoes && slot.areasFuncoes.length > 0) {
+    const userAreas = currentUser.areasFuncoes || [];
+    const isCompatible = slot.areasFuncoes.some(area => userAreas.includes(area));
+    if (!isCompatible) {
+      showBanner('Você não possui as áreas/funções de atuação necessárias para se candidatar a este apoio.', 'danger');
+      return;
+    }
+  }
 
   if (list.includes(currentUser.id)) {
     showBanner('Você já está inscrito nesta vaga.', 'warning');
@@ -2489,6 +2731,24 @@ function handleAutoRegistroApoio(e) {
     return;
   }
 
+  const checkedAreasCbs = document.querySelectorAll('input[name="reg-areas-funcoes"]:checked');
+  const regAreas = Array.from(checkedAreasCbs).map(cb => cb.value);
+
+  if (regAreas.length === 0) {
+    showBanner('Selecione pelo menos uma área/função de atuação para este apoio realizado.', 'danger');
+    return;
+  }
+
+  const targetUser = users.find(u => u.id === regUserId);
+  if (targetUser) {
+    const userAreas = targetUser.areasFuncoes || [];
+    const isCompatible = regAreas.some(area => userAreas.includes(area));
+    if (!isCompatible) {
+      showBanner(`O colaborador ${targetUser.nome} não possui as áreas/funções de atuação selecionadas para este apoio.`, 'danger');
+      return;
+    }
+  }
+
   const isLate = isSubmissionLate();
   const isGestor = isCurrentUserGestor();
   const isBypassed = regBypassLimit && regBypassLimit.checked;
@@ -2543,7 +2803,8 @@ function handleAutoRegistroApoio(e) {
           regras: regras,
           pontuacao: score,
           dataRegistro: new Date(simulatedCurrentDate + 'T12:00:00').toISOString(),
-          registradoPorId: currentUser.id
+          registradoPorId: currentUser.id,
+          areasFuncoes: regAreas
         };
       }
       return h;
@@ -2563,7 +2824,8 @@ function handleAutoRegistroApoio(e) {
       regras: regras,
       pontuacao: score,
       dataRegistro: new Date(simulatedCurrentDate + 'T12:00:00').toISOString(),
-      registradoPorId: currentUser.id
+      registradoPorId: currentUser.id,
+      areasFuncoes: regAreas
     };
 
     history = [...history, novoHistorico];
@@ -2576,6 +2838,7 @@ function handleAutoRegistroApoio(e) {
   regDataInput.value = '';
   if (regGrupoSelect) regGrupoSelect.selectedIndex = 0;
   rulesCheckboxContainer.querySelectorAll('input[name="reg-regras"]').forEach(cb => cb.checked = false);
+  document.querySelectorAll('input[name="reg-areas-funcoes"]').forEach(cb => cb.checked = false);
   if (regBypassLimit) regBypassLimit.checked = false;
   checkLateSubmission();
 
@@ -2620,6 +2883,10 @@ function handleCancelarSlotModal() {
   const titleEl = document.getElementById('add-modal-title');
   if (titleEl) titleEl.textContent = 'Lançar Nova Solicitação de Apoio';
   addSlotForm.reset();
+
+  document.querySelectorAll('input[name="slot-areas-funcoes"]').forEach(cb => {
+    cb.checked = false;
+  });
 
   const formUsuario = document.getElementById('form-usuario');
   if (formUsuario) {
@@ -2725,6 +2992,15 @@ function handleIniciarEdicaoEscala(slotId) {
   if (selectFormUsuario) {
     selectFormUsuario.value = slot.usuarioId || '';
   }
+
+  // Preencher as áreas direcionadas da vaga
+  const slotAreas = slot.areasFuncoes || [];
+  document.querySelectorAll('input[name="slot-areas-funcoes"]').forEach(cb => {
+    cb.checked = slotAreas.includes(cb.value);
+  });
+
+  // Atualizar a visualização de compatibilidade no select
+  updateFormUsuarioSelectCompatibility();
 }
 
 function handleExcluirSlotAdmin() {
@@ -2783,6 +3059,26 @@ function handleCriarSolicitacaoSlot(e) {
   if (!formSubgrupo) {
     showBanner('Preencha a atividade / subgrupo.', 'danger');
     return;
+  }
+
+  const checkedAreasCbs = document.querySelectorAll('input[name="slot-areas-funcoes"]:checked');
+  const slotAreas = Array.from(checkedAreasCbs).map(cb => cb.value);
+
+  if (slotAreas.length === 0) {
+    showBanner('Você deve direcionar a vaga de apoio para pelo menos uma área/função.', 'danger');
+    return;
+  }
+
+  if (formUsuarioId) {
+    const targetUser = users.find(u => u.id === formUsuarioId);
+    if (targetUser) {
+      const userAreas = targetUser.areasFuncoes || [];
+      const isCompatible = slotAreas.some(area => userAreas.includes(area));
+      if (!isCompatible) {
+        showBanner(`O colaborador ${targetUser.nome} não possui as áreas/funções de atuação selecionadas para este apoio.`, 'danger');
+        return;
+      }
+    }
   }
 
   let datesToCreate = [];
@@ -2906,7 +3202,8 @@ function handleCriarSolicitacaoSlot(e) {
             horario: formHorario,
             status: newUsuarioId ? 'ATRIBUIDO' : 'LIVRE',
             usuarioId: newUsuarioId,
-            regrasPrevistas: regrasPrevistas
+            regrasPrevistas: regrasPrevistas,
+            areasFuncoes: slotAreas
           };
           
           if (newUsuarioId) {
@@ -2970,7 +3267,8 @@ function handleCriarSolicitacaoSlot(e) {
         observacao: '',
         requerAutorizacao: formUsuarioId ? needsAuthorization : false,
         autorizadoPorId: (formUsuarioId && needsAuthorization) ? currentUser.id : null,
-        regrasPrevistas: regrasPrevistas
+        regrasPrevistas: regrasPrevistas,
+        areasFuncoes: slotAreas
       };
 
       if (formMotivo) {
@@ -3932,7 +4230,7 @@ function downloadCSV(csvContent, filename) {
 
 // 1. Exportação
 function exportUsersToCSV() {
-  const headers = ['id', 'nome', 'email', 'tipo', 'cargo', 'infracoesWA'];
+  const headers = ['id', 'nome', 'email', 'tipo', 'cargo', 'infracoesWA', 'areasFuncoes'];
   let csv = headers.join(',') + '\n';
   users.forEach(u => {
     const row = [
@@ -3941,7 +4239,8 @@ function exportUsersToCSV() {
       u.email,
       u.tipo,
       u.cargo,
-      u.infracoesWA !== undefined ? u.infracoesWA : 0
+      u.infracoesWA !== undefined ? u.infracoesWA : 0,
+      (u.areasFuncoes || []).join(';')
     ];
     csv += row.map(valueToCsvField).join(',') + '\n';
   });
@@ -3949,7 +4248,7 @@ function exportUsersToCSV() {
 }
 
 function exportSlotsToCSV() {
-  const headers = ['id', 'grupoId', 'subgrupo', 'data', 'horario', 'status', 'usuarioId', 'observacao', 'regrasPrevistas'];
+  const headers = ['id', 'grupoId', 'subgrupo', 'data', 'horario', 'status', 'usuarioId', 'observacao', 'regrasPrevistas', 'areasFuncoes'];
   let csv = headers.join(',') + '\n';
   slots.forEach(s => {
     const row = [
@@ -3961,7 +4260,8 @@ function exportSlotsToCSV() {
       s.status,
       s.usuarioId || '',
       s.observacao || '',
-      s.regrasPrevistas || []
+      (s.regrasPrevistas || []).join(';'),
+      (s.areasFuncoes || []).join(';')
     ];
     csv += row.map(valueToCsvField).join(',') + '\n';
   });
@@ -3969,7 +4269,7 @@ function exportSlotsToCSV() {
 }
 
 function exportHistoryToCSV() {
-  const headers = ['id', 'usuarioId', 'data', 'subgrupo', 'regras', 'pontuacao', 'dataRegistro', 'registradoPorId'];
+  const headers = ['id', 'usuarioId', 'data', 'subgrupo', 'regras', 'pontuacao', 'dataRegistro', 'registradoPorId', 'areasFuncoes'];
   let csv = headers.join(',') + '\n';
   history.forEach(h => {
     const row = [
@@ -3977,10 +4277,11 @@ function exportHistoryToCSV() {
       h.usuarioId,
       h.data,
       h.subgrupo,
-      h.regras || [],
+      (h.regras || []).join(';'),
       h.pontuacao,
       h.dataRegistro,
-      h.registradoPorId || ''
+      h.registradoPorId || '',
+      (h.areasFuncoes || []).join(';')
     ];
     csv += row.map(valueToCsvField).join(',') + '\n';
   });
@@ -4009,6 +4310,7 @@ function handleImportUsersCSV(event) {
     const tipoIdx = headers.indexOf('tipo');
     const cargoIdx = headers.indexOf('cargo');
     const infracoesIdx = headers.indexOf('infracoeswa');
+    const areasIdx = headers.indexOf('areasfuncoes');
     
     if (idIdx === -1 || nomeIdx === -1 || emailIdx === -1) {
       showBanner("Erro: Colunas obrigatórias 'id', 'nome' e 'email' não encontradas.", "danger");
@@ -4031,13 +4333,22 @@ function handleImportUsersCSV(event) {
       const id = row[idIdx].trim().toUpperCase();
       if (!id) continue;
       
+      const cargo = cargoIdx !== -1 ? row[cargoIdx].trim() : 'Operador';
+      const tipo = tipoIdx !== -1 ? row[tipoIdx].trim().toUpperCase() : 'OPERADOR';
+      const nome = row[nomeIdx].trim();
+      
+      const areasFuncoes = (areasIdx !== -1 && row[areasIdx] && row[areasIdx].trim())
+        ? row[areasIdx].trim().split(';')
+        : getDefaultAreasForUser({ id, cargo, tipo, nome });
+
       importedUsers.push({
         id,
-        nome: row[nomeIdx].trim(),
+        nome,
         email: row[emailIdx].trim(),
-        tipo: tipoIdx !== -1 ? row[tipoIdx].trim().toUpperCase() : 'OPERADOR',
-        cargo: cargoIdx !== -1 ? row[cargoIdx].trim() : 'Operador',
-        infracoesWA: infracoesIdx !== -1 ? parseInt(row[infracoesIdx], 10) || 0 : 0
+        tipo,
+        cargo,
+        infracoesWA: infracoesIdx !== -1 ? parseInt(row[infracoesIdx], 10) || 0 : 0,
+        areasFuncoes
       });
     }
     
@@ -4086,6 +4397,7 @@ function handleImportSlotsCSV(event) {
     const usuarioIdIdx = headers.indexOf('usuarioid');
     const observacaoIdx = headers.indexOf('observacao');
     const regrasPrevistasIdx = headers.indexOf('regrasprevistas');
+    const areasFuncoesIdx = headers.indexOf('areasfuncoes');
     
     if (idIdx === -1 || grupoIdIdx === -1 || subgrupoIdx === -1 || dataIdx === -1) {
       showBanner("Erro: Colunas obrigatórias 'id', 'grupoId', 'subgrupo' e 'data' não encontradas.", "danger");
@@ -4111,6 +4423,9 @@ function handleImportSlotsCSV(event) {
       const regrasRaw = regrasPrevistasIdx !== -1 ? row[regrasPrevistasIdx].trim() : '';
       const regrasPrevistas = regrasRaw ? regrasRaw.split(';') : ['R1'];
       
+      const areasRaw = areasFuncoesIdx !== -1 ? row[areasFuncoesIdx].trim() : '';
+      const areasFuncoes = areasRaw ? areasRaw.split(';') : [];
+
       importedSlots.push({
         id,
         grupoId: row[grupoIdIdx].trim(),
@@ -4120,7 +4435,8 @@ function handleImportSlotsCSV(event) {
         status: statusIdx !== -1 ? row[statusIdx].trim().toUpperCase() : 'LIVRE',
         usuarioId: (usuarioIdIdx !== -1 && row[usuarioIdIdx].trim()) ? row[usuarioIdIdx].trim() : null,
         observacao: observacaoIdx !== -1 ? row[observacaoIdx].trim() : '',
-        regrasPrevistas
+        regrasPrevistas,
+        areasFuncoes
       });
     }
     
@@ -4168,6 +4484,7 @@ function handleImportHistoryCSV(event) {
     const pontuacaoIdx = headers.indexOf('pontuacao');
     const dataRegistroIdx = headers.indexOf('dataregistro');
     const registradoPorIdIdx = headers.indexOf('registradoporid');
+    const areasFuncoesIdx = headers.indexOf('areasfuncoes');
     
     if (idIdx === -1 || usuarioIdIdx === -1 || dataIdx === -1 || subgrupoIdx === -1) {
       showBanner("Erro: Colunas obrigatórias 'id', 'usuarioId', 'data' e 'subgrupo' não encontradas.", "danger");
@@ -4194,6 +4511,9 @@ function handleImportHistoryCSV(event) {
       const regras = regrasRaw ? regrasRaw.split(';') : ['R1'];
       const score = pontuacaoIdx !== -1 ? parseFloat(row[pontuacaoIdx]) || 1.0 : 1.0;
       
+      const areasRaw = areasFuncoesIdx !== -1 ? row[areasFuncoesIdx].trim() : '';
+      const areasFuncoes = areasRaw ? areasRaw.split(';') : [];
+
       importedHistory.push({
         id,
         usuarioId: row[usuarioIdIdx].trim(),
@@ -4202,7 +4522,8 @@ function handleImportHistoryCSV(event) {
         regras,
         pontuacao: score,
         dataRegistro: dataRegistroIdx !== -1 ? row[dataRegistroIdx].trim() : new Date().toISOString(),
-        registradoPorId: registradoPorIdIdx !== -1 ? row[registradoPorIdIdx].trim() : ''
+        registradoPorId: registradoPorIdIdx !== -1 ? row[registradoPorIdIdx].trim() : '',
+        areasFuncoes
       });
     }
     
