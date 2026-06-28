@@ -1021,6 +1021,8 @@ function getUserMinDebtExpirationDays(userId, simDateStr, includePaybackSlotId =
       at.status === 'CONCLUIDO' &&
       at.slotId === includePaybackSlotId
     );
+    console.log('[PAYBACK_LOOKUP] userId:', userId, 'slotId:', includePaybackSlotId, 'found:', paybackDebt ? paybackDebt.dataFolga : 'NONE',
+      '| all CONTRARIA of user:', autotrocas.filter(at => at.usuarioId === userId && at.tipo === 'CONTRARIA').map(at => ({status: at.status, slotId: at.slotId, dataFolga: at.dataFolga})));
     if (paybackDebt) {
       debts = [...debts, paybackDebt];
     }
