@@ -801,6 +801,8 @@ a:hover {
 .modal-content {
   width: 100%;
   max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
   padding: 28px;
   display: flex;
   flex-direction: column;

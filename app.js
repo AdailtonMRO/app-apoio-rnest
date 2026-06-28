@@ -455,9 +455,12 @@ function init() {
     operatorAreasForm.addEventListener('submit', handleSaveOperatorAreas);
   }
 
-  // Monitorar alterações nos checkboxes do slot para atualizar a compatibilidade dos usuários
+  // Monitorar alterações nos checkboxes do slot para atualizar a compatibilidade dos usuários e o subgrupo
   document.querySelectorAll('input[name="slot-areas-funcoes"]').forEach(cb => {
-    cb.addEventListener('change', updateFormUsuarioSelectCompatibility);
+    cb.addEventListener('change', () => {
+      updateFormSubgrupoFromAreas();
+      updateFormUsuarioSelectCompatibility();
+    });
   });
 
   // Evento do filtro de compatibilidade do operador
@@ -2380,6 +2383,20 @@ function renderFormGroupsOptions() {
   selectInfUsuario.innerHTML = infHtml;
 
   updateFormUsuarioSelectCompatibility();
+}
+
+function updateFormSubgrupoFromAreas() {
+  const formSubgrupo = document.getElementById('form-subgrupo');
+  if (!formSubgrupo) return;
+  
+  const checkedCbs = document.querySelectorAll('input[name="slot-areas-funcoes"]:checked');
+  const selectedAreas = Array.from(checkedCbs).map(cb => cb.value);
+  
+  if (selectedAreas.length > 0) {
+    formSubgrupo.value = selectedAreas.join(' ou ');
+  } else {
+    formSubgrupo.value = '';
+  }
 }
 
 function updateFormUsuarioSelectCompatibility() {
