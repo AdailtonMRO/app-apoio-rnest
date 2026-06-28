@@ -1018,6 +1018,7 @@ function getUserMinDebtExpirationDays(userId, simDateStr) {
   
   debts.forEach(at => {
     const days = getDebtExpirationDays(at, simDateStr);
+    console.log('[DEBT_DEBUG] userId:', userId, 'dataFolga:', at.dataFolga, 'status:', at.status, 'days:', days);
     if (days !== null && !isNaN(days)) {
       hasValid = true;
       if (days < minDays) {
@@ -1035,19 +1036,25 @@ function hasHigherPriority(userAId, userBId) {
   
   const hasDebtA = minDaysA !== null && !isNaN(minDaysA) && minDaysA !== Infinity;
   const hasDebtB = minDaysB !== null && !isNaN(minDaysB) && minDaysB !== Infinity;
+
+  console.log('[PRIORITY_DEBUG] A:', userAId, 'minDaysA:', minDaysA, 'hasDebtA:', hasDebtA,
+              '| B:', userBId, 'minDaysB:', minDaysB, 'hasDebtB:', hasDebtB);
   
-  if (hasDebtA && !hasDebtB) return true;
-  if (!hasDebtA && hasDebtB) return false;
+  if (hasDebtA && !hasDebtB) { console.log('[PRIORITY_DEBUG] => A tem debito, B nao tem. A VENCE'); return true; }
+  if (!hasDebtA && hasDebtB) { console.log('[PRIORITY_DEBUG] => B tem debito, A nao tem. A PERDE'); return false; }
   
   if (hasDebtA && hasDebtB) {
     if (minDaysA !== minDaysB) {
-      return minDaysA < minDaysB;
+      const result = minDaysA < minDaysB;
+      console.log('[PRIORITY_DEBUG] => Ambos com debito. minDaysA:', minDaysA, '< minDaysB:', minDaysB, '=> A vence:', result);
+      return result;
     }
   }
 
   // Fallback para pontuação geral
   const scoreA = calculateUserPointsGeral(userAId);
   const scoreB = calculateUserPointsGeral(userBId);
+  console.log('[PRIORITY_DEBUG] => Fallback ranking. scoreA:', scoreA, 'scoreB:', scoreB);
   
   if (scoreA !== scoreB) {
     return scoreA < scoreB;
