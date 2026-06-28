@@ -87,7 +87,8 @@
             <button id="tab-btn-escalas" class="view-tab-btn active">📅 Escalas (Vagas de Apoio)</button>
             <button id="tab-btn-registro" class="view-tab-btn">✍️ Registrar Meu Apoio</button>
             <button id="tab-btn-historico" class="view-tab-btn">📜 Histórico de Lançamentos</button>
-            <button id="tab-btn-autotrocas" class="view-tab-btn" style="display: none;">🔄 Autotrocas</button>
+            <button id="tab-btn-minhas-autotrocas" class="view-tab-btn">🔄 Minhas Autotrocas</button>
+            <button id="tab-btn-autotrocas" class="view-tab-btn" style="display: none;">🔄 Autotrocas (Painel)</button>
             <button id="tab-btn-usuarios" class="view-tab-btn" style="display: none;">👥 Usuários</button>
             <button id="tab-btn-auditoria" class="view-tab-btn" style="display: none;">🔍 Auditoria de Apoios</button>
             <button id="tab-btn-relatorios" class="view-tab-btn" style="display: none;">📊 Relatórios (KPI)</button>
@@ -512,6 +513,59 @@
             </div>
           </div>
 
+          <!-- 6. VIEW DE AUTOTROCAS DO PRÓPRIO OPERADOR (MINHAS AUTOTROCAS) -->
+          <div id="view-minhas-autotrocas" class="app-view-section" style="display: none;">
+            <div class="glass-panel" style="padding: 24px;">
+              <div class="group-header" style="margin-bottom: 20px;">
+                <div>
+                  <h2>🔄 Minhas Autotrocas</h2>
+                  <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;">
+                    Acompanhe aqui o seu extrato individual de créditos de folgas acumulados e débitos de apoio pendentes.
+                  </p>
+                </div>
+              </div>
+
+              <!-- Indicadores Individuais de Saldo -->
+              <div id="minhas-autotrocas-summary" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px;">
+                <div class="glass-panel" style="padding: 16px; background: rgba(34, 197, 94, 0.05); border-color: rgba(34, 197, 94, 0.2); text-align: center;">
+                  <span style="font-size: 0.8rem; color: var(--text-secondary); display: block; margin-bottom: 8px;">🟢 Saldo de Folgas Úteis</span>
+                  <strong id="minhas-folgas-saldo-val" style="font-size: 1.8rem; color: var(--success); font-family: var(--font-heading);">0</strong>
+                  <span style="font-size: 0.7rem; color: var(--text-muted); display: block; margin-top: 4px;">Disponível para gozar</span>
+                </div>
+                <div class="glass-panel" style="padding: 16px; background: rgba(99, 102, 241, 0.05); border-color: rgba(99, 102, 241, 0.2); text-align: center;">
+                  <span style="font-size: 0.8rem; color: var(--text-secondary); display: block; margin-bottom: 8px;">⏳ Folgas em Aprovação</span>
+                  <strong id="minhas-folgas-pendentes-val" style="font-size: 1.8rem; color: var(--info); font-family: var(--font-heading);">0</strong>
+                  <span style="font-size: 0.7rem; color: var(--text-muted); display: block; margin-top: 4px;">Aguardando aprovação gerencial</span>
+                </div>
+                <div class="glass-panel" style="padding: 16px; background: rgba(245, 158, 11, 0.05); border-color: rgba(245, 158, 11, 0.2); text-align: center;">
+                  <span style="font-size: 0.8rem; color: var(--text-secondary); display: block; margin-bottom: 8px;">🔴 Apoios em Débito</span>
+                  <strong id="meus-apoios-debitos-val" style="font-size: 1.8rem; color: var(--warning); font-family: var(--font-heading);">0</strong>
+                  <span style="font-size: 0.7rem; color: var(--text-muted); display: block; margin-top: 4px;">Precisa pagar com apoio</span>
+                </div>
+              </div>
+
+              <!-- Tabela de Lançamentos de Autotroca -->
+              <h3 style="font-size: 1.05rem; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">📜 Meu Extrato Detalhado</h3>
+              <div style="overflow-x: auto; border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
+                <table class="ranking-table" style="width: 100%; min-width: 700px;">
+                  <thead>
+                    <tr>
+                      <th>Tipo</th>
+                      <th>Data Solicitação</th>
+                      <th>Data do Apoio</th>
+                      <th>Data da Folga</th>
+                      <th>Status</th>
+                      <th>Prazo Limite / Vencimento (180d)</th>
+                    </tr>
+                  </thead>
+                  <tbody id="minhas-autotrocas-table-body">
+                    <!-- Preenchido dinamicamente via JS -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
           <!-- 7. VIEW DE CONTROLE DE AUTOTROCAS (EXCLUSIVO GESTORES) -->
           <div id="view-autotrocas" class="app-view-section" style="display: none;">
             <div class="glass-panel" style="padding: 24px;">
@@ -694,16 +748,7 @@
               </select>
             </div>
 
-            <!-- Atribuir Operador em Débito de Autotroca -->
-            <div class="form-group" id="container-form-usuario-debito">
-              <label class="form-label" for="form-usuario-debito">Atribuir por Débito de Autotroca (Bloqueia Escala):</label>
-              <select id="form-usuario-debito" class="input-field" style="border-color: var(--warning);">
-                <!-- Preenchido dinamicamente via JS -->
-              </select>
-              <span style="font-size: 0.72rem; color: var(--warning); display: block; margin-top: 4px;">
-                ⚠️ Selecionar um operador aqui irá quitá-lo de um débito. A vaga ficará travada para ele, sem possibilidade de substituição/desistência.
-              </span>
-            </div>
+
 
             <!-- Motivo da Solicitação (Editável apenas por Administradores) -->
             <div class="form-group" id="container-form-motivo">
@@ -1009,9 +1054,11 @@
           </p>
 
           <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 20px;">
-            <button id="btn-confirm-normal" class="btn btn-primary" style="width: 100%; padding: 12px;">
-              🟢 Apoio Normal
-            </button>
+            <div id="confirm-normal-btn-container">
+              <button id="btn-confirm-normal" class="btn btn-primary" style="width: 100%; padding: 12px;">
+                🟢 Apoio Normal
+              </button>
+            </div>
             
             <div id="confirm-autotroca-wrapper" style="border: 1px dashed var(--info); border-radius: var(--radius-sm); padding: 12px; background: rgba(99, 102, 241, 0.05); display: flex; flex-direction: column; gap: 8px;">
               <button id="btn-confirm-autotroca" class="btn btn-secondary" style="width: 100%; padding: 12px; border-color: var(--info); color: var(--info); margin-bottom: 4px;">
@@ -1021,6 +1068,12 @@
                 <label class="form-label" style="font-size: 0.8rem; color: var(--info); margin-bottom: 4px;">Data em que deseja folgar (Obrigatório):</label>
                 <input type="date" id="confirm-data-folga" class="input-field" style="border-color: var(--info);">
               </div>
+            </div>
+
+            <div id="confirm-payback-btn-container" style="display: none;">
+              <button id="btn-confirm-payback" class="btn btn-primary" style="width: 100%; padding: 12px; background: var(--gradient-primary); box-shadow: var(--shadow-primary);">
+                🔒 Confirmar Quitação de Débito
+              </button>
             </div>
           </div>
 

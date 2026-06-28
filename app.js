@@ -150,6 +150,7 @@ const adminActionsBar = document.getElementById('admin-actions-bar');
 const tabBtnEscalas = document.getElementById('tab-btn-escalas');
 const tabBtnRegistro = document.getElementById('tab-btn-registro');
 const tabBtnHistorico = document.getElementById('tab-btn-historico');
+const tabBtnMinhasAutotrocas = document.getElementById('tab-btn-minhas-autotrocas');
 const tabBtnAutotrocas = document.getElementById('tab-btn-autotrocas');
 const tabBtnUsuarios = document.getElementById('tab-btn-usuarios');
 const tabBtnAuditoria = document.getElementById('tab-btn-auditoria');
@@ -157,6 +158,7 @@ const tabBtnRelatorios = document.getElementById('tab-btn-relatorios');
 const viewEscalas = document.getElementById('view-escalas');
 const viewRegistro = document.getElementById('view-registro');
 const viewHistorico = document.getElementById('view-historico');
+const viewMinhasAutotrocas = document.getElementById('view-minhas-autotrocas');
 const viewAutotrocas = document.getElementById('view-autotrocas');
 const viewUsuarios = document.getElementById('view-usuarios');
 const viewAuditoria = document.getElementById('view-auditoria');
@@ -164,9 +166,12 @@ const viewRelatorios = document.getElementById('view-relatorios');
 
 // Elementos de Autotroca
 const confirmAssumeModal = document.getElementById('confirm-assume-modal');
+const confirmNormalBtnContainer = document.getElementById('confirm-normal-btn-container');
 const btnConfirmNormal = document.getElementById('btn-confirm-normal');
 const btnConfirmAutotroca = document.getElementById('btn-confirm-autotroca');
 const confirmDataFolga = document.getElementById('confirm-data-folga');
+const confirmPaybackBtnContainer = document.getElementById('confirm-payback-btn-container');
+const btnConfirmPayback = document.getElementById('btn-confirm-payback');
 const btnCancelConfirmModal = document.getElementById('btn-cancel-confirm-modal');
 const btnCloseConfirmModal = document.getElementById('btn-close-confirm-modal');
 
@@ -185,7 +190,11 @@ const agendarPagamentoForm = document.getElementById('agendar-pagamento-form');
 const btnCancelAgendarModal = document.getElementById('btn-cancel-agendar-modal');
 const btnCloseAgendarModal = document.getElementById('btn-close-agendar-modal');
 
-const formUsuarioDebitoSelect = document.getElementById('form-usuario-debito');
+// Elementos de Minhas Autotrocas
+const minhasFolgasSaldoVal = document.getElementById('minhas-folgas-saldo-val');
+const minhasFolgasPendentesVal = document.getElementById('minhas-folgas-pendentes-val');
+const meusApoiosDebitosVal = document.getElementById('meus-apoios-debitos-val');
+const minhasAutotrocasTableBody = document.getElementById('minhas-autotrocas-table-body');
 
 const regIsAutotrocaCheckbox = document.getElementById('reg-is-autotroca');
 const containerRegDataFolga = document.getElementById('container-reg-data-folga');
@@ -377,7 +386,6 @@ function init() {
     if (elMotivo) {
       elMotivo.disabled = !isCurrentUserAdminOnly();
     }
-    populateDebtorsSelect();
   });
   btnCloseAddModal.addEventListener('click', handleCancelarSlotModal);
   btnCancelAddModal.addEventListener('click', handleCancelarSlotModal);
@@ -509,6 +517,9 @@ function init() {
   if (tabBtnAutotrocas) {
     tabBtnAutotrocas.addEventListener('click', () => switchView('autotrocas'));
   }
+  if (tabBtnMinhasAutotrocas) {
+    tabBtnMinhasAutotrocas.addEventListener('click', () => switchView('minhas-autotrocas'));
+  }
 
   const atFilterUser = document.getElementById('autotroca-filter-user');
   const atFilterStatus = document.getElementById('autotroca-filter-status');
@@ -517,6 +528,7 @@ function init() {
 
   if (btnConfirmNormal) btnConfirmNormal.addEventListener('click', () => handleConfirmAssumeSelection(false));
   if (btnConfirmAutotroca) btnConfirmAutotroca.addEventListener('click', () => handleConfirmAssumeSelection(true));
+  if (btnConfirmPayback) btnConfirmPayback.addEventListener('click', () => handleConfirmAssumeSelection(false, true));
   if (btnCancelConfirmModal) btnCancelConfirmModal.addEventListener('click', () => { confirmAssumeModal.style.display = 'none'; });
   if (btnCloseConfirmModal) btnCloseConfirmModal.addEventListener('click', () => { confirmAssumeModal.style.display = 'none'; });
 
@@ -841,6 +853,9 @@ function switchView(view) {
   tabBtnRegistro.classList.toggle('active', view === 'registro');
   tabBtnHistorico.classList.toggle('active', view === 'historico');
   tabBtnUsuarios.classList.toggle('active', view === 'usuarios');
+  if (tabBtnMinhasAutotrocas) {
+    tabBtnMinhasAutotrocas.classList.toggle('active', view === 'minhas-autotrocas');
+  }
   if (tabBtnAuditoria) {
     tabBtnAuditoria.classList.toggle('active', view === 'auditoria');
   }
@@ -856,6 +871,9 @@ function switchView(view) {
   viewRegistro.style.display = view === 'registro' ? 'block' : 'none';
   viewHistorico.style.display = view === 'historico' ? 'block' : 'none';
   viewUsuarios.style.display = view === 'usuarios' ? 'block' : 'none';
+  if (viewMinhasAutotrocas) {
+    viewMinhasAutotrocas.style.display = view === 'minhas-autotrocas' ? 'block' : 'none';
+  }
   if (viewAuditoria) {
     viewAuditoria.style.display = view === 'auditoria' ? 'block' : 'none';
   }
@@ -868,6 +886,10 @@ function switchView(view) {
 
   if (view === 'auditoria') {
     renderAuditoriaTable();
+  }
+
+  if (view === 'minhas-autotrocas') {
+    renderMinhasAutotrocas();
   }
 
   if (view === 'relatorios') {
@@ -940,7 +962,49 @@ function verHistoricoUsuario(userId) {
   switchView('historico');
 }
 
+function getDebtExpirationDays(at, simDateStr) {
+  const folgaDate = new Date(at.dataFolga + 'T00:00:00');
+  // 180 dias a partir da data de folga
+  const expirationDate = new Date(folgaDate.getTime() + 180 * 24 * 60 * 60 * 1000);
+  const simDate = new Date(simDateStr + 'T00:00:00');
+  // diferença em milissegundos
+  const diffTime = expirationDate - simDate;
+  // diferença em dias
+  const diffDays = Math.ceil(diffTime / (24 * 60 * 60 * 1000));
+  return diffDays;
+}
+
+function getUserMinDebtExpirationDays(userId, simDateStr) {
+  const debts = autotrocas.filter(at => at.usuarioId === userId && at.tipo === 'CONTRARIA' && at.status === 'PENDENTE');
+  if (debts.length === 0) return null;
+  
+  let minDays = Infinity;
+  debts.forEach(at => {
+    const days = getDebtExpirationDays(at, simDateStr);
+    if (days < minDays) {
+      minDays = days;
+    }
+  });
+  return minDays;
+}
+
 function hasHigherPriority(userAId, userBId) {
+  const minDaysA = getUserMinDebtExpirationDays(userAId, simulatedCurrentDate);
+  const minDaysB = getUserMinDebtExpirationDays(userBId, simulatedCurrentDate);
+  
+  const hasDebtA = minDaysA !== null;
+  const hasDebtB = minDaysB !== null;
+  
+  if (hasDebtA && !hasDebtB) return true;
+  if (!hasDebtA && hasDebtB) return false;
+  
+  if (hasDebtA && hasDebtB) {
+    if (minDaysA !== minDaysB) {
+      return minDaysA < minDaysB;
+    }
+  }
+
+  // Fallback para pontuação geral
   const scoreA = calculateUserPointsGeral(userAId);
   const scoreB = calculateUserPointsGeral(userBId);
   
@@ -996,16 +1060,25 @@ function handleSubstituirVaga(slotId) {
   openConfirmAssumeModal(slotId, true);
 }
 
-function executeSubstituirVaga(slotId, isAutotroca, folgaDate = '') {
+function executeSubstituirVaga(slotId, isAutotroca, folgaDate = '', isPayback = false) {
   const slot = slots.find(s => s.id === slotId);
   if (!slot) return;
 
   const oldAssigneeId = slot.usuarioId;
   const oldUser = users.find(u => u.id === oldAssigneeId);
 
+  const debts = autotrocas.filter(at => at.usuarioId === currentUser.id && at.tipo === 'CONTRARIA' && at.status === 'PENDENTE');
+  const userHasDebt = debts.length > 0;
+  const finalIsPayback = isPayback || userHasDebt;
+
   // 1. Remover histórico do antigo e qualquer autotroca normal associada a ele neste slot
   history = history.filter(h => !(h.usuarioId === oldAssigneeId && h.data === slot.data));
   autotrocas = autotrocas.filter(at => !(at.usuarioId === oldAssigneeId && at.slotId === slotId));
+
+  // Se a vaga que está sendo substituída era payback do antigo usuário, reverte o payback dele
+  if (slot.autotrocaPayback) {
+    revertAutotrocaPayback(slot.id);
+  }
 
   // 2. Verificar limite mensal de 3 apoios para o novo usuário
   const monthlyCount = getUserMonthlySupportCount(currentUser.id, slot.data);
@@ -1019,12 +1092,18 @@ function executeSubstituirVaga(slotId, isAutotroca, folgaDate = '') {
         status: 'ATRIBUIDO',
         usuarioId: currentUser.id
       };
-      if (isAutotroca) {
+      if (finalIsPayback) {
+        updated.autotrocaPayback = true;
+        delete updated.autotroca;
+        delete updated.dataFolgaPretendida;
+      } else if (isAutotroca) {
         updated.autotroca = true;
         updated.dataFolgaPretendida = folgaDate;
+        delete updated.autotrocaPayback;
       } else {
         delete updated.autotroca;
         delete updated.dataFolgaPretendida;
+        delete updated.autotrocaPayback;
       }
       if (needsAuthorization) {
         updated.requerAutorizacao = true;
@@ -1048,24 +1127,30 @@ function executeSubstituirVaga(slotId, isAutotroca, folgaDate = '') {
   const finalRegras = eAtrasado ? ['R13'] : regras;
   const score = calculateSupportScore(finalRegras);
 
+  const subgrupoText = finalIsPayback 
+    ? slot.subgrupo + ' (Quitação Autotroca)'
+    : (isAutotroca ? slot.subgrupo + ' (Autotroca)' : slot.subgrupo);
+
   const novoHistorico = {
     id: historyId,
     usuarioId: currentUser.id,
     data: slot.data,
     grupoId: slot.grupoId || '',
-    subgrupo: isAutotroca ? slot.subgrupo + ' (Autotroca)' : slot.subgrupo,
+    subgrupo: subgrupoText,
     regras: finalRegras,
     pontuacao: score,
     dataRegistro: new Date(simulatedCurrentDate + 'T12:00:00').toISOString(),
     registradoPorId: currentUser.id
   };
-  if (isAutotroca) {
+  if (isAutotroca && !finalIsPayback) {
     novoHistorico.isAutotroca = true;
   }
 
   history = [...history, novoHistorico];
 
-  if (isAutotroca) {
+  if (finalIsPayback) {
+    fulfillAutotrocaPayback(currentUser.id, slot.id, slot.data);
+  } else if (isAutotroca) {
     const autotrocaId = 'at_' + Date.now();
     const novaAutotroca = {
       id: autotrocaId,
@@ -1348,6 +1433,7 @@ function renderAll() {
   renderFormGroupsOptions();
   populateHistoryFilterUsers();
   populateAuditoriaFilterUsers();
+  renderMinhasAutotrocas();
 
   if (isCurrentUserGestor()) {
     renderAuditoriaTable();
@@ -1579,24 +1665,7 @@ function populateAutotrocaContrariaUsers() {
   selectUser.innerHTML = html;
 }
 
-function populateDebtorsSelect() {
-  const selectDeb = document.getElementById('form-usuario-debito');
-  if (!selectDeb) return;
 
-  let html = '<option value="">-- Selecione Operador em Débito (Opcional) --</option>';
-  
-  const pendingDebts = autotrocas.filter(at => at.tipo === 'CONTRARIA' && at.status === 'PENDENTE');
-  const debtorIds = [...new Set(pendingDebts.map(at => at.usuarioId))];
-  
-  const debtors = debtorIds.map(uid => users.find(u => u.id === uid)).filter(Boolean);
-  debtors.sort((a, b) => a.nome.localeCompare(b.nome));
-
-  debtors.forEach(u => {
-    html += `<option value="${u.id}">${u.nome} (${u.cargo})</option>`;
-  });
-
-  selectDeb.innerHTML = html;
-}
 
 function renderAutotrocasSummary(filteredList) {
   const summaryEl = document.getElementById('autotrocas-summary');
@@ -1625,6 +1694,87 @@ function renderAutotrocasSummary(filteredList) {
       <strong style="font-size: 1.3rem; color: var(--text-secondary);">${totalConcluidas}</strong>
     </div>
   `;
+}
+
+function renderMinhasAutotrocas() {
+  if (!currentUser) return;
+
+  const userAutos = autotrocas.filter(at => at.usuarioId === currentUser.id);
+
+  // Calcular Saldo de Folgas Úteis (Normais aprovadas)
+  const saldoFolgas = userAutos.filter(at => at.tipo === 'NORMAL' && at.status === 'APROVADA').length;
+  // Folgas em aprovação (Normais pendentes)
+  const folgasPendentes = userAutos.filter(at => at.tipo === 'NORMAL' && at.status === 'PENDENTE_APROVACAO').length;
+  // Apoios em débito (Contrárias pendentes)
+  const apoiosDebitos = userAutos.filter(at => at.tipo === 'CONTRARIA' && at.status === 'PENDENTE').length;
+
+  if (minhasFolgasSaldoVal) minhasFolgasSaldoVal.textContent = saldoFolgas;
+  if (minhasFolgasPendentesVal) minhasFolgasPendentesVal.textContent = folgasPendentes;
+  if (meusApoiosDebitosVal) meusApoiosDebitosVal.textContent = apoiosDebitos;
+
+  if (!minhasAutotrocasTableBody) return;
+
+  // Ordenar: pendentes primeiro, depois aprovadas, por fim concluídas
+  const sorted = [...userAutos].sort((a, b) => {
+    if (a.status !== b.status) {
+      if (a.status === 'PENDENTE' || a.status === 'PENDENTE_APROVACAO') return -1;
+      if (b.status === 'PENDENTE' || b.status === 'PENDENTE_APROVACAO') return 1;
+      if (a.status === 'APROVADA') return -1;
+      if (b.status === 'APROVADA') return 1;
+    }
+    return new Date(b.dataSolicitacao || '') - new Date(a.dataSolicitacao || '');
+  });
+
+  let html = '';
+  if (sorted.length === 0) {
+    html = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted); font-style: italic; padding: 20px;">Nenhum lançamento de autotroca encontrado.</td></tr>';
+  } else {
+    sorted.forEach(at => {
+      const isNormal = at.tipo === 'NORMAL';
+      
+      const typeLabel = isNormal 
+        ? '<span class="badge" style="background: rgba(99, 102, 241, 0.15); color: var(--info); border: 1px solid var(--info);">🟢 Crédito (Folga)</span>'
+        : '<span class="badge" style="background: rgba(245, 158, 11, 0.15); color: var(--warning); border: 1px solid var(--warning);">🔴 Débito (Apoio)</span>';
+
+      const dataSolicitacao = at.dataSolicitacao ? formatDatePt(at.dataSolicitacao) : '-';
+      const dataApoio = at.dataApoio ? formatDatePt(at.dataApoio) : '<span style="color: var(--text-muted); font-style: italic;">Pendente</span>';
+      const dataFolga = at.dataFolga ? formatDatePt(at.dataFolga) : '<span style="color: var(--text-muted); font-style: italic;">Pendente</span>';
+
+      let statusBadge = '';
+      if (at.status === 'PENDENTE_APROVACAO') {
+        statusBadge = '<span class="badge badge-pending">Aguardando Aprov.</span>';
+      } else if (at.status === 'PENDENTE') {
+        statusBadge = '<span class="badge badge-pending" style="color: var(--warning); border-color: var(--warning);">Débito Pendente</span>';
+      } else if (at.status === 'APROVADA') {
+        statusBadge = '<span class="badge badge-open">Folga Liberada</span>';
+      } else if (at.status === 'CONCLUIDO') {
+        statusBadge = '<span class="badge badge-concluido">Concluída (Quitada)</span>';
+      }
+
+      let prazoLabel = '-';
+      if (at.tipo === 'CONTRARIA' && at.status === 'PENDENTE') {
+        const days = getDebtExpirationDays(at, simulatedCurrentDate);
+        if (days < 0) {
+          prazoLabel = `<span style="color: var(--danger); font-weight: bold;">⚠️ Vencido (há ${Math.abs(days)} dias)</span>`;
+        } else {
+          prazoLabel = `<span style="color: var(--success); font-weight: bold;">⏳ Restam ${days} dias</span>`;
+        }
+      }
+
+      html += `
+        <tr>
+          <td>${typeLabel}</td>
+          <td>${dataSolicitacao}</td>
+          <td>${dataApoio}</td>
+          <td>${dataFolga}</td>
+          <td>${statusBadge}</td>
+          <td>${prazoLabel}</td>
+        </tr>
+      `;
+    });
+  }
+
+  minhasAutotrocasTableBody.innerHTML = html;
 }
 
 function renderAutotrocasTable() {
@@ -2984,15 +3134,34 @@ function openConfirmAssumeModal(slotId, isSub) {
   currentModalSlotId = slotId;
   currentModalIsSub = isSub;
 
-  const pesoPrevisao = calculateSupportScore(slot.regrasPrevistas || ['R1']);
-  const scoreText = pesoPrevisao.toFixed(4);
-
   const confirmModalText = document.getElementById('confirm-modal-text');
-  
-  if (confirmModalText) {
-    confirmModalText.textContent = isSub 
-      ? "Você está prestes a substituir o operador atual por possuir maior prioridade no ranking. Selecione a modalidade de acúmulo:" 
-      : "Selecione a modalidade na qual você deseja assumir este apoio:";
+  const normalContainer = document.getElementById('confirm-normal-btn-container');
+  const autotrocaWrapper = document.getElementById('confirm-autotroca-wrapper');
+  const paybackContainer = document.getElementById('confirm-payback-btn-container');
+
+  // Verificar se o usuário atual possui débitos
+  const debts = autotrocas.filter(at => at.usuarioId === currentUser.id && at.tipo === 'CONTRARIA' && at.status === 'PENDENTE');
+  const hasDebt = debts.length > 0;
+
+  if (hasDebt) {
+    const sorted = [...debts].sort((a, b) => a.dataFolga.localeCompare(b.dataFolga));
+    const oldest = sorted[0];
+    
+    if (confirmModalText) {
+      confirmModalText.textContent = `Você possui ${debts.length} débito(s) de autotrocra ativo(s). Este apoio será utilizado para quitar seu débito mais antigo (referente à folga de ${formatDatePt(oldest.dataFolga)}).`;
+    }
+    if (normalContainer) normalContainer.style.display = 'none';
+    if (autotrocaWrapper) autotrocaWrapper.style.display = 'none';
+    if (paybackContainer) paybackContainer.style.display = 'block';
+  } else {
+    if (confirmModalText) {
+      confirmModalText.textContent = isSub 
+        ? "Você está prestes a substituir o operador atual por possuir maior prioridade no ranking. Selecione a modalidade de acúmulo:" 
+        : "Selecione a modalidade na qual você deseja assumir este apoio:";
+    }
+    if (normalContainer) normalContainer.style.display = 'block';
+    if (autotrocaWrapper) autotrocaWrapper.style.display = 'block';
+    if (paybackContainer) paybackContainer.style.display = 'none';
   }
 
   if (confirmDataFolga) {
@@ -3002,7 +3171,7 @@ function openConfirmAssumeModal(slotId, isSub) {
   confirmAssumeModal.style.display = 'flex';
 }
 
-function handleConfirmAssumeSelection(isAutotroca) {
+function handleConfirmAssumeSelection(isAutotroca, isPayback = false) {
   const folgaDate = confirmDataFolga ? confirmDataFolga.value : '';
 
   if (isAutotroca && !folgaDate) {
@@ -3013,9 +3182,9 @@ function handleConfirmAssumeSelection(isAutotroca) {
   confirmAssumeModal.style.display = 'none';
 
   if (currentModalIsSub) {
-    executeSubstituirVaga(currentModalSlotId, isAutotroca, folgaDate);
+    executeSubstituirVaga(currentModalSlotId, isAutotroca, folgaDate, isPayback);
   } else {
-    executeAssumirVagaDireta(currentModalSlotId, isAutotroca, folgaDate);
+    executeAssumirVagaDireta(currentModalSlotId, isAutotroca, folgaDate, isPayback);
   }
 }
 
@@ -3052,7 +3221,7 @@ function handleAssumirVagaDireta(slotId) {
   openConfirmAssumeModal(slotId, false);
 }
 
-function executeAssumirVagaDireta(slotId, isAutotroca, folgaDate = '') {
+function executeAssumirVagaDireta(slotId, isAutotroca, folgaDate = '', isPayback = false) {
   if (!currentUser || !isCurrentUserOperador()) {
     showBanner('Apenas apoiadores podem assumir escalas.', 'danger');
     return;
@@ -3061,18 +3230,28 @@ function executeAssumirVagaDireta(slotId, isAutotroca, folgaDate = '') {
   const slot = slots.find(s => s.id === slotId);
   if (!slot) return;
 
+  const debts = autotrocas.filter(at => at.usuarioId === currentUser.id && at.tipo === 'CONTRARIA' && at.status === 'PENDENTE');
+  const userHasDebt = debts.length > 0;
+  const finalIsPayback = isPayback || userHasDebt;
+
   const monthlyCount = getUserMonthlySupportCount(currentUser.id, slot.data);
   const needsAuthorization = monthlyCount >= 3;
 
   slots = slots.map(s => {
     if (s.id === slotId) {
       const updated = { ...s, status: 'ATRIBUIDO', usuarioId: currentUser.id };
-      if (isAutotroca) {
+      if (finalIsPayback) {
+        updated.autotrocaPayback = true;
+        delete updated.autotroca;
+        delete updated.dataFolgaPretendida;
+      } else if (isAutotroca) {
         updated.autotroca = true;
         updated.dataFolgaPretendida = folgaDate;
+        delete updated.autotrocaPayback;
       } else {
         delete updated.autotroca;
         delete updated.dataFolgaPretendida;
+        delete updated.autotrocaPayback;
       }
       if (needsAuthorization) {
         updated.requerAutorizacao = true;
@@ -3096,24 +3275,30 @@ function executeAssumirVagaDireta(slotId, isAutotroca, folgaDate = '') {
   const finalRegras = eAtrasado ? ['R13'] : regras;
   const score = calculateSupportScore(finalRegras);
 
+  const subgrupoText = finalIsPayback 
+    ? slot.subgrupo + ' (Quitação Autotroca)'
+    : (isAutotroca ? slot.subgrupo + ' (Autotroca)' : slot.subgrupo);
+
   const novoHistorico = {
     id: historyId,
     usuarioId: currentUser.id,
     data: slot.data,
     grupoId: slot.grupoId || '',
-    subgrupo: isAutotroca ? slot.subgrupo + ' (Autotroca)' : slot.subgrupo,
+    subgrupo: subgrupoText,
     regras: finalRegras,
     pontuacao: score,
     dataRegistro: new Date(simulatedCurrentDate + 'T12:00:00').toISOString(),
     registradoPorId: currentUser.id
   };
-  if (isAutotroca) {
+  if (isAutotroca && !finalIsPayback) {
     novoHistorico.isAutotroca = true;
   }
 
   history = [...history, novoHistorico];
 
-  if (isAutotroca) {
+  if (finalIsPayback) {
+    fulfillAutotrocaPayback(currentUser.id, slot.id, slot.data);
+  } else if (isAutotroca) {
     const autotrocaId = 'at_' + Date.now();
     const novaAutotroca = {
       id: autotrocaId,
@@ -3554,25 +3739,7 @@ function handleIniciarEdicaoEscala(slotId) {
 
   const selectFormUsuario = document.getElementById('form-usuario');
   if (selectFormUsuario) {
-    selectFormUsuario.value = slot.autotrocaPayback ? '' : (slot.usuarioId || '');
-  }
-
-  // Preencher seletor de débito
-  populateDebtorsSelect();
-  if (slot.autotrocaPayback && slot.usuarioId) {
-    const optionExists = Array.from(formUsuarioDebitoSelect.options).some(opt => opt.value === slot.usuarioId);
-    if (!optionExists) {
-      const user = users.find(u => u.id === slot.usuarioId);
-      if (user) {
-        const opt = document.createElement('option');
-        opt.value = user.id;
-        opt.textContent = `${user.nome} (${user.cargo})`;
-        formUsuarioDebitoSelect.appendChild(opt);
-      }
-    }
-    formUsuarioDebitoSelect.value = slot.usuarioId;
-  } else {
-    formUsuarioDebitoSelect.value = '';
+    selectFormUsuario.value = slot.usuarioId || '';
   }
 
   // Preencher as áreas direcionadas da vaga
@@ -3678,9 +3845,7 @@ function handleCriarSolicitacaoSlot(e) {
   const modalCbs = modalRulesCheckboxes.querySelectorAll('input[name="modal-prev-regras"]:checked');
   const regrasPrevistas = Array.from(modalCbs).map(cb => cb.value);
   
-  const formUsuarioId = document.getElementById('form-usuario')?.value || null;
-  const formUsuarioDebitoId = formUsuarioDebitoSelect?.value || null;
-  const selectedUsuarioId = formUsuarioDebitoId || formUsuarioId;
+  const selectedUsuarioId = document.getElementById('form-usuario')?.value || null;
 
   if (!formSubgrupo) {
     showBanner('Preencha a atividade / subgrupo.', 'danger');
@@ -3854,9 +4019,14 @@ function handleCriarSolicitacaoSlot(e) {
             delete updated.autorizadoPorId;
           }
 
-          if (formUsuarioDebitoId) {
+          const debts = newUsuarioId ? autotrocas.filter(at => at.usuarioId === newUsuarioId && at.tipo === 'CONTRARIA' && at.status === 'PENDENTE') : [];
+          const newAssigneeHasDebt = debts.length > 0;
+
+          if (newAssigneeHasDebt) {
             updated.autotrocaPayback = true;
-            fulfillAutotrocaPayback(formUsuarioDebitoId, slot.id, formData);
+            fulfillAutotrocaPayback(newUsuarioId, slot.id, formData);
+          } else {
+            delete updated.autotrocaPayback;
           }
 
           if (oldUsuarioId !== newUsuarioId || !newUsuarioId) {
@@ -3914,9 +4084,12 @@ function handleCriarSolicitacaoSlot(e) {
         areasFuncoes: slotAreas
       };
 
-      if (formUsuarioDebitoId) {
+      const debts = selectedUsuarioId ? autotrocas.filter(at => at.usuarioId === selectedUsuarioId && at.tipo === 'CONTRARIA' && at.status === 'PENDENTE') : [];
+      const assigneeHasDebt = debts.length > 0;
+
+      if (assigneeHasDebt) {
         novoSlot.autotrocaPayback = true;
-        fulfillAutotrocaPayback(formUsuarioDebitoId, slotId, dStr);
+        fulfillAutotrocaPayback(selectedUsuarioId, slotId, dStr);
       }
 
       if (formMotivo) {
