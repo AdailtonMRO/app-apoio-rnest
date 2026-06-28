@@ -962,16 +962,51 @@ function verHistoricoUsuario(userId) {
   switchView('historico');
 }
 
+function parseDateRobust(dateStr) {
+  if (!dateStr) return null;
+  if (dateStr instanceof Date) return dateStr;
+  
+  const str = String(dateStr).trim();
+  
+  // Tratar formato DD/MM/YYYY
+  if (str.includes('/')) {
+    const parts = str.split('/');
+    if (parts.length === 3) {
+      const day = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1; // 0-indexado
+      const year = parseInt(parts[2], 10);
+      const d = new Date(year, month, day);
+      return isNaN(d.getTime()) ? null : d;
+    }
+  }
+  
+  // Tratar formato YYYY-MM-DD
+  if (str.includes('-')) {
+    const parts = str.split('-');
+    if (parts.length === 3) {
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1;
+      const day = parseInt(parts[2], 10);
+      const d = new Date(year, month, day);
+      return isNaN(d.getTime()) ? null : d;
+    }
+  }
+  
+  const d = new Date(str);
+  return isNaN(d.getTime()) ? null : d;
+}
+
 function getDebtExpirationDays(at, simDateStr) {
-  const folgaDate = new Date(at.dataFolga + 'T00:00:00');
+  if (!at || !at.dataFolga) return null;
+  const folgaDate = parseDateRobust(at.dataFolga);
+  const simDate = parseDateRobust(simDateStr);
+  if (!folgaDate || !simDate) return null;
+  
   // 180 dias a partir da data de folga
   const expirationDate = new Date(folgaDate.getTime() + 180 * 24 * 60 * 60 * 1000);
-  const simDate = new Date(simDateStr + 'T00:00:00');
-  // diferença em milissegundos
   const diffTime = expirationDate - simDate;
-  // diferença em dias
   const diffDays = Math.ceil(diffTime / (24 * 60 * 60 * 1000));
-  return diffDays;
+  return isNaN(diffDays) ? null : diffDays;
 }
 
 function getUserMinDebtExpirationDays(userId, simDateStr) {
@@ -979,21 +1014,27 @@ function getUserMinDebtExpirationDays(userId, simDateStr) {
   if (debts.length === 0) return null;
   
   let minDays = Infinity;
+  let hasValid = false;
+  
   debts.forEach(at => {
     const days = getDebtExpirationDays(at, simDateStr);
-    if (days < minDays) {
-      minDays = days;
+    if (days !== null && !isNaN(days)) {
+      hasValid = true;
+      if (days < minDays) {
+        minDays = days;
+      }
     }
   });
-  return minDays;
+  
+  return hasValid ? minDays : null;
 }
 
 function hasHigherPriority(userAId, userBId) {
   const minDaysA = getUserMinDebtExpirationDays(userAId, simulatedCurrentDate);
   const minDaysB = getUserMinDebtExpirationDays(userBId, simulatedCurrentDate);
   
-  const hasDebtA = minDaysA !== null;
-  const hasDebtB = minDaysB !== null;
+  const hasDebtA = minDaysA !== null && !isNaN(minDaysA) && minDaysA !== Infinity;
+  const hasDebtB = minDaysB !== null && !isNaN(minDaysB) && minDaysB !== Infinity;
   
   if (hasDebtA && !hasDebtB) return true;
   if (!hasDebtA && hasDebtB) return false;
@@ -1019,7 +1060,13 @@ function hasHigherPriority(userAId, userBId) {
   if (dateB === null && dateA !== null) return false;
   if (dateA === null && dateB === null) return false;
   
-  return new Date(dateA) < new Date(dateB);
+  const parsedA = parseDateRobust(dateA);
+  const parsedB = parseDateRobust(dateB);
+  if (parsedA === null && parsedB !== null) return true;
+  if (parsedB === null && parsedA !== null) return false;
+  if (parsedA === null && parsedB === null) return false;
+  
+  return parsedA < parsedB;
 }
 
 function handleSubstituirVaga(slotId) {
@@ -1027,8 +1074,14 @@ function handleSubstituirVaga(slotId) {
   if (!slot) return;
 
   if (slot.autotrocaPayback) {
-    showBanner('Esta vaga está bloqueada para quitação de autotroca e não pode ser substituída.', 'danger');
-    return;
+    const occupant = users.find(u => u.id === slot.usuarioId);
+    const occupantIsExcluido = occupant && (occupant.cargo === 'GPI' || occupant.cargo === 'OPMAN');
+    const hasPriority = occupantIsExcluido || hasHigherPriority(currentUser.id, slot.usuarioId);
+    
+    if (!hasPriority) {
+      showBanner('Esta vaga está bloqueada para quitação de autotroca e não pode ser substituída por pessoas de menor prioridade.', 'danger');
+      return;
+    }
   }
 
   // Verificar compatibilidade de áreas/funções
@@ -1071,14 +1124,14 @@ function executeSubstituirVaga(slotId, isAutotroca, folgaDate = '', isPayback = 
   const userHasDebt = debts.length > 0;
   const finalIsPayback = isPayback || userHasDebt;
 
-  // 1. Remover histórico do antigo e qualquer autotroca normal associada a ele neste slot
-  history = history.filter(h => !(h.usuarioId === oldAssigneeId && h.data === slot.data));
-  autotrocas = autotrocas.filter(at => !(at.usuarioId === oldAssigneeId && at.slotId === slotId));
-
   // Se a vaga que está sendo substituída era payback do antigo usuário, reverte o payback dele
   if (slot.autotrocaPayback) {
     revertAutotrocaPayback(slot.id);
   }
+
+  // 1. Remover histórico do antigo e qualquer autotroca normal (crédito) associada a ele neste slot
+  history = history.filter(h => !(h.usuarioId === oldAssigneeId && h.data === slot.data));
+  autotrocas = autotrocas.filter(at => !(at.usuarioId === oldAssigneeId && at.slotId === slotId && at.tipo === 'NORMAL'));
 
   // 2. Verificar limite mensal de 3 apoios para o novo usuário
   const monthlyCount = getUserMonthlySupportCount(currentUser.id, slot.data);
@@ -1199,7 +1252,7 @@ function handleDesistirVaga(slotId) {
   }
 
   // Remover autotrocas normais (crédito) associadas a esta desistência
-  autotrocas = autotrocas.filter(at => !(at.usuarioId === assigneeId && at.slotId === slotId));
+  autotrocas = autotrocas.filter(at => !(at.usuarioId === assigneeId && at.slotId === slotId && at.tipo === 'NORMAL'));
 
   // 2. Liberar a vaga
   slots = slots.map(s => {
@@ -1360,7 +1413,14 @@ function getUserLastSupportDate(userId) {
   const userHistory = history.filter(h => h.usuarioId === userId);
   if (userHistory.length === 0) return null;
   
-  userHistory.sort((a, b) => new Date(b.data) - new Date(a.data));
+  userHistory.sort((a, b) => {
+    const parsedA = parseDateRobust(a.data);
+    const parsedB = parseDateRobust(b.data);
+    if (!parsedA && !parsedB) return 0;
+    if (!parsedA) return 1;
+    if (!parsedB) return -1;
+    return parsedB - parsedA;
+  });
   return userHistory[0].data;
 }
 
@@ -1396,29 +1456,16 @@ function getDisputeWinner(slotId) {
   const candIds = candidatos[slotId] || [];
   if (candIds.length === 0) return null;
 
-  const candidatesList = candIds.map((uid, index) => {
-    const u = users.find(user => user.id === uid);
-    const score = calculateUserPointsGeral(uid);
-    const lastDate = getUserLastSupportDate(uid);
-    return { id: uid, nome: u?.nome || 'Desconhecido', score, lastDate, index };
+  const sortedIds = [...candIds].sort((a, b) => {
+    if (hasHigherPriority(a, b)) return -1;
+    if (hasHigherPriority(b, a)) return 1;
+    return 0;
   });
 
-  candidatesList.sort((a, b) => {
-    if (a.score !== b.score) {
-      return a.score - b.score;
-    }
-    
-    if (a.lastDate === null && b.lastDate !== null) return -1;
-    if (b.lastDate === null && a.lastDate !== null) return 1;
-    if (a.lastDate === null && b.lastDate === null) return a.index - b.index;
-    
-    const diff = new Date(a.lastDate) - new Date(b.lastDate);
-    if (diff !== 0) return diff;
-    
-    return a.index - b.index;
-  });
-
-  return candidatesList[0];
+  const winnerId = sortedIds[0];
+  const u = users.find(user => user.id === winnerId);
+  const score = calculateUserPointsGeral(winnerId);
+  return { id: winnerId, nome: u?.nome || 'Desconhecido', score };
 }
 
 // --- RENDERIZADORES DE TELA (HTML DINÂMICO) ---
@@ -2297,12 +2344,12 @@ function attachSlotActionsListeners(filteredSlots) {
           const occupantIsExcluido = occupant && (occupant.cargo === 'GPI' || occupant.cargo === 'OPMAN');
           const hasPriority = occupantIsExcluido || hasHigherPriority(currentUser.id, slot.usuarioId);
           
-          if (slot.autotrocaPayback) {
-            actionHtml = `<button class="btn btn-secondary" style="width: 100%; cursor: not-allowed;" disabled>🔒 Vaga Reservada (Quitação de Débito)</button>`;
-          } else if (slot.data === simulatedCurrentDate) {
+          if (slot.data === simulatedCurrentDate) {
             actionHtml = `<button class="btn btn-secondary" style="width: 100%; cursor: not-allowed;" disabled>🔒 Ocupado (Substituição Indisponível no Dia)</button>`;
           } else if (hasPriority) {
             actionHtml = `<button class="btn btn-primary btn-substituir" style="width: 100%;">🔄 Substituir (Maior Prioridade)</button>`;
+          } else if (slot.autotrocaPayback) {
+            actionHtml = `<button class="btn btn-secondary" style="width: 100%; cursor: not-allowed;" disabled>🔒 Vaga Reservada (Quitação de Débito)</button>`;
           } else {
             actionHtml = `<button class="btn btn-secondary" style="width: 100%; cursor: not-allowed;" disabled>🔒 Ocupado (Maior Prioridade)</button>`;
           }
@@ -3780,7 +3827,7 @@ function handleExcluirSlotAdmin() {
       revertAutotrocaPayback(slot.id);
     }
     // Remover autotrocas normais (créditos) associadas a esta vaga
-    autotrocas = autotrocas.filter(at => at.slotId !== slot.id);
+    autotrocas = autotrocas.filter(at => at.slotId !== slot.id || at.tipo === 'CONTRARIA');
 
     // 2. Remover da fila de candidaturas se houver disputa
     delete candidatos[editingSlotId];
@@ -3945,7 +3992,7 @@ function handleCriarSolicitacaoSlot(e) {
         // Se tinha um usuário e ele mudou ou foi removido, apaga o histórico do antigo para este dia
         history = history.filter(h => !(h.usuarioId === oldUsuarioId && h.data === slot.data));
         // Remove também o registro de autotrocra normal (crédito) do antigo
-        autotrocas = autotrocas.filter(at => !(at.usuarioId === oldUsuarioId && at.slotId === slot.id));
+        autotrocas = autotrocas.filter(at => !(at.usuarioId === oldUsuarioId && at.slotId === slot.id && at.tipo === 'NORMAL'));
       }
 
       if (newUsuarioId) {
