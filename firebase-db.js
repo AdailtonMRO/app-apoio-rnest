@@ -11,6 +11,8 @@ let firebaseApp = null;
 export let auth = null;
 export let db = null;
 let googleProvider = null;
+let messaging = null;
+let getTokenFn = null;
 
 // Importações dos módulos do Firebase via CDN
 let signInWithPopupFn = null;
@@ -42,6 +44,21 @@ if (isFirebaseEnabled) {
     onSnapshotFn = onSnapshot;
 
     console.log("🔥 Firebase inicializado com sucesso!");
+
+    // Inicialização dinâmica do Firebase Messaging (Push)
+    try {
+      const { getMessaging, getToken, isSupported } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging.js');
+      const supported = await isSupported();
+      if (supported) {
+        messaging = getMessaging(firebaseApp);
+        getTokenFn = getToken;
+        console.log("🔔 Firebase Messaging (Push) inicializado com sucesso!");
+      } else {
+        console.warn("🔔 Firebase Messaging não é suportado neste navegador.");
+      }
+    } catch (msgErr) {
+      console.warn("Aviso: Falha ao carregar Firebase Messaging SDK.", msgErr);
+    }
   } catch (error) {
     console.error("Erro ao inicializar Firebase:", error);
     throw error;
@@ -125,5 +142,39 @@ export async function updateDocument(docName, dataArrayOrObj) {
   } catch (error) {
     console.error(`Erro ao gravar o documento ${docName} no Firestore:`, error);
     throw error;
+  }
+}
+
+/**
+ * Solicita permissão para notificações e obtém o Token FCM do dispositivo.
+ */
+export async function getNotificationToken() {
+  if (!isFirebaseEnabled || !messaging || !getTokenFn) {
+    console.warn("FCM Push não está disponível ou não é suportado neste dispositivo.");
+    return null;
+  }
+
+  const vapidKey = firebaseConfig.vapidKey;
+  if (!vapidKey || vapidKey.trim() === "" || vapidKey === "SEU_VAPID_KEY_AQUI") {
+    console.warn("Chave VAPID não configurada no firebase-config.js. Ignorando obtenção de token.");
+    return null;
+  }
+
+  try {
+    const permission = await Notification.requestPermission();
+    if (permission === 'granted') {
+      const registration = await navigator.serviceWorker.ready;
+      const currentToken = await getTokenFn(messaging, {
+        vapidKey: vapidKey,
+        serviceWorkerRegistration: registration
+      });
+      return currentToken;
+    } else {
+      console.warn("Permissão de notificação negada pelo usuário.");
+      return null;
+    }
+  } catch (error) {
+    console.error("Erro ao obter token do FCM:", error);
+    return null;
   }
 }

@@ -11,5 +11,6 @@ export const firebaseConfig = {
   storageBucket: "app-apoio-rnest.firebasestorage.app",
   messagingSenderId: "629818355014",
   appId: "1:629818355014:web:271e60b7ac59b70bc28947",
-  measurementId: "G-W48Y6P625D"
+  measurementId: "G-W48Y6P625D",
+  vapidKey: "BLfG5jlY4a9TK9I12N_5eWFrqLlXwqxFf9SBZ6E2E1OAlMDg3UJ-niu05UDX_rv6vkEE_T4JKkRD-oWjF1Y9bfg"
 };

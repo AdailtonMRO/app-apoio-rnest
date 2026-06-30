@@ -1,5 +1,5 @@
 import { getStoredData, saveStoredData, SUPPORT_RULES, INITIAL_USERS, INITIAL_GROUPS, INITIAL_SLOTS, INITIAL_HISTORY, AREAS_FUNCOES, SHIFT_CYCLE, GROUP_START_DATES } from './data.js';
-import { isFirebaseEnabled, loginWithGoogle, logout, onAuthChange, syncDocument, updateDocument } from './firebase-db.js';
+import { isFirebaseEnabled, loginWithGoogle, logout, onAuthChange, syncDocument, updateDocument, getNotificationToken } from './firebase-db.js';
 
 // --- ESTADO GLOBAL DA APLICAÇÃO ---
 let users = [];
@@ -771,6 +771,38 @@ function hideConnectionError() {
   }
 }
 
+let tokenRegistered = false;
+
+async function registerFCMTokenForUser(userId) {
+  if (tokenRegistered) return;
+
+  try {
+    const token = await getNotificationToken();
+    if (!token) return;
+
+    const userIdx = users.findIndex(u => u.id === userId);
+    if (userIdx !== -1) {
+      const userObj = { ...users[userIdx] };
+      if (!userObj.pushTokens) {
+        userObj.pushTokens = [];
+      }
+
+      if (!userObj.pushTokens.includes(token)) {
+        userObj.pushTokens.push(token);
+        const updatedUsers = [...users];
+        updatedUsers[userIdx] = userObj;
+        tokenRegistered = true;
+        await updateDocument('users', updatedUsers);
+        console.log("🔔 Token FCM registrado com sucesso para o usuário:", userId);
+      } else {
+        tokenRegistered = true;
+      }
+    }
+  } catch (err) {
+    console.error("Erro ao registrar token FCM no Firestore:", err);
+  }
+}
+
 function stopRealtimeSync() {
   unsubscribers.forEach(unsub => unsub());
   unsubscribers = [];
@@ -834,6 +866,9 @@ function setupRealtimeSync() {
       if (matched) {
         currentUser = matched;
         currentUserId = matched.id;
+
+        // Registrar token FCM para notificações push
+        registerFCMTokenForUser(matched.id);
 
         // Esconder tela de login
         const loginOverlay = document.getElementById('login-overlay');
