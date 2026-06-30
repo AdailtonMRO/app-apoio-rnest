@@ -3242,6 +3242,11 @@ function openOperatorAreasModal() {
     cb.checked = userAreas.includes(cb.value);
   });
   
+  const operatorFormGrupoTrabalho = document.getElementById('operator-form-grupo-trabalho');
+  if (operatorFormGrupoTrabalho) {
+    operatorFormGrupoTrabalho.value = currentUser.grupoTrabalho || 'adm';
+  }
+  
   operatorAreasModal.style.display = 'flex';
 }
 
@@ -3253,16 +3258,19 @@ function handleSaveOperatorAreas(e) {
   const checkedAreasCbs = document.querySelectorAll('input[name="operator-areas-funcoes"]:checked');
   const areasFuncoes = Array.from(checkedAreasCbs).map(cb => cb.value);
   
+  const operatorFormGrupoTrabalho = document.getElementById('operator-form-grupo-trabalho');
+  const grupoTrabalho = operatorFormGrupoTrabalho ? operatorFormGrupoTrabalho.value : currentUser.grupoTrabalho;
+  
   users = users.map(u => {
     if (u.id === currentUser.id) {
-      const updated = { ...u, areasFuncoes: areasFuncoes };
+      const updated = { ...u, areasFuncoes: areasFuncoes, grupoTrabalho: grupoTrabalho };
       currentUser = updated; // Atualizar usuário ativo
       return updated;
     }
     return u;
   });
   
-  showBanner('Suas áreas e funções de atuação foram atualizadas com sucesso!', 'success');
+  showBanner('Suas áreas, funções e grupo de trabalho foram atualizados com sucesso!', 'success');
   
   operatorAreasModal.style.display = 'none';
   persistChanges('users');

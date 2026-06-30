@@ -954,7 +954,20 @@
 
           <form id="operator-areas-form" style="display: flex; flex-direction: column; gap: 16px;">
             <div class="form-group">
-              <div id="operator-areas-checkboxes-container" style="display: grid; grid-template-columns: 1fr; gap: 12px; max-height: 300px; overflow-y: auto; padding: 10px; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: hsla(222, 47%, 5%, 0.4);">
+              <label class="form-label" style="display: block; margin-bottom: 6px;">Meu Grupo de Trabalho / Escala (Obrigatório):</label>
+              <select id="operator-form-grupo-trabalho" class="input-field" required style="width: 100%;">
+                <option value="grupo_a">Grupo A (Turno 12h)</option>
+                <option value="grupo_b">Grupo B (Turno 12h)</option>
+                <option value="grupo_c">Grupo C (Turno 12h)</option>
+                <option value="grupo_d">Grupo D (Turno 12h)</option>
+                <option value="grupo_e">Grupo E (Turno 12h)</option>
+                <option value="adm">ADM (Administrativo - Segunda a Sexta)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" style="display: block; margin-bottom: 6px;">Áreas/Funções de Atuação (Conhecimento):</label>
+              <div id="operator-areas-checkboxes-container" style="display: grid; grid-template-columns: 1fr; gap: 12px; max-height: 250px; overflow-y: auto; padding: 10px; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: hsla(222, 47%, 5%, 0.4);">
                 <!-- Preenchido via JS -->
               </div>
             </div>
