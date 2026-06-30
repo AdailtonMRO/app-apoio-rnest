@@ -10,6 +10,13 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="./style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Configurações PWA -->
+    <link rel="manifest" href="./manifest.json" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="theme-color" content="#0f172a" />
+    <link rel="apple-touch-icon" href="./icon-192.png" />
   </head>
   <body>
     <!-- OVERLAY DE LOGIN GOOGLE (Apenas ativo se Firebase estiver configurado) -->
@@ -1207,8 +1214,81 @@
 
     </div>
 
+    <!-- BARRA DE NAVEGAÇÃO INFERIOR PARA CELULARES -->
+    <nav class="mobile-bottom-nav">
+      <button class="mobile-nav-btn active" data-view="escalas">
+        <span class="nav-icon">📅</span>
+        <span class="nav-label">Vagas</span>
+      </button>
+      <button class="mobile-nav-btn" data-view="calendario">
+        <span class="nav-icon">📆</span>
+        <span class="nav-label">Calendário</span>
+      </button>
+      <button class="mobile-nav-btn" data-view="registro">
+        <span class="nav-icon">✍️</span>
+        <span class="nav-label">Registrar</span>
+      </button>
+      <button class="mobile-nav-btn" data-view="ranking">
+        <span class="nav-icon">📊</span>
+        <span class="nav-label">Ranking</span>
+      </button>
+      <button class="mobile-nav-btn" id="btn-mobile-drawer-toggle">
+        <span class="nav-icon">☰</span>
+        <span class="nav-label">Mais</span>
+      </button>
+    </nav>
+
+    <!-- GAVETA (BOTTOM DRAWER) DE OUTROS RECURSOS -->
+    <div id="mobile-menu-drawer" class="drawer-overlay" style="display: none;">
+      <div class="drawer-backdrop" id="drawer-backdrop"></div>
+      <div class="drawer-content glass-panel">
+        <div class="drawer-handle"></div>
+        <div class="drawer-header">
+          <h3>Menu Adicional</h3>
+          <button id="btn-close-drawer" class="btn-close-drawer">✕</button>
+        </div>
+        <div class="drawer-body">
+          <button class="drawer-item-btn" data-view="historico">
+            <span class="drawer-item-icon">📜</span>
+            <span class="drawer-item-label">Histórico</span>
+          </button>
+          <button class="drawer-item-btn" data-view="minhas-autotrocas">
+            <span class="drawer-item-icon">🔄</span>
+            <span class="drawer-item-label">Minhas Autotrocas</span>
+          </button>
+          <button class="drawer-item-btn" data-view="autotrocas" id="drawer-btn-autotrocas" style="display: none;">
+            <span class="drawer-item-icon">🔄</span>
+            <span class="drawer-item-label">Autotrocas (Painel)</span>
+          </button>
+          <button class="drawer-item-btn" data-view="usuarios" id="drawer-btn-usuarios" style="display: none;">
+            <span class="drawer-item-icon">👥</span>
+            <span class="drawer-item-label">Usuários</span>
+          </button>
+          <button class="drawer-item-btn" data-view="auditoria" id="drawer-btn-auditoria" style="display: none;">
+            <span class="drawer-item-icon">🔍</span>
+            <span class="drawer-item-label">Auditoria</span>
+          </button>
+          <button class="drawer-item-btn" data-view="relatorios" id="drawer-btn-relatorios" style="display: none;">
+            <span class="drawer-item-icon">📊</span>
+            <span class="drawer-item-label">Relatórios (KPI)</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- SCRIPTS -->
     <script type="module" src="./data.js"></script>
     <script type="module" src="./app.js"></script>
+
+    <!-- REGISTRO DO SERVICE WORKER (PWA) -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('./sw.js')
+            .then(reg => console.log('Service Worker registrado com sucesso!', reg.scope))
+            .catch(err => console.error('Erro ao registrar Service Worker:', err));
+        });
+      }
+    </script>
   </body>
 </html>

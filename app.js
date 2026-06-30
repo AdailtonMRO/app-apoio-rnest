@@ -345,6 +345,59 @@ function init() {
   }
   regDataLancamentoInput.value = formatDatePt(simulatedCurrentDate);
 
+  // Listeners para a barra de navegação inferior mobile (PWA)
+  const mobileNavBtns = document.querySelectorAll('.mobile-nav-btn');
+  mobileNavBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const view = btn.getAttribute('data-view');
+      if (view) {
+        switchView(view);
+      }
+    });
+  });
+
+  // Listeners do menu gaveta (Bottom Sheet Drawer)
+  const btnMobileDrawerToggle = document.getElementById('btn-mobile-drawer-toggle');
+  const mobileMenuDrawer = document.getElementById('mobile-menu-drawer');
+  const btnCloseDrawer = document.getElementById('btn-close-drawer');
+  const drawerBackdrop = document.getElementById('drawer-backdrop');
+  const drawerItemBtns = document.querySelectorAll('.drawer-item-btn');
+
+  if (btnMobileDrawerToggle && mobileMenuDrawer) {
+    btnMobileDrawerToggle.addEventListener('click', () => {
+      mobileMenuDrawer.classList.add('active');
+      mobileMenuDrawer.style.display = 'flex';
+    });
+  }
+
+  function closeMobileDrawer() {
+    if (mobileMenuDrawer) {
+      mobileMenuDrawer.classList.remove('active');
+      setTimeout(() => {
+        if (!mobileMenuDrawer.classList.contains('active')) {
+          mobileMenuDrawer.style.display = 'none';
+        }
+      }, 350);
+    }
+  }
+
+  if (btnCloseDrawer) {
+    btnCloseDrawer.addEventListener('click', closeMobileDrawer);
+  }
+  if (drawerBackdrop) {
+    drawerBackdrop.addEventListener('click', closeMobileDrawer);
+  }
+
+  drawerItemBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const view = btn.getAttribute('data-view');
+      if (view) {
+        switchView(view);
+      }
+      closeMobileDrawer();
+    });
+  });
+
   // Listeners de navegação principal
   tabBtnEscalas.addEventListener('click', () => switchView('escalas'));
   if (tabBtnCalendario) {
@@ -931,7 +984,7 @@ function persistChanges(onlyDocName = null) {
 function switchView(view) {
   currentView = view;
   
-  // Atualizar abas
+  // Atualizar abas desktop
   tabBtnEscalas.classList.toggle('active', view === 'escalas');
   if (tabBtnCalendario) {
     tabBtnCalendario.classList.toggle('active', view === 'calendario');
@@ -950,6 +1003,19 @@ function switchView(view) {
   }
   if (tabBtnAutotrocas) {
     tabBtnAutotrocas.classList.toggle('active', view === 'autotrocas');
+  }
+
+  // Sincronizar abas móveis (barra inferior)
+  const mobileNavBtns = document.querySelectorAll('.mobile-nav-btn');
+  mobileNavBtns.forEach(btn => {
+    const btnView = btn.getAttribute('data-view');
+    btn.classList.toggle('active', btnView === view);
+  });
+
+  // Tratar visualização de ranking em mobile
+  const dashboardGrid = document.querySelector('.dashboard-grid');
+  if (dashboardGrid) {
+    dashboardGrid.classList.toggle('viewing-ranking', view === 'ranking');
   }
 
   // Atualizar contêineres
@@ -2143,16 +2209,31 @@ function renderTabs() {
   const isGestor = isCurrentUserGestor();
   
   // Mostrar/esconder abas de gestão com base na hierarquia
+  const drawerBtnAutotrocas = document.getElementById('drawer-btn-autotrocas');
+  const drawerBtnUsuarios = document.getElementById('drawer-btn-usuarios');
+  const drawerBtnAuditoria = document.getElementById('drawer-btn-auditoria');
+  const drawerBtnRelatorios = document.getElementById('drawer-btn-relatorios');
+
   if (isGestor) {
     tabBtnUsuarios.style.display = 'inline-flex';
     if (tabBtnAuditoria) tabBtnAuditoria.style.display = 'inline-flex';
     if (tabBtnRelatorios) tabBtnRelatorios.style.display = 'inline-flex';
     if (tabBtnAutotrocas) tabBtnAutotrocas.style.display = 'inline-flex';
+
+    if (drawerBtnAutotrocas) drawerBtnAutotrocas.style.display = 'flex';
+    if (drawerBtnUsuarios) drawerBtnUsuarios.style.display = 'flex';
+    if (drawerBtnAuditoria) drawerBtnAuditoria.style.display = 'flex';
+    if (drawerBtnRelatorios) drawerBtnRelatorios.style.display = 'flex';
   } else {
     tabBtnUsuarios.style.display = 'none';
     if (tabBtnAuditoria) tabBtnAuditoria.style.display = 'none';
     if (tabBtnRelatorios) tabBtnRelatorios.style.display = 'none';
     if (tabBtnAutotrocas) tabBtnAutotrocas.style.display = 'none';
+
+    if (drawerBtnAutotrocas) drawerBtnAutotrocas.style.display = 'none';
+    if (drawerBtnUsuarios) drawerBtnUsuarios.style.display = 'none';
+    if (drawerBtnAuditoria) drawerBtnAuditoria.style.display = 'none';
+    if (drawerBtnRelatorios) drawerBtnRelatorios.style.display = 'none';
   }
 
   let html = `<button class="tab-btn ${activeTab === 'all' ? 'active' : ''}" data-tab="all">Todas as Escalas</button>`;
