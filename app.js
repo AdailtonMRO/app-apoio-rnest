@@ -186,6 +186,7 @@ const adminActionsBar = document.getElementById('admin-actions-bar');
 
 // Abas da Visualização Principal
 const tabBtnEscalas = document.getElementById('tab-btn-escalas');
+const tabBtnCalendario = document.getElementById('tab-btn-calendario');
 const tabBtnRegistro = document.getElementById('tab-btn-registro');
 const tabBtnHistorico = document.getElementById('tab-btn-historico');
 const tabBtnMinhasAutotrocas = document.getElementById('tab-btn-minhas-autotrocas');
@@ -194,6 +195,7 @@ const tabBtnUsuarios = document.getElementById('tab-btn-usuarios');
 const tabBtnAuditoria = document.getElementById('tab-btn-auditoria');
 const tabBtnRelatorios = document.getElementById('tab-btn-relatorios');
 const viewEscalas = document.getElementById('view-escalas');
+const viewCalendario = document.getElementById('view-calendario');
 const viewRegistro = document.getElementById('view-registro');
 const viewHistorico = document.getElementById('view-historico');
 const viewMinhasAutotrocas = document.getElementById('view-minhas-autotrocas');
@@ -201,6 +203,10 @@ const viewAutotrocas = document.getElementById('view-autotrocas');
 const viewUsuarios = document.getElementById('view-usuarios');
 const viewAuditoria = document.getElementById('view-auditoria');
 const viewRelatorios = document.getElementById('view-relatorios');
+
+const calendarMonthsContainer = document.getElementById('calendar-months-container');
+const calendarGroupSelector = document.getElementById('calendar-group-selector');
+let calendarSelectedGroupId = 'grupo_a';
 
 // Elementos de Autotroca
 const confirmAssumeModal = document.getElementById('confirm-assume-modal');
@@ -337,6 +343,9 @@ function init() {
 
   // Listeners de navegação principal
   tabBtnEscalas.addEventListener('click', () => switchView('escalas'));
+  if (tabBtnCalendario) {
+    tabBtnCalendario.addEventListener('click', () => switchView('calendario'));
+  }
   tabBtnRegistro.addEventListener('click', () => switchView('registro'));
   tabBtnHistorico.addEventListener('click', () => switchView('historico'));
   tabBtnUsuarios.addEventListener('click', () => switchView('usuarios'));
@@ -902,6 +911,9 @@ function switchView(view) {
   
   // Atualizar abas
   tabBtnEscalas.classList.toggle('active', view === 'escalas');
+  if (tabBtnCalendario) {
+    tabBtnCalendario.classList.toggle('active', view === 'calendario');
+  }
   tabBtnRegistro.classList.toggle('active', view === 'registro');
   tabBtnHistorico.classList.toggle('active', view === 'historico');
   tabBtnUsuarios.classList.toggle('active', view === 'usuarios');
@@ -920,6 +932,9 @@ function switchView(view) {
 
   // Atualizar contêineres
   viewEscalas.style.display = view === 'escalas' ? 'block' : 'none';
+  if (viewCalendario) {
+    viewCalendario.style.display = view === 'calendario' ? 'block' : 'none';
+  }
   viewRegistro.style.display = view === 'registro' ? 'block' : 'none';
   viewHistorico.style.display = view === 'historico' ? 'block' : 'none';
   viewUsuarios.style.display = view === 'usuarios' ? 'block' : 'none';
@@ -934,6 +949,10 @@ function switchView(view) {
   }
   if (viewAutotrocas) {
     viewAutotrocas.style.display = view === 'autotrocas' ? 'block' : 'none';
+  }
+
+  if (view === 'calendario') {
+    renderCalendarView();
   }
 
   if (view === 'auditoria') {
@@ -1547,6 +1566,7 @@ function renderAll() {
   populateHistoryFilterUsers();
   populateAuditoriaFilterUsers();
   renderMinhasAutotrocas();
+  renderCalendarView();
 
   if (isCurrentUserGestor()) {
     renderAuditoriaTable();
@@ -2622,6 +2642,141 @@ function renderMyPanel() {
     myPanelWidget.style.display = 'none';
   }
 }
+
+function renderCalendarView() {
+  if (!viewCalendario || viewCalendario.style.display === 'none') return;
+
+  // Se o usuário logado tem um grupo de trabalho válido e o grupo selecionado do calendário ainda é o inicial padrão, sincroniza com o do usuário
+  if (currentUser && currentUser.grupoTrabalho && calendarSelectedGroupId === 'grupo_a' && currentUser.grupoTrabalho !== calendarSelectedGroupId) {
+    calendarSelectedGroupId = currentUser.grupoTrabalho;
+  }
+
+  const currentDateObj = new Date(simulatedCurrentDate + 'T00:00:00');
+  const year1 = currentDateObj.getFullYear();
+  const month1 = currentDateObj.getMonth();
+
+  // Próximo mês
+  let month2 = month1 + 1;
+  let year2 = year1;
+  if (month2 > 11) {
+    month2 = 0;
+    year2++;
+  }
+
+  // Renderizar seletor de grupos no rodapé
+  const groupsList = [
+    { id: 'grupo_a', label: 'A' },
+    { id: 'grupo_b', label: 'B' },
+    { id: 'grupo_c', label: 'C' },
+    { id: 'grupo_d', label: 'D' },
+    { id: 'grupo_e', label: 'E' },
+    { id: 'adm', label: 'ADM' }
+  ];
+
+  let selectorHtml = '';
+  groupsList.forEach(g => {
+    const activeClass = calendarSelectedGroupId === g.id ? 'active' : '';
+    selectorHtml += `
+      <button class="group-circle-btn ${activeClass}" data-group="${g.id}">
+        ${g.label}
+      </button>
+    `;
+  });
+  calendarGroupSelector.innerHTML = selectorHtml;
+
+  // Ligar eventos nos botões circulares
+  calendarGroupSelector.querySelectorAll('.group-circle-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      calendarSelectedGroupId = btn.getAttribute('data-group');
+      renderCalendarView();
+    });
+  });
+
+  // Renderizar meses
+  let monthsHtml = '';
+  monthsHtml += renderSingleCalendarMonth(year1, month1);
+  monthsHtml += renderSingleCalendarMonth(year2, month2);
+  calendarMonthsContainer.innerHTML = monthsHtml;
+}
+
+function renderSingleCalendarMonth(year, month) {
+  const monthNames = [
+    "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+  ];
+  const monthTitle = `${monthNames[month]} ${year}`;
+
+  // Cabeçalho dos dias
+  const daysHeader = `
+    <div class="calendar-day-header">Seg</div>
+    <div class="calendar-day-header">Ter</div>
+    <div class="calendar-day-header">Qua</div>
+    <div class="calendar-day-header">Qui</div>
+    <div class="calendar-day-header">Sex</div>
+    <div class="calendar-day-header">Sáb</div>
+    <div class="calendar-day-header">Dom</div>
+  `;
+
+  // Calcular dia da semana inicial (Segunda = 0, ..., Domingo = 6)
+  const firstDay = new Date(year, month, 1);
+  let firstDayIndex = firstDay.getDay() - 1;
+  if (firstDayIndex < 0) firstDayIndex = 6; // Domingo vira 6
+
+  // Obter número de dias no mês
+  const totalDays = new Date(year, month + 1, 0).getDate();
+
+  let gridHtml = daysHeader;
+
+  // Preencher células vazias do início do mês
+  for (let i = 0; i < firstDayIndex; i++) {
+    gridHtml += '<div class="calendar-day-empty"></div>';
+  }
+
+  // Preencher dias do mês
+  for (let dayNum = 1; dayNum <= totalDays; dayNum++) {
+    const dayStr = String(dayNum).padStart(2, '0');
+    const monthStr = String(month + 1).padStart(2, '0');
+    const dateStr = `${year}-${monthStr}-${dayStr}`;
+
+    const shiftCode = getGroupShiftForDate(calendarSelectedGroupId, dateStr);
+
+    let shiftText = '';
+    let shiftClass = '';
+
+    if (shiftCode === '07') {
+      shiftText = '07-19';
+      shiftClass = 'shift-diurno';
+    } else if (shiftCode === '19') {
+      shiftText = '19-07';
+      shiftClass = 'shift-noturno';
+    } else if (shiftCode === 'ADM') {
+      shiftText = 'ADM';
+      shiftClass = 'shift-adm';
+    } else {
+      shiftText = 'Folga';
+      shiftClass = 'shift-folga';
+    }
+
+    const todayClass = dateStr === simulatedCurrentDate ? 'calendar-today' : '';
+
+    gridHtml += `
+      <div class="calendar-day-cell ${shiftClass} ${todayClass}" title="${formatDatePt(dateStr)}">
+        <span class="calendar-day-num">${dayNum}</span>
+        <span class="calendar-day-shift">${shiftText}</span>
+      </div>
+    `;
+  }
+
+  return `
+    <div>
+      <div class="calendar-month-title">${monthTitle}</div>
+      <div class="calendar-month-grid">
+        ${gridHtml}
+      </div>
+    </div>
+  `;
+}
+
 
 function renderRanking() {
   let html = '';

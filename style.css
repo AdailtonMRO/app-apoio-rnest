@@ -1173,3 +1173,121 @@ a:hover {
   color: var(--danger);
   border: 1px solid hsla(0, 84%, 60%, 0.3);
 }
+
+/* Estilos de Calendário de Escalas */
+.calendar-month-title {
+  font-family: var(--font-heading);
+  color: var(--primary);
+  font-size: 1.3rem;
+  font-weight: 700;
+  text-align: center;
+  margin-top: 10px;
+  margin-bottom: 12px;
+}
+
+.calendar-month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.calendar-day-header {
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding: 4px 0;
+  text-transform: uppercase;
+}
+
+.calendar-day-cell {
+  aspect-ratio: 1.1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: default;
+  transition: transform 0.15s ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+  border: 1px solid transparent;
+}
+
+.calendar-day-num {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 2px;
+  color: #1e293b;
+}
+
+.calendar-day-shift {
+  font-size: 0.62rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #334155;
+}
+
+/* Cores de Turno no Calendário */
+.shift-diurno {
+  background-color: #fef3c7 !important; /* Amarelo ouro suave */
+  border-color: #fde047 !important;
+}
+
+.shift-noturno {
+  background-color: #dbeafe !important; /* Azul suave */
+  border-color: #93c5fd !important;
+}
+
+.shift-folga {
+  background-color: hsla(220, 10%, 15%, 0.45) !important; /* Cinza escuro para integrar no tema escuro */
+  border-color: hsla(220, 10%, 25%, 0.5) !important;
+}
+
+.shift-folga .calendar-day-num, .shift-folga .calendar-day-shift {
+  color: var(--text-secondary);
+}
+
+.shift-adm {
+  background-color: #d1fae5 !important; /* Verde suave comercial */
+  border-color: #6ee7b7 !important;
+}
+
+.calendar-today {
+  border: 2px solid var(--danger) !important;
+  box-shadow: 0 0 10px hsla(0, 84%, 60%, 0.4) !important;
+  position: relative;
+}
+
+/* Botões Circulares do Seletor de Grupo */
+.group-circle-btn {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 1px solid var(--border-color);
+  background: hsla(222, 47%, 12%, 0.6);
+  color: var(--text-secondary);
+  font-weight: 700;
+  font-size: 1.1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.group-circle-btn:hover {
+  border-color: var(--primary-glow);
+  color: var(--text-primary);
+  transform: translateY(-2px);
+}
+
+.group-circle-btn.active {
+  background: var(--primary) !important;
+  border-color: var(--primary-glow) !important;
+  box-shadow: var(--shadow-primary) !important;
+  color: #fff !important;
+  transform: translateY(-2px) scale(1.08);
+}
