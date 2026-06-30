@@ -1,4 +1,4 @@
-import { getStoredData, saveStoredData, SUPPORT_RULES, INITIAL_USERS, INITIAL_GROUPS, INITIAL_SLOTS, INITIAL_HISTORY, AREAS_FUNCOES } from './data.js';
+import { getStoredData, saveStoredData, SUPPORT_RULES, INITIAL_USERS, INITIAL_GROUPS, INITIAL_SLOTS, INITIAL_HISTORY, AREAS_FUNCOES, SHIFT_CYCLE, GROUP_START_DATES } from './data.js';
 import { isFirebaseEnabled, loginWithGoogle, logout, onAuthChange, syncDocument, updateDocument } from './firebase-db.js';
 
 // --- ESTADO GLOBAL DA APLICAÇÃO ---
@@ -85,6 +85,44 @@ function getDefaultAreasForUser(user) {
     return ['TORRES', 'ETDI', 'ÁGUAS'];
   }
 }
+
+function getDefaultGrupoTrabalho(user) {
+  if (user.tipo === 'ADMINISTRADOR' || (user.cargo && user.cargo.toLowerCase().includes('administrador'))) {
+    return 'adm';
+  }
+  if (user.tipo === 'SUPERVISOR' || (user.cargo && user.cargo.toLowerCase().includes('supervisor'))) {
+    return 'adm';
+  }
+  const charCodeSum = Array.from(user.id || '').reduce((sum, char) => sum + char.charCodeAt(0), 0);
+  const groups = ['grupo_a', 'grupo_b', 'grupo_c', 'grupo_d', 'grupo_e'];
+  return groups[charCodeSum % groups.length];
+}
+
+function getDaysDifference(date1Str, date2Str) {
+  const d1 = new Date(date1Str + 'T00:00:00');
+  const d2 = new Date(date2Str + 'T00:00:00');
+  const diffTime = d2.getTime() - d1.getTime();
+  return Math.floor(diffTime / (1000 * 60 * 60 * 24));
+}
+
+function getGroupShiftForDate(grupoId, dateStr) {
+  if (!grupoId) return 'F';
+  if (grupoId === 'adm') {
+    const d = new Date(dateStr + 'T00:00:00');
+    const day = d.getDay(); // 0 = Sunday, 6 = Saturday
+    if (day === 0 || day === 6) return 'F';
+    return 'ADM';
+  }
+  const startDateStr = GROUP_START_DATES[grupoId];
+  if (!startDateStr) return 'F';
+  
+  const diffDays = getDaysDifference(startDateStr, dateStr);
+  let cycleDay = diffDays % 35;
+  if (cycleDay < 0) cycleDay += 35;
+  
+  return SHIFT_CYCLE[cycleDay];
+}
+
 
 function renderAreasCheckboxList(containerId, checkboxName) {
   const container = document.getElementById(containerId);
@@ -238,6 +276,7 @@ const userFormNome = document.getElementById('user-form-nome');
 const userFormEmail = document.getElementById('user-form-email');
 const userFormCargo = document.getElementById('user-form-cargo');
 const userFormNivel = document.getElementById('user-form-nivel');
+const userFormGrupoTrabalho = document.getElementById('user-form-grupo-trabalho');
 const userSearchInput = document.getElementById('user-search-input');
 const usersTableBody = document.getElementById('users-table-body');
 
@@ -507,6 +546,15 @@ function init() {
     });
   });
 
+  const elFormData = document.getElementById('form-data');
+  if (elFormData) {
+    elFormData.addEventListener('change', updateFormUsuarioSelectCompatibility);
+  }
+  const elFormHorario = document.getElementById('form-horario');
+  if (elFormHorario) {
+    elFormHorario.addEventListener('change', updateFormUsuarioSelectCompatibility);
+  }
+
   // Evento do filtro de compatibilidade do operador
   const filterMyAreasCheck = document.getElementById('filter-my-areas');
   if (filterMyAreasCheck) {
@@ -682,10 +730,14 @@ function setupRealtimeSync() {
     }
 
     users = data.map(u => {
-      if (!u.areasFuncoes) {
-        return { ...u, areasFuncoes: getDefaultAreasForUser(u) };
+      let updatedUser = { ...u };
+      if (!updatedUser.areasFuncoes) {
+        updatedUser.areasFuncoes = getDefaultAreasForUser(updatedUser);
       }
-      return u;
+      if (!updatedUser.grupoTrabalho) {
+        updatedUser.grupoTrabalho = getDefaultGrupoTrabalho(updatedUser);
+      }
+      return updatedUser;
     });
     
     if (isFirebaseEnabled && authenticatedGoogleUser) {
@@ -2457,6 +2509,23 @@ function renderMyPanel() {
     const rawMonth = new Date(currentMonth + 'T00:00:00').toLocaleDateString('pt-BR', { month: 'long' });
     const monthName = rawMonth.charAt(0).toUpperCase() + rawMonth.slice(1);
 
+    const groupMap = {
+      'grupo_a': 'Grupo A',
+      'grupo_b': 'Grupo B',
+      'grupo_c': 'Grupo C',
+      'grupo_d': 'Grupo D',
+      'grupo_e': 'Grupo E',
+      'adm': 'ADM'
+    };
+    const shiftCode = getGroupShiftForDate(currentUser.grupoTrabalho, currentMonth);
+    const shiftLabels = {
+      '07': '☀️ Turno Diurno',
+      '19': '🌙 Turno Noturno',
+      'F': '🌴 Folga',
+      'ADM': '💼 ADM Comercial'
+    };
+    const shiftText = shiftLabels[shiftCode] || 'Não Definido';
+
     myPanelWidget.innerHTML = `
       <h3 class="widget-title">👤 Meu Painel</h3>
       <div style="display: flex; flex-direction: column; gap: 10px; font-size: 0.9rem;">
@@ -2499,6 +2568,21 @@ function renderMyPanel() {
             <span style="color: var(--text-muted); display: block;">⚠️ Débitos de Apoio:</span>
             <strong style="font-size: 1rem; color: ${autotrocas.filter(at => at.usuarioId === currentUser.id && at.tipo === 'CONTRARIA' && at.status === 'PENDENTE').length > 0 ? 'var(--warning)' : 'var(--text-secondary)'}">
               ${autotrocas.filter(at => at.usuarioId === currentUser.id && at.tipo === 'CONTRARIA' && at.status === 'PENDENTE').length > 0 ? `${autotrocas.filter(at => at.usuarioId === currentUser.id && at.tipo === 'CONTRARIA' && at.status === 'PENDENTE').length} pendente(s)` : 'Nenhum'}
+            </strong>
+          </div>
+        </div>
+
+        <div style="border-top: 1px solid var(--border-color); padding-top: 10px; margin-top: 5px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div>
+            <span style="color: var(--text-muted); display: block;">Escala / Grupo:</span>
+            <strong style="text-transform: uppercase;">
+              ${groupMap[currentUser.grupoTrabalho] || 'ADM'}
+            </strong>
+          </div>
+          <div>
+            <span style="color: var(--text-muted); display: block;">Escala de Hoje:</span>
+            <strong style="color: ${shiftCode === 'F' ? 'var(--success)' : 'var(--warning)'}">
+              ${shiftText}
             </strong>
           </div>
         </div>
@@ -2752,16 +2836,28 @@ function renderUsersTable() {
 
   // Mostrar ou esconder botão de cadastrar novo usuário com base no perfil de Admin
   const btnCreate = document.getElementById('btn-open-user-modal');
-  if (isOnlyAdmin) {
-    btnCreate.style.display = 'inline-flex';
-  } else {
-    btnCreate.style.display = 'none';
+  if (btnCreate) {
+    if (isOnlyAdmin) {
+      btnCreate.style.display = 'inline-flex';
+    } else {
+      btnCreate.style.display = 'none';
+    }
   }
+
+  const groupMap = {
+    'grupo_a': 'Grupo A',
+    'grupo_b': 'Grupo B',
+    'grupo_c': 'Grupo C',
+    'grupo_d': 'Grupo D',
+    'grupo_e': 'Grupo E',
+    'adm': 'ADM'
+  };
 
   filteredUsers.forEach(u => {
     const score = calculateUserPointsGeral(u.id);
     const hasHistory = history.some(h => h.usuarioId === u.id);
     const scoreText = (u.cargo === 'GPI' || u.cargo === 'OPMAN') ? 'Isento' : `${score.toFixed(4)} pts`;
+    const groupName = groupMap[u.grupoTrabalho] || 'ADM';
 
     html += `
       <tr>
@@ -2782,6 +2878,11 @@ function renderUsersTable() {
             ${u.tipo}
           </span>
         </td>
+        <td>
+          <span class="badge" style="background: hsla(280, 100%, 30%, 0.12); border: 1px solid hsla(280, 100%, 40%, 0.22); color: hsl(280, 100%, 85%); text-transform: uppercase;">
+            ${groupName}
+          </span>
+        </td>
         <td style="font-size: 0.8rem; color: var(--text-secondary); font-family: var(--font-mono);">${u.email}</td>
         <td style="text-align: right; font-weight: bold; color: var(--info);">${scoreText}</td>
         <td style="text-align: center;">
@@ -2798,7 +2899,7 @@ function renderUsersTable() {
   });
  
   if (filteredUsers.length === 0) {
-    html = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 20px;">Nenhum usuário correspondente à pesquisa.</td></tr>`;
+    html = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 20px;">Nenhum usuário correspondente à pesquisa.</td></tr>`;
   }
  
   usersTableBody.innerHTML = html;
@@ -2840,6 +2941,7 @@ function openUserModal(mode, id = '') {
     userFormOldChave.value = '';
     userFormNivel.value = 'OPERADOR';
     userFormCargo.value = 'Operador';
+    userFormGrupoTrabalho.value = 'grupo_a';
   } else if (mode === 'edit') {
     userModalTitle.textContent = 'Editar Colaborador';
     const user = users.find(u => u.id === id);
@@ -2851,6 +2953,7 @@ function openUserModal(mode, id = '') {
       userFormEmail.value = user.email || '';
       userFormCargo.value = user.cargo;
       userFormNivel.value = user.tipo;
+      userFormGrupoTrabalho.value = user.grupoTrabalho || 'adm';
       userAreas = user.areasFuncoes || [];
     }
   }
@@ -2877,6 +2980,7 @@ function handleSaveUser(e) {
   const email = userFormEmail.value.trim().toLowerCase();
   const cargo = userFormCargo.value.trim();
   const nivel = userFormNivel.value;
+  const grupoTrabalho = userFormGrupoTrabalho.value;
 
   if (!newChave || !nome || !email) {
     showBanner('Preencha os campos obrigatórios.', 'danger');
@@ -2901,7 +3005,8 @@ function handleSaveUser(e) {
       tipo: nivel,
       cargo: cargo,
       infracoesWA: 0,
-      areasFuncoes: areasFuncoes
+      areasFuncoes: areasFuncoes,
+      grupoTrabalho: grupoTrabalho
     };
 
     users = [...users, novoUser];
@@ -2916,7 +3021,8 @@ function handleSaveUser(e) {
           email: email,
           cargo: cargo,
           tipo: nivel,
-          areasFuncoes: areasFuncoes
+          areasFuncoes: areasFuncoes,
+          grupoTrabalho: grupoTrabalho
         };
       }
       return u;
@@ -3056,6 +3162,15 @@ function updateFormUsuarioSelectCompatibility() {
   const checkedCbs = document.querySelectorAll('input[name="slot-areas-funcoes"]:checked');
   const selectedAreas = Array.from(checkedCbs).map(cb => cb.value);
   
+  const inputDate = document.getElementById('form-data');
+  const inputHorario = document.getElementById('form-horario');
+  const dateVal = inputDate ? inputDate.value : '';
+  const horarioVal = inputHorario ? inputHorario.value : '';
+  
+  // Se o horário começar com ou contiver 19, assume turno noturno "19", senão diurno "07"
+  const targetShift = (horarioVal.startsWith('19') || horarioVal.includes('19')) ? '19' : 
+                      (horarioVal.startsWith('07') || horarioVal.includes('07')) ? '07' : '';
+
   const sortedRegUsers = [...users]
     .filter(u => u.cargo !== 'GPI' && u.cargo !== 'OPMAN')
     .sort((a, b) => a.nome.localeCompare(b.nome));
@@ -3064,7 +3179,19 @@ function updateFormUsuarioSelectCompatibility() {
   sortedRegUsers.forEach(u => {
     const userAreas = u.areasFuncoes || [];
     const isCompatible = selectedAreas.length === 0 || selectedAreas.some(area => userAreas.includes(area));
-    const label = isCompatible ? '' : ' (⚠️ Área Incompatível)';
+    
+    let label = '';
+    if (!isCompatible) {
+      label += ' (⚠️ Área Incompatível)';
+    }
+    
+    if (dateVal && targetShift && u.grupoTrabalho) {
+      const userShift = getGroupShiftForDate(u.grupoTrabalho, dateVal);
+      if (userShift === targetShift) {
+        label += ' (⚠️ Em Turno Normal)';
+      }
+    }
+    
     formUserHtml += `<option value="${u.id}">${u.nome} (${u.cargo})${label}</option>`;
   });
   
@@ -5099,7 +5226,7 @@ function downloadCSV(csvContent, filename) {
 
 // 1. Exportação
 function exportUsersToCSV() {
-  const headers = ['id', 'nome', 'email', 'tipo', 'cargo', 'infracoesWA', 'areasFuncoes'];
+  const headers = ['id', 'nome', 'email', 'tipo', 'cargo', 'infracoesWA', 'areasFuncoes', 'grupoTrabalho'];
   let csv = headers.join(',') + '\n';
   users.forEach(u => {
     const row = [
@@ -5109,7 +5236,8 @@ function exportUsersToCSV() {
       u.tipo,
       u.cargo,
       u.infracoesWA !== undefined ? u.infracoesWA : 0,
-      (u.areasFuncoes || []).join(';')
+      (u.areasFuncoes || []).join(';'),
+      u.grupoTrabalho || ''
     ];
     csv += row.map(valueToCsvField).join(',') + '\n';
   });
@@ -5180,6 +5308,7 @@ function handleImportUsersCSV(event) {
     const cargoIdx = headers.indexOf('cargo');
     const infracoesIdx = headers.indexOf('infracoeswa');
     const areasIdx = headers.indexOf('areasfuncoes');
+    const grupoTrabalhoIdx = headers.indexOf('grupotrabalho');
     
     if (idIdx === -1 || nomeIdx === -1 || emailIdx === -1) {
       showBanner("Erro: Colunas obrigatórias 'id', 'nome' e 'email' não encontradas.", "danger");
@@ -5210,6 +5339,10 @@ function handleImportUsersCSV(event) {
         ? row[areasIdx].trim().split(';')
         : getDefaultAreasForUser({ id, cargo, tipo, nome });
 
+      const grupoTrabalho = (grupoTrabalhoIdx !== -1 && row[grupoTrabalhoIdx] && row[grupoTrabalhoIdx].trim())
+        ? row[grupoTrabalhoIdx].trim().toLowerCase()
+        : getDefaultGrupoTrabalho({ id, cargo, tipo, nome });
+
       importedUsers.push({
         id,
         nome,
@@ -5217,7 +5350,8 @@ function handleImportUsersCSV(event) {
         tipo,
         cargo,
         infracoesWA: infracoesIdx !== -1 ? parseInt(row[infracoesIdx], 10) || 0 : 0,
-        areasFuncoes
+        areasFuncoes,
+        grupoTrabalho
       });
     }
     
