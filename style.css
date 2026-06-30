@@ -1511,6 +1511,11 @@ a:hover {
     display: none !important;
   }
 
+  /* Garantir que as vagas apareçam em apenas 1 coluna no celular */
+  .slots-grid {
+    grid-template-columns: 1fr !important;
+  }
+
   /* Tratamento do Painel de Ranking (Sidebar) */
   .dashboard-grid {
     grid-template-columns: 1fr !important;

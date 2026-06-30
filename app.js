@@ -2236,6 +2236,23 @@ function renderTabs() {
     if (drawerBtnRelatorios) drawerBtnRelatorios.style.display = 'none';
   }
 
+  const isOperador = isCurrentUserOperador();
+  const dateFilterContainer = document.getElementById('date-filter-container');
+
+  if (isOperador) {
+    if (dateFilterContainer) dateFilterContainer.style.display = 'none';
+    tabContainer.style.display = 'none';
+    
+    escalaDateFilter = 'future';
+    activeTab = 'all';
+    
+    if (btnDateFuture) btnDateFuture.classList.add('active');
+    if (btnDatePast) btnDatePast.classList.remove('active');
+  } else {
+    if (dateFilterContainer) dateFilterContainer.style.display = 'flex';
+    tabContainer.style.display = 'flex';
+  }
+
   let html = `<button class="tab-btn ${activeTab === 'all' ? 'active' : ''}" data-tab="all">Todas as Escalas</button>`;
   groups.forEach(g => {
     const label = g.nome.replace('Apoios ', '').replace('Apoio ', '');
