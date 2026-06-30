@@ -2681,14 +2681,6 @@ function renderCalendarView() {
   const year1 = currentDateObj.getFullYear();
   const month1 = currentDateObj.getMonth();
 
-  // Próximo mês
-  let month2 = month1 + 1;
-  let year2 = year1;
-  if (month2 > 11) {
-    month2 = 0;
-    year2++;
-  }
-
   // Renderizar seletor de grupos no rodapé
   const groupsList = [
     { id: 'grupo_a', label: 'A' },
@@ -2721,7 +2713,6 @@ function renderCalendarView() {
   // Renderizar meses
   let monthsHtml = '';
   monthsHtml += renderSingleCalendarMonth(year1, month1);
-  monthsHtml += renderSingleCalendarMonth(year2, month2);
   calendarMonthsContainer.innerHTML = monthsHtml;
 }
 
