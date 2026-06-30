@@ -1551,5 +1551,48 @@ a:hover {
     max-height: 90vh;
     overflow-y: auto;
   }
+
+  /* Otimização de Calendário no Mobile */
+  #view-calendario .glass-panel {
+    padding: 16px 10px !important;
+  }
+
+  .calendar-month-grid {
+    gap: 4px !important;
+    margin-bottom: 12px !important;
+  }
+
+  .calendar-day-header {
+    font-size: 0.65rem !important;
+  }
+
+  .calendar-day-cell {
+    font-size: 0.7rem !important;
+    padding: 4px 2px !important;
+    aspect-ratio: 1 !important;
+  }
+
+  .calendar-day-num {
+    font-size: 0.85rem !important;
+    margin-bottom: 0px !important;
+  }
+
+  .calendar-day-shift {
+    font-size: 0.5rem !important;
+    transform: scale(0.85);
+    transform-origin: center;
+    white-space: nowrap;
+    margin-top: 1px;
+  }
+
+  .group-circle-btn {
+    width: 35px !important;
+    height: 35px !important;
+    font-size: 0.9rem !important;
+  }
+
+  #calendar-group-selector {
+    gap: 8px !important;
+  }
 }
 
