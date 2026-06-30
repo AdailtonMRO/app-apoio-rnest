@@ -206,7 +206,11 @@ const viewRelatorios = document.getElementById('view-relatorios');
 
 const calendarMonthsContainer = document.getElementById('calendar-months-container');
 const calendarGroupSelector = document.getElementById('calendar-group-selector');
-let calendarSelectedGroupId = 'grupo_a';
+const btnCalendarPrev = document.getElementById('btn-calendar-prev');
+const btnCalendarToday = document.getElementById('btn-calendar-today');
+const btnCalendarNext = document.getElementById('btn-calendar-next');
+let calendarSelectedGroupId = '';
+let calendarStartMonthOffset = 0;
 
 // Elementos de Autotroca
 const confirmAssumeModal = document.getElementById('confirm-assume-modal');
@@ -345,6 +349,24 @@ function init() {
   tabBtnEscalas.addEventListener('click', () => switchView('escalas'));
   if (tabBtnCalendario) {
     tabBtnCalendario.addEventListener('click', () => switchView('calendario'));
+  }
+  if (btnCalendarPrev) {
+    btnCalendarPrev.addEventListener('click', () => {
+      calendarStartMonthOffset--;
+      renderCalendarView();
+    });
+  }
+  if (btnCalendarToday) {
+    btnCalendarToday.addEventListener('click', () => {
+      calendarStartMonthOffset = 0;
+      renderCalendarView();
+    });
+  }
+  if (btnCalendarNext) {
+    btnCalendarNext.addEventListener('click', () => {
+      calendarStartMonthOffset++;
+      renderCalendarView();
+    });
   }
   tabBtnRegistro.addEventListener('click', () => switchView('registro'));
   tabBtnHistorico.addEventListener('click', () => switchView('historico'));
@@ -2646,12 +2668,16 @@ function renderMyPanel() {
 function renderCalendarView() {
   if (!viewCalendario || viewCalendario.style.display === 'none') return;
 
-  // Se o usuário logado tem um grupo de trabalho válido e o grupo selecionado do calendário ainda é o inicial padrão, sincroniza com o do usuário
-  if (currentUser && currentUser.grupoTrabalho && calendarSelectedGroupId === 'grupo_a' && currentUser.grupoTrabalho !== calendarSelectedGroupId) {
-    calendarSelectedGroupId = currentUser.grupoTrabalho;
+  // Inicializa o grupo de trabalho do calendário caso não esteja definido
+  if (!calendarSelectedGroupId) {
+    calendarSelectedGroupId = (currentUser && currentUser.grupoTrabalho) ? currentUser.grupoTrabalho : 'grupo_a';
   }
 
   const currentDateObj = new Date(simulatedCurrentDate + 'T00:00:00');
+  
+  // Aplica o deslocamento de meses selecionado pelo usuário
+  currentDateObj.setMonth(currentDateObj.getMonth() + calendarStartMonthOffset);
+  
   const year1 = currentDateObj.getFullYear();
   const month1 = currentDateObj.getMonth();
 
