@@ -3067,7 +3067,9 @@ function renderRanking() {
 
 function renderHistoryTable() {
   const historyTableBody = document.getElementById('history-table-body');
+  const historyMobileCards = document.getElementById('history-mobile-cards');
   let html = '';
+  let mobileHtml = '';
 
   const filterSelect = document.getElementById('history-filter-user');
   const selectedUserId = filterSelect ? filterSelect.value : 'all';
@@ -3154,22 +3156,66 @@ function renderHistoryTable() {
         </td>
       </tr>
     `;
+
+    mobileHtml += `
+      <div class="glass-panel" style="padding: 16px; display: flex; flex-direction: column; gap: 8px; border-left: 4px solid var(--info); background: var(--bg-card); margin-bottom: 4px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <strong style="font-size: 0.95rem;">${formatDatePt(h.data)}</strong>
+          <strong style="color: var(--info); font-size: 1.05rem;">${h.pontuacao.toFixed(4)} pts</strong>
+        </div>
+        <div style="font-size: 0.85rem; margin-top: 2px;">
+          <span style="color: var(--text-muted); font-size: 0.75rem;">Colaborador:</span>
+          <strong>${user?.nome || 'Desconhecido'}</strong>
+        </div>
+        <div style="font-size: 0.85rem;">
+          <span style="color: var(--text-muted); font-size: 0.75rem;">Área/Função:</span>
+          <strong>${groupName ? groupName + ' - ' : ''}${h.subgrupo}</strong>
+        </div>
+        <div style="margin-top: 4px;">
+          <span style="color: var(--text-muted); font-size: 0.75rem; display: block; margin-bottom: 4px;">Regras Aplicadas:</span>
+          <div style="display: flex; flex-wrap: wrap; gap: 4px;">
+            ${h.regras.map(rid => {
+              const rule = SUPPORT_RULES.find(r => r.id === rid);
+              const color = rid === 'R13' ? 'var(--danger)' : 'var(--primary)';
+              return `<code style="font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; background: hsla(222, 47%, 20%, 0.5); color: ${color};" title="${rule?.descricao}">${rid}</code>`;
+            }).join('')}
+          </div>
+        </div>
+        <div style="border-top: 1px solid var(--border-color); padding-top: 8px; margin-top: 4px; display: flex; justify-content: space-between; align-items: center; font-size: 0.72rem; flex-wrap: wrap; gap: 8px;">
+          <span style="color: var(--text-muted);">
+            Por: ${regBy?.nome || 'Sistema'} em ${formatDatePt(h.dataRegistro.split('T')[0])}
+          </span>
+          <div style="display: inline-flex; gap: 6px; align-items: center;">
+            ${canEdit ? `
+              <button class="btn btn-secondary btn-editar-historico" data-id="${h.id}" title="Editar" style="color: var(--info); padding: 4px 8px; font-size: 0.75rem; line-height: 1;">✏️ Editar</button>
+            ` : ''}
+            ${canDelete ? `
+              <button class="btn btn-secondary btn-excluir-historico" data-id="${h.id}" title="Excluir" style="color: var(--danger); padding: 4px 8px; font-size: 0.75rem; line-height: 1;">✕ Excluir</button>
+            ` : ''}
+          </div>
+        </div>
+      </div>
+    `;
   });
 
   if (filteredHistory.length === 0) {
     html = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 20px;">Nenhum apoio registrado para a seleção no histórico de 2026.</td></tr>`;
+    mobileHtml = `<div style="text-align: center; color: var(--text-muted); padding: 20px;">Nenhum apoio registrado para a seleção no histórico de 2026.</div>`;
   }
 
   historyTableBody.innerHTML = html;
+  if (historyMobileCards) {
+    historyMobileCards.innerHTML = mobileHtml;
+  }
 
-  historyTableBody.querySelectorAll('.btn-editar-historico').forEach(btn => {
+  viewHistorico.querySelectorAll('.btn-editar-historico').forEach(btn => {
     btn.addEventListener('click', () => {
       const hid = btn.getAttribute('data-id');
       handleIniciarEdicaoHistorico(hid);
     });
   });
 
-  historyTableBody.querySelectorAll('.btn-excluir-historico').forEach(btn => {
+  viewHistorico.querySelectorAll('.btn-excluir-historico').forEach(btn => {
     btn.addEventListener('click', () => {
       const hid = btn.getAttribute('data-id');
       handleExcluirHistorico(hid);
