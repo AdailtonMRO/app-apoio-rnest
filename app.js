@@ -2572,7 +2572,7 @@ function attachSlotActionsListeners(filteredSlots) {
     if (isPast) {
       if (isAdmin) {
         actionHtml = `
-          <div style="margin-top: 8px; display: flex; justify-content: flex-end; gap: 8px; align-items: center; width: 100%;">
+          <div class="manager-actions-row" style="margin-top: 8px; display: flex; justify-content: flex-end; gap: 8px; align-items: center; width: 100%;">
             <button class="btn btn-secondary btn-icon-only btn-editar-escala" style="font-size: 0.72rem; padding: 4px 8px; color: var(--info); width: 100%;" title="Editar Escala">
               ✏️ Editar Apoio Concluído
             </button>
@@ -2644,7 +2644,7 @@ function attachSlotActionsListeners(filteredSlots) {
       // 4. Botões de Autorização Gerencial (limite de 3 apoios/mês)
       if (slot.requerAutorizacao && !slot.autorizadoPorId && isGestor) {
         actionHtml += `
-          <div style="margin-top: 8px; display: flex; gap: 8px;">
+          <div class="manager-actions-row" style="margin-top: 8px; display: flex; gap: 8px;">
             <button class="btn btn-primary btn-autorizar-apoio" style="flex: 1; background: var(--success); border: none;">
               ✅ Autorizar Apoio
             </button>
@@ -2668,7 +2668,7 @@ function attachSlotActionsListeners(filteredSlots) {
         // Cancelar/Editar Escala (Somente Admin, Gerente e Supervisor)
         if (isCurrentUserGestor()) {
           actionHtml += `
-            <div style="margin-top: 8px; display: flex; justify-content: flex-end; gap: 8px; align-items: center;">
+            <div class="manager-actions-row" style="margin-top: 8px; display: flex; justify-content: flex-end; gap: 8px; align-items: center;">
               <button class="btn btn-secondary btn-icon-only btn-editar-escala" style="font-size: 0.72rem; padding: 4px 8px; color: var(--info);" title="Editar Escala">
                 ✏️ Editar
               </button>

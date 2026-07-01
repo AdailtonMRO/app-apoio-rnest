@@ -1608,5 +1608,27 @@ a:hover {
   .mobile-only-cards-wrapper {
     display: flex !important;
   }
+  .manager-actions-row {
+    display: flex !important;
+    width: 100% !important;
+    justify-content: space-between !important;
+    gap: 8px !important;
+    margin-top: 10px !important;
+  }
+  .manager-actions-row button {
+    flex: 1 !important;
+    padding: 10px 8px !important;
+    font-size: 0.78rem !important;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    height: 38px;
+    border-radius: var(--radius-sm);
+  }
+  .slot-assignee {
+    flex-wrap: wrap !important;
+    gap: 6px !important;
+  }
 }
 
