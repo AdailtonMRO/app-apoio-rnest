@@ -244,6 +244,7 @@ const minhasFolgasSaldoVal = document.getElementById('minhas-folgas-saldo-val');
 const minhasFolgasPendentesVal = document.getElementById('minhas-folgas-pendentes-val');
 const meusApoiosDebitosVal = document.getElementById('meus-apoios-debitos-val');
 const minhasAutotrocasTableBody = document.getElementById('minhas-autotrocas-table-body');
+const minhasAutotrocasMobileCards = document.getElementById('minhas-autotrocas-mobile-cards');
 
 const regIsAutotrocaCheckbox = document.getElementById('reg-is-autotroca');
 const containerRegDataFolga = document.getElementById('container-reg-data-folga');
@@ -1990,8 +1991,10 @@ function renderMinhasAutotrocas() {
   });
 
   let html = '';
+  let mobileHtml = '';
   if (sorted.length === 0) {
     html = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted); font-style: italic; padding: 20px;">Nenhum lançamento de autotroca encontrado.</td></tr>';
+    mobileHtml = '<div style="text-align: center; color: var(--text-muted); font-style: italic; padding: 20px;">Nenhum lançamento de autotroca encontrado.</div>';
   } else {
     sorted.forEach(at => {
       const isNormal = at.tipo === 'NORMAL';
@@ -2016,12 +2019,15 @@ function renderMinhasAutotrocas() {
       }
 
       let prazoLabel = '-';
+      let prazoMobile = '-';
       if (at.tipo === 'CONTRARIA' && at.status === 'PENDENTE') {
         const days = getDebtExpirationDays(at, simulatedCurrentDate);
         if (days < 0) {
           prazoLabel = `<span style="color: var(--danger); font-weight: bold;">⚠️ Vencido (há ${Math.abs(days)} dias)</span>`;
+          prazoMobile = `⚠️ Vencido (há ${Math.abs(days)} dias)`;
         } else {
           prazoLabel = `<span style="color: var(--success); font-weight: bold;">⏳ Restam ${days} dias</span>`;
+          prazoMobile = `⏳ Restam ${days} dias`;
         }
       }
 
@@ -2035,10 +2041,40 @@ function renderMinhasAutotrocas() {
           <td>${prazoLabel}</td>
         </tr>
       `;
+
+      mobileHtml += `
+        <div class="glass-panel" style="padding: 16px; display: flex; flex-direction: column; gap: 8px; border-left: 4px solid ${isNormal ? 'var(--info)' : 'var(--warning)'}; background: var(--bg-card); margin-bottom: 4px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <strong style="font-size: 0.9rem;">${isNormal ? '🟢 Crédito (Folga)' : '🔴 Débito (Apoio)'}</strong>
+            ${statusBadge}
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.8rem; margin-top: 4px; border-top: 1px solid var(--border-color); padding-top: 8px;">
+            <div>
+              <span style="color: var(--text-muted); display: block; font-size: 0.72rem;">Solicitação:</span>
+              <strong>${dataSolicitacao}</strong>
+            </div>
+            <div>
+              <span style="color: var(--text-muted); display: block; font-size: 0.72rem;">Apoio Realizado:</span>
+              <strong>${dataApoio}</strong>
+            </div>
+            <div>
+              <span style="color: var(--text-muted); display: block; font-size: 0.72rem;">Folga Marcada:</span>
+              <strong>${dataFolga}</strong>
+            </div>
+            <div>
+              <span style="color: var(--text-muted); display: block; font-size: 0.72rem;">Vencimento:</span>
+              <strong style="color: ${prazoMobile.includes('Vencido') ? 'var(--danger)' : 'var(--text-primary)'}">${prazoMobile}</strong>
+            </div>
+          </div>
+        </div>
+      `;
     });
   }
 
   minhasAutotrocasTableBody.innerHTML = html;
+  if (minhasAutotrocasMobileCards) {
+    minhasAutotrocasMobileCards.innerHTML = mobileHtml;
+  }
 }
 
 function renderAutotrocasTable() {

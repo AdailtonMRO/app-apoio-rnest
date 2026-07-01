@@ -1596,3 +1596,17 @@ a:hover {
   }
 }
 
+/* Responsividade para Minhas Autotrocas */
+.mobile-only-cards-wrapper {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .desktop-only-table-wrapper {
+    display: none !important;
+  }
+  .mobile-only-cards-wrapper {
+    display: flex !important;
+  }
+}
+

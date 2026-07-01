@@ -589,7 +589,7 @@
 
               <!-- Tabela de Lançamentos de Autotroca -->
               <h3 style="font-size: 1.05rem; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">📜 Meu Extrato Detalhado</h3>
-              <div style="overflow-x: auto; border: 1px solid var(--border-color); border-radius: var(--radius-sm);">
+              <div style="overflow-x: auto; border: 1px solid var(--border-color); border-radius: var(--radius-sm);" class="desktop-only-table-wrapper">
                 <table class="ranking-table" style="width: 100%; min-width: 700px;">
                   <thead>
                     <tr>
@@ -605,6 +605,11 @@
                     <!-- Preenchido dinamicamente via JS -->
                   </tbody>
                 </table>
+              </div>
+
+              <!-- Versão Mobile em formato de Cartões (Cards) -->
+              <div id="minhas-autotrocas-mobile-cards" class="mobile-only-cards-wrapper" style="display: none; flex-direction: column; gap: 12px;">
+                <!-- Preenchido dinamicamente via JS -->
               </div>
             </div>
           </div>
