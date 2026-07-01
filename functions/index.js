@@ -1,9 +1,9 @@
 /**
  * Firebase Cloud Function (Node.js) para envio de Notificações Web Push.
  * 
- * Este código monitora o documento 'slots' da coleção 'rnest_database' no Firestore.
- * Quando uma nova vaga de apoio é adicionada, a função localiza os tokens FCM
- * de todos os usuários no documento 'users' e envia o alerta em segundo plano.
+ * Monitora o documento 'slots' da coleção 'rnest_database' no Firestore.
+ * Quando uma nova vaga de apoio é adicionada, envia notificação push via FCM
+ * para todos os dispositivos dos operadores registrados.
  */
 
 const { onDocumentUpdated } = require("firebase-functions/v2/firestore");
@@ -15,14 +15,19 @@ exports.notifyNewSupportSlot = onDocumentUpdated("rnest_database/slots", async (
   const newValue = event.data.after.data();
   const oldValue = event.data.before.data();
 
-  if (!newValue || !newValue.data) return null;
+  if (!newValue || !newValue.data) {
+    console.log("⚠️ Documento sem campo 'data'. Ignorando.");
+    return null;
+  }
 
   const newSlots = newValue.data;
   const oldSlots = (oldValue && oldValue.data) ? oldValue.data : [];
 
+  console.log(`📊 Vagas antes: ${oldSlots.length} | Vagas agora: ${newSlots.length}`);
+
   // 1. Detectar se novas vagas foram adicionadas
   if (newSlots.length <= oldSlots.length) {
-    console.log("Nenhuma nova vaga adicionada. Atualização ignorada.");
+    console.log("ℹ️ Nenhuma nova vaga adicionada. Atualização ignorada.");
     return null;
   }
 
@@ -31,30 +36,36 @@ exports.notifyNewSupportSlot = onDocumentUpdated("rnest_database/slots", async (
   const addedSlots = newSlots.filter(s => !oldSlotIds.has(s.id));
 
   if (addedSlots.length === 0) {
-    console.log("Nenhuma vaga inédita identificada.");
+    console.log("ℹ️ Nenhuma vaga inédita identificada por ID.");
     return null;
   }
 
-  const newSlot = addedSlots[0]; // Notificar sobre a primeira nova vaga adicionada
-  console.log(`Nova vaga detectada: ${newSlot.subgrupo} em ${newSlot.data}`);
+  const newSlot = addedSlots[0];
+  console.log(`🆕 Nova vaga detectada: "${newSlot.subgrupo}" em ${newSlot.data} | Horário: ${newSlot.horario}`);
 
   // 2. Buscar todos os tokens push dos usuários
   const db = admin.firestore();
   const usersDocRef = db.doc("rnest_database/users");
   const usersSnapshot = await usersDocRef.get();
 
-  if (!usersSnapshot.exists()) {
-    console.log("Documento de usuários não encontrado no Firestore.");
+  if (!usersSnapshot.exists) {
+    console.log("❌ Documento 'users' não encontrado no Firestore.");
     return null;
   }
 
   const usersData = usersSnapshot.data();
-  if (!usersData || !usersData.data) return null;
+  if (!usersData || !usersData.data) {
+    console.log("❌ Campo 'data' ausente no documento de usuários.");
+    return null;
+  }
 
   // Extrair todos os tokens push de todos os usuários
   const allTokens = [];
+  let usersWithTokens = 0;
+
   usersData.data.forEach(user => {
-    if (user.pushTokens && Array.isArray(user.pushTokens)) {
+    if (user.pushTokens && Array.isArray(user.pushTokens) && user.pushTokens.length > 0) {
+      usersWithTokens++;
       user.pushTokens.forEach(token => {
         if (token && !allTokens.includes(token)) {
           allTokens.push(token);
@@ -63,50 +74,50 @@ exports.notifyNewSupportSlot = onDocumentUpdated("rnest_database/slots", async (
     }
   });
 
+  console.log(`👥 Total de usuários: ${usersData.data.length} | Com tokens push: ${usersWithTokens} | Tokens únicos: ${allTokens.length}`);
+
   if (allTokens.length === 0) {
-    console.log("Nenhum token push registrado no banco de dados.");
+    console.log("⚠️ Nenhum token push registrado no banco de dados. Nenhuma notificação enviada.");
     return null;
   }
 
-  // 3. Montar a notificação push
-  const payload = {
+  // 3. Montar a mensagem FCM
+  const message = {
+    tokens: allTokens,
     notification: {
-      title: "Nova Vaga de Apoio Disponível! 🚦",
-      body: `${newSlot.subgrupo} | Data: ${newSlot.data} | Horário: ${newSlot.horario}`,
+      title: "🚦 Nova Vaga de Apoio Disponível!",
+      body: `${newSlot.subgrupo} | ${newSlot.data} | Turno: ${newSlot.horario}`,
     },
-    // Parâmetros para PWA (Web Push)
     webpush: {
-      headers: {
-        Urgency: "high",
-      },
+      headers: { Urgency: "high" },
       notification: {
-        icon: "/icon-192.png",
-        badge: "/icon-192.png",
-        click_action: "/", // Direciona ao site na raiz
-        vibrate: [200, 100, 200]
+        icon: "https://adailtonmro.github.io/app-apoio-rnest/icon-192.png",
+        badge: "https://adailtonmro.github.io/app-apoio-rnest/icon-192.png",
+        vibrate: [200, 100, 200],
+        requireInteraction: false,
+      },
+      fcmOptions: {
+        link: "https://adailtonmro.github.io/app-apoio-rnest/"
       }
     }
   };
 
-  // 4. Enviar mensagem via multicast (para múltiplos dispositivos de uma vez)
+  // 4. Enviar via multicast
   try {
-    const response = await admin.messaging().sendEachForMulticast({
-      tokens: allTokens,
-      notification: payload.notification,
-      webpush: payload.webpush
-    });
+    const response = await admin.messaging().sendEachForMulticast(message);
+    console.log(`✅ FCM Multicast: ${response.successCount} enviados com sucesso, ${response.failureCount} falhas.`);
 
-    console.log(`Mensagens enviadas com sucesso! Sucessos: ${response.successCount}, Falhas: ${response.failureCount}`);
-
-    // Limpeza de tokens inválidos/expirados (opcional, para manter o banco limpo)
+    // Limpeza de tokens inválidos/expirados
     if (response.failureCount > 0) {
       const tokensToRemove = [];
+
       response.responses.forEach((resp, idx) => {
         if (!resp.success) {
-          const errorCode = resp.error.code;
+          const code = resp.error?.code || "desconhecido";
+          console.warn(`  ⚠️ Token ${idx} falhou: ${code}`);
           if (
-            errorCode === "messaging/invalid-registration-token" ||
-            errorCode === "messaging/registration-token-not-registered"
+            code === "messaging/invalid-registration-token" ||
+            code === "messaging/registration-token-not-registered"
           ) {
             tokensToRemove.push(allTokens[idx]);
           }
@@ -114,21 +125,19 @@ exports.notifyNewSupportSlot = onDocumentUpdated("rnest_database/slots", async (
       });
 
       if (tokensToRemove.length > 0) {
-        console.log(`Limpando ${tokensToRemove.length} tokens inválidos do Firestore...`);
+        console.log(`🧹 Limpando ${tokensToRemove.length} token(s) inválido(s)...`);
         const updatedUsers = usersData.data.map(user => {
           if (user.pushTokens && Array.isArray(user.pushTokens)) {
-            return {
-              ...user,
-              pushTokens: user.pushTokens.filter(t => !tokensToRemove.includes(t))
-            };
+            return { ...user, pushTokens: user.pushTokens.filter(t => !tokensToRemove.includes(t)) };
           }
           return user;
         });
         await usersDocRef.set({ data: updatedUsers });
+        console.log("✅ Tokens inválidos removidos do Firestore.");
       }
     }
   } catch (error) {
-    console.error("Erro geral no disparo do FCM Multicast:", error);
+    console.error("❌ Erro no envio FCM Multicast:", error);
   }
 
   return null;

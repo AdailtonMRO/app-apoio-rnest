@@ -1,71 +1,73 @@
-// Service Worker Simplificado (Sem Cache Offline)
-// Mantido apenas para cumprir a exigência dos navegadores para a instalação do PWA.
+// Service Worker com Firebase Cloud Messaging (FCM)
+// Importa os scripts de compatibilidade do Firebase para lidar com mensagens push em background.
 
-self.addEventListener('install', (e) => {
-  self.skipWaiting();
+importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js');
+
+// Inicializa o Firebase no contexto do Service Worker
+firebase.initializeApp({
+  apiKey: "AIzaSyDoogLg4L_etWVGWh7rmQuLqs30oTwG98E",
+  authDomain: "app-apoio-rnest.firebaseapp.com",
+  projectId: "app-apoio-rnest",
+  storageBucket: "app-apoio-rnest.firebasestorage.app",
+  messagingSenderId: "629818355014",
+  appId: "1:629818355014:web:271e60b7ac59b70bc28947",
 });
 
-self.addEventListener('activate', (e) => {
-  // Limpar qualquer cache antigo que tenha sido armazenado
-  e.waitUntil(
-    caches.keys().then((keys) => {
-      return Promise.all(
-        keys.map((key) => caches.delete(key))
-      );
-    }).then(() => self.clients.claim())
-  );
-});
+const messaging = firebase.messaging();
 
-// Manipulador de requisições vazio (pass-through)
-// O navegador fará todas as requisições diretamente à rede/servidor.
-self.addEventListener('fetch', (e) => {
-  // Apenas passa direto, sem cache.
-  return;
-});
+// -------------------------------------------------------
+// Manipulador de mensagens FCM recebidas em segundo plano
+// (app fechado ou em outra aba) - OBRIGATÓRIO para web push
+// -------------------------------------------------------
+messaging.onBackgroundMessage((payload) => {
+  console.log('[sw.js] Mensagem FCM recebida em background:', payload);
 
-// Listener para receber notificações push em segundo plano
-self.addEventListener('push', (e) => {
-  let data = { title: 'Apoio RNEST 🚦', body: 'Uma nova vaga de apoio foi cadastrada no sistema!' };
-
-  if (e.data) {
-    try {
-      data = e.data.json();
-    } catch (err) {
-      data = { title: 'Apoio RNEST 🚦', body: e.data.text() };
-    }
-  }
+  const title = payload.notification?.title || 'Nova Vaga de Apoio 🚦';
+  const body  = payload.notification?.body  || 'Uma nova vaga foi cadastrada no sistema!';
 
   const options = {
-    body: data.body,
-    icon: 'icon-192.png',
-    badge: 'icon-192.png',
-    vibrate: [100, 50, 100],
-    data: {
-      url: './index.html'
-    }
+    body,
+    icon:    '/icon-192.png',
+    badge:   '/icon-192.png',
+    vibrate: [200, 100, 200],
+    data: { url: '/' }
   };
 
+  self.registration.showNotification(title, options);
+});
+
+// -------------------------------------------------------
+// Ciclo de vida do Service Worker
+// -------------------------------------------------------
+self.addEventListener('install', () => self.skipWaiting());
+
+self.addEventListener('activate', (e) => {
   e.waitUntil(
-    self.registration.showNotification(data.title, options)
+    caches.keys().then((keys) =>
+      Promise.all(keys.map((k) => caches.delete(k)))
+    ).then(() => self.clients.claim())
   );
 });
 
-// Ao clicar na notificação, abrir ou focar no aplicativo
+// Pass-through: sem cache offline
+self.addEventListener('fetch', () => { return; });
+
+// -------------------------------------------------------
+// Clique na notificação → abre/foca o PWA
+// -------------------------------------------------------
 self.addEventListener('notificationclick', (e) => {
   e.notification.close();
 
-  const urlToOpen = new URL(e.notification.data.url, self.location.origin).href;
+  const urlToOpen = new URL(e.notification.data?.url || '/', self.location.origin).href;
 
   e.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
-      // Se a aba já estiver aberta, foca nela
-      for (let i = 0; i < windowClients.length; i++) {
-        const client = windowClients[i];
+      for (const client of windowClients) {
         if (client.url === urlToOpen && 'focus' in client) {
           return client.focus();
         }
       }
-      // Caso contrário, abre uma nova janela
       if (clients.openWindow) {
         return clients.openWindow(urlToOpen);
       }
