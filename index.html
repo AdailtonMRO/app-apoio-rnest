@@ -180,6 +180,13 @@
             </div>
           </div>
 
+          <!-- 1.2 VIEW DE MEU PAINEL (NOVO) -->
+          <div id="view-meu-painel" class="app-view-section" style="display: none;">
+            <div class="glass-panel" id="mobile-my-panel-container" style="padding: 24px;">
+              <!-- Preenchido dinamicamente via JS -->
+            </div>
+          </div>
+
           <!-- 2. VIEW DE AUTO-REGISTRO DE APOIO CONCLUÍDO (ART. 9º) -->
           <div id="view-registro" class="app-view-section" style="display: none;">
             <div class="glass-panel" style="padding: 28px; display: flex; flex-direction: column; gap: 20px;">
@@ -1217,20 +1224,20 @@
     <!-- BARRA DE NAVEGAÇÃO INFERIOR PARA CELULARES -->
     <nav class="mobile-bottom-nav">
       <button class="mobile-nav-btn active" data-view="escalas">
-        <span class="nav-icon">📅</span>
-        <span class="nav-label">Vagas</span>
+        <span class="nav-icon">🚦</span>
+        <span class="nav-label">Apoios</span>
       </button>
       <button class="mobile-nav-btn" data-view="calendario">
         <span class="nav-icon">📆</span>
         <span class="nav-label">Calendário</span>
       </button>
+      <button class="mobile-nav-btn" data-view="meu-painel">
+        <span class="nav-icon">👤</span>
+        <span class="nav-label">Meu Painel</span>
+      </button>
       <button class="mobile-nav-btn" data-view="registro">
         <span class="nav-icon">✍️</span>
         <span class="nav-label">Registrar</span>
-      </button>
-      <button class="mobile-nav-btn" data-view="ranking">
-        <span class="nav-icon">📊</span>
-        <span class="nav-label">Ranking</span>
       </button>
       <button class="mobile-nav-btn" id="btn-mobile-drawer-toggle">
         <span class="nav-icon">☰</span>
@@ -1248,13 +1255,17 @@
           <button id="btn-close-drawer" class="btn-close-drawer">✕</button>
         </div>
         <div class="drawer-body">
-          <button class="drawer-item-btn" data-view="historico">
-            <span class="drawer-item-icon">📜</span>
-            <span class="drawer-item-label">Histórico</span>
-          </button>
           <button class="drawer-item-btn" data-view="minhas-autotrocas">
             <span class="drawer-item-icon">🔄</span>
             <span class="drawer-item-label">Minhas Autotrocas</span>
+          </button>
+          <button class="drawer-item-btn" data-view="ranking">
+            <span class="drawer-item-icon">📊</span>
+            <span class="drawer-item-label">Ranking</span>
+          </button>
+          <button class="drawer-item-btn" data-view="historico">
+            <span class="drawer-item-icon">📜</span>
+            <span class="drawer-item-label">Histórico</span>
           </button>
           <button class="drawer-item-btn" data-view="autotrocas" id="drawer-btn-autotrocas" style="display: none;">
             <span class="drawer-item-icon">🔄</span>

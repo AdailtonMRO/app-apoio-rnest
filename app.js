@@ -203,6 +203,7 @@ const viewAutotrocas = document.getElementById('view-autotrocas');
 const viewUsuarios = document.getElementById('view-usuarios');
 const viewAuditoria = document.getElementById('view-auditoria');
 const viewRelatorios = document.getElementById('view-relatorios');
+const viewMeuPainel = document.getElementById('view-meu-painel');
 
 const calendarMonthsContainer = document.getElementById('calendar-months-container');
 const calendarGroupSelector = document.getElementById('calendar-group-selector');
@@ -1072,6 +1073,13 @@ function switchView(view) {
   }
   if (viewAutotrocas) {
     viewAutotrocas.style.display = view === 'autotrocas' ? 'block' : 'none';
+  }
+  if (viewMeuPainel) {
+    viewMeuPainel.style.display = view === 'meu-painel' ? 'block' : 'none';
+  }
+
+  if (view === 'meu-painel') {
+    renderMyPanel();
   }
 
   if (view === 'calendario') {
@@ -2701,7 +2709,7 @@ function renderMyPanel() {
     };
     const shiftText = shiftLabels[shiftCode] || 'Não Definido';
 
-    myPanelWidget.innerHTML = `
+    const panelContentHtml = `
       <h3 class="widget-title">👤 Meu Painel</h3>
       <div style="display: flex; flex-direction: column; gap: 10px; font-size: 0.9rem;">
         <div>
@@ -2770,7 +2778,7 @@ function renderMyPanel() {
         </div>
 
         <div style="margin-top: 5px;">
-          <button id="btn-edit-my-areas" class="btn btn-secondary" style="width: 100%; font-size: 0.8rem; padding: 6px 12px; display: flex; align-items: center; justify-content: center; gap: 6px;">
+          <button class="btn btn-secondary btn-edit-my-areas-btn" style="width: 100%; font-size: 0.8rem; padding: 6px 12px; display: flex; align-items: center; justify-content: center; gap: 6px;">
             ⚙️ Editar Minhas Áreas/Funções
           </button>
         </div>
@@ -2789,10 +2797,16 @@ function renderMyPanel() {
       </div>
     `;
 
-    const btnEditMyAreas = document.getElementById('btn-edit-my-areas');
-    if (btnEditMyAreas) {
-      btnEditMyAreas.addEventListener('click', openOperatorAreasModal);
+    myPanelWidget.innerHTML = panelContentHtml;
+
+    const mobilePanelContainer = document.getElementById('mobile-my-panel-container');
+    if (mobilePanelContainer) {
+      mobilePanelContainer.innerHTML = panelContentHtml;
     }
+
+    document.querySelectorAll('.btn-edit-my-areas-btn').forEach(btn => {
+      btn.addEventListener('click', openOperatorAreasModal);
+    });
   } else {
     myPanelWidget.style.display = 'none';
   }
