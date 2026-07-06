@@ -331,6 +331,7 @@ const leiModalBody = document.getElementById('lei-modal-body');
 // Formulário de Auto-Registro
 const regUsuarioSelect = document.getElementById('reg-usuario');
 const regGrupoSelect = document.getElementById('reg-grupo');
+const regCausaRaizSelect = document.getElementById('reg-causa-raiz');
 const regSubgrupoInput = document.getElementById('reg-subgrupo');
 const regDataInput = document.getElementById('reg-data');
 const regDataLancamentoInput = document.getElementById('reg-data-lancamento');
@@ -3748,7 +3749,14 @@ function updateFormUsuarioSelectCompatibility() {
       }
     }
     
-    formUserHtml += `<option value="${u.id}">${u.nome} (${u.cargo})${label}</option>`;
+    const mesAtualStr = getTodayStr();
+    const mensalCount = getUserMonthlySupportCount(u.id, dateVal || mesAtualStr);
+    const mesLabel = (dateVal || mesAtualStr).substring(0, 7);
+    const [mY, mM] = mesLabel.split('-');
+    const mNomes = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    const mAbrev = mNomes[parseInt(mM, 10) - 1];
+    const countColor = mensalCount >= 3 ? ' 🔴' : mensalCount === 2 ? ' 🟡' : '';
+    formUserHtml += `<option value="${u.id}">${u.nome} (${u.cargo})${label} [${mensalCount}/3 ${mAbrev}${countColor}]</option>`;
   });
   
   selectFormUsuario.innerHTML = formUserHtml;
@@ -4291,6 +4299,7 @@ function handleAutoRegistroApoio(e) {
       grupoId: regGrupo,
       data: regData,
       subgrupo: isAutotroca ? regSubgrupo + ' (Autotroca)' : regSubgrupo,
+      causaRaiz: regCausaRaizSelect ? (regCausaRaizSelect.value || 'Outros') : 'Outros',
       regras: regras,
       pontuacao: score,
       dataRegistro: new Date(simulatedCurrentDate + 'T12:00:00').toISOString(),
@@ -5148,6 +5157,15 @@ function renderRelatorios() {
   const mesAtual = hoje.substring(0, 7); // YYYY-MM
   const apoiosMesAtual = history.filter(h => h.data && h.data.substring(0, 7) === mesAtual).length;
 
+  // Mês anterior (tendência)
+  const [anoAtual, mAtual] = mesAtual.split('-').map(Number);
+  const mesAnteriorDate = new Date(anoAtual, mAtual - 2, 1);
+  const mesAnteriorStr = `${mesAnteriorDate.getFullYear()}-${String(mesAnteriorDate.getMonth() + 1).padStart(2, '0')}`;
+  const apoiosMesAnterior = history.filter(h => h.data && h.data.substring(0, 7) === mesAnteriorStr).length;
+  const tendenciaVal = apoiosMesAnterior > 0 ? (((apoiosMesAtual - apoiosMesAnterior) / apoiosMesAnterior) * 100).toFixed(1) : null;
+  const tendenciaText = tendenciaVal === null ? 'Sem dados ant.' : (parseFloat(tendenciaVal) > 0 ? `\u2191 +${tendenciaVal}%` : parseFloat(tendenciaVal) < 0 ? `\u2193 ${tendenciaVal}%` : '\u2192 Est\u00e1vel');
+  const tendenciaColor = tendenciaVal === null ? 'var(--text-muted)' : (parseFloat(tendenciaVal) > 0 ? 'var(--danger)' : parseFloat(tendenciaVal) < 0 ? 'var(--success)' : 'var(--info)');
+
   // Média de apoios por mês
   const mesesComDados = new Set();
   filtered.forEach(h => {
@@ -5155,11 +5173,31 @@ function renderRelatorios() {
   });
   const mediaApoiosMes = mesesComDados.size > 0 ? (totalApoios / mesesComDados.size).toFixed(1) : '0';
 
-  // Colaboradores ativos (com apoio no período)
+  // Colaboradores ativos
   const colabAtivos = new Set();
   filtered.forEach(h => colabAtivos.add(h.usuarioId));
 
-  // Taxa de penalidade R13
+  // ICA
+  const elegiveisTotal = users.filter(u => u.cargo !== 'GPI' && u.cargo !== 'OPMAN').length;
+  const top20Count = Math.max(1, Math.ceil(elegiveisTotal * 0.2));
+  const countMapICA = {};
+  filtered.forEach(h => { countMapICA[h.usuarioId] = (countMapICA[h.usuarioId] || 0) + 1; });
+  const sortedCountsICA = Object.values(countMapICA).sort((a, b) => b - a);
+  const top20Total = sortedCountsICA.slice(0, top20Count).reduce((s, v) => s + v, 0);
+  const icaVal = totalApoios > 0 ? Math.round((top20Total / totalApoios) * 100) : 0;
+  const icaColor = icaVal >= 60 ? 'var(--danger)' : icaVal >= 40 ? 'var(--warning)' : 'var(--success)';
+  const icaLabel = icaVal >= 60 ? '\ud83d\udd34 Alta' : icaVal >= 40 ? '\ud83d\udfe1 Aten\u00e7\u00e3o' : '\ud83d\udfe2 Saud\u00e1vel';
+
+  // TUP
+  const tupVal = elegiveisTotal > 0 ? Math.round((colabAtivos.size / elegiveisTotal) * 100) : 0;
+  const tupColor = tupVal < 30 ? 'var(--danger)' : tupVal > 70 ? 'var(--warning)' : 'var(--success)';
+  const tupLabel = tupVal < 30 ? '\ud83d\udd34 Ocioso' : tupVal > 70 ? '\ud83d\udfe1 Press\u00e3o' : '\ud83d\udfe2 OK';
+
+  // AGM
+  const agmCount = slots.filter(s => s.status === 'aguardando_aprovacao' && s.data && s.data.substring(0, 7) === mesAtual).length;
+  const agmColor = agmCount > 0 ? 'var(--warning)' : 'var(--success)';
+
+  // R13
   const apoiosComR13 = filtered.filter(h => h.regras && h.regras.includes('R13')).length;
   const taxaR13 = totalApoios > 0 ? ((apoiosComR13 / totalApoios) * 100).toFixed(1) : '0.0';
 
@@ -5172,57 +5210,44 @@ function renderRelatorios() {
   if (cardsContainer) {
     cardsContainer.innerHTML = `
       <div class="kpi-card kpi-card--primary">
-        <div class="kpi-card-header">
-          <span class="kpi-label">Total de Apoios</span>
-          <span class="kpi-icon">📋</span>
-        </div>
+        <div class="kpi-card-header"><span class="kpi-label">Total de Apoios</span><span class="kpi-icon">&#x1F4CB;</span></div>
         <span class="kpi-value">${totalApoios}</span>
-        <span class="kpi-sublabel">No período selecionado</span>
+        <span class="kpi-sublabel">No per\u00edodo selecionado</span>
       </div>
-
       <div class="kpi-card kpi-card--info">
-        <div class="kpi-card-header">
-          <span class="kpi-label">Apoios no Mês Atual</span>
-          <span class="kpi-icon">📅</span>
-        </div>
+        <div class="kpi-card-header"><span class="kpi-label">Apoios no M\u00eas Atual</span><span class="kpi-icon">&#x1F4C5;</span></div>
         <span class="kpi-value">${apoiosMesAtual}</span>
         <span class="kpi-sublabel">${formatMonthName(mesAtual)}</span>
       </div>
-
       <div class="kpi-card kpi-card--success">
-        <div class="kpi-card-header">
-          <span class="kpi-label">Média / Mês</span>
-          <span class="kpi-icon">📊</span>
-        </div>
+        <div class="kpi-card-header"><span class="kpi-label">M\u00e9dia / M\u00eas</span><span class="kpi-icon">&#x1F4CA;</span></div>
         <span class="kpi-value">${mediaApoiosMes}</span>
-        <span class="kpi-sublabel">${mesesComDados.size} mês(es) com dados</span>
+        <span class="kpi-sublabel">${mesesComDados.size} m\u00eas(es) com dados</span>
       </div>
-
       <div class="kpi-card kpi-card--primary">
-        <div class="kpi-card-header">
-          <span class="kpi-label">Colaboradores Ativos</span>
-          <span class="kpi-icon">👥</span>
-        </div>
+        <div class="kpi-card-header"><span class="kpi-label">Colaboradores Ativos</span><span class="kpi-icon">&#x1F465;</span></div>
         <span class="kpi-value">${colabAtivos.size}</span>
-        <span class="kpi-sublabel">Com ≥1 apoio no período</span>
+        <span class="kpi-sublabel">Com \u22651 apoio no per\u00edodo</span>
       </div>
-
-      <div class="kpi-card kpi-card--danger">
-        <div class="kpi-card-header">
-          <span class="kpi-label">Taxa Penalidade R13</span>
-          <span class="kpi-icon">⚠️</span>
-        </div>
-        <span class="kpi-value">${taxaR13}%</span>
-        <span class="kpi-sublabel">${apoiosComR13} de ${totalApoios} com atraso</span>
+      <div class="kpi-card" style="background:hsla(222,47%,15%,0.6);border:1px solid ${icaColor};border-radius:var(--radius-md);padding:20px;display:flex;flex-direction:column;gap:8px;">
+        <div class="kpi-card-header"><span class="kpi-label">Concentra\u00e7\u00e3o (ICA)</span><span class="kpi-icon">&#x1F3AF;</span></div>
+        <span class="kpi-value" style="color:${icaColor}">${icaVal}%</span>
+        <span class="kpi-sublabel">${icaLabel} \u2014 top ${top20Count} fazem ${icaVal}% dos apoios</span>
       </div>
-
-      <div class="kpi-card kpi-card--warning">
-        <div class="kpi-card-header">
-          <span class="kpi-label">Pontuação Média</span>
-          <span class="kpi-icon">⚖️</span>
-        </div>
-        <span class="kpi-value">${pontuacaoMedia}</span>
-        <span class="kpi-sublabel">Média por apoio</span>
+      <div class="kpi-card" style="background:hsla(222,47%,15%,0.6);border:1px solid ${tupColor};border-radius:var(--radius-md);padding:20px;display:flex;flex-direction:column;gap:8px;">
+        <div class="kpi-card-header"><span class="kpi-label">Cobertura do Plantel (TUP)</span><span class="kpi-icon">&#x1F465;</span></div>
+        <span class="kpi-value" style="color:${tupColor}">${tupVal}%</span>
+        <span class="kpi-sublabel">${tupLabel} \u2014 ${colabAtivos.size} de ${elegiveisTotal} el\u00edgiveis</span>
+      </div>
+      <div class="kpi-card" style="background:hsla(222,47%,15%,0.6);border:1px solid ${agmColor};border-radius:var(--radius-md);padding:20px;display:flex;flex-direction:column;gap:8px;">
+        <div class="kpi-card-header"><span class="kpi-label">Aprova\u00e7\u00f5es Pendentes (AGM)</span><span class="kpi-icon">\u2705</span></div>
+        <span class="kpi-value" style="color:${agmColor}">${agmCount}</span>
+        <span class="kpi-sublabel">${agmCount > 0 ? '\u{1F6A8} Aguardando aprova\u00e7\u00e3o este m\u00eas' : '\u2705 Nenhuma pendente'}</span>
+      </div>
+      <div class="kpi-card" style="background:hsla(222,47%,15%,0.6);border:1px solid ${tendenciaColor};border-radius:var(--radius-md);padding:20px;display:flex;flex-direction:column;gap:8px;">
+        <div class="kpi-card-header"><span class="kpi-label">Tend\u00eancia (vs M\u00eas Ant.)</span><span class="kpi-icon">&#x1F4C8;</span></div>
+        <span class="kpi-value" style="color:${tendenciaColor};font-size:1.5rem;">${tendenciaText}</span>
+        <span class="kpi-sublabel">${apoiosMesAnterior} apoios em ${formatMonthName(mesAnteriorStr)}</span>
       </div>
     `;
   }
@@ -5231,10 +5256,13 @@ function renderRelatorios() {
   renderKpiChartMonthly(filtered, selectedMonth);
   renderKpiChartWeekday(filtered);
   renderKpiChartRules(filtered);
+  renderKpiChartCausaRaiz(filtered);
+  renderKpiChartSemana(filtered);
 
   // --- TABELAS ---
   renderKpiTopApoiadores(filtered);
   renderKpiSemApoio(filtered);
+  renderKpiIRI();
   renderKpiInfracoes();
 }
 
@@ -5412,6 +5440,76 @@ function renderKpiChartRules(filtered) {
   });
 }
 
+// --- CHART: Distribuição por Causa Raiz (Donut) ---
+let kpiChartCausaRaiz = null;
+function renderKpiChartCausaRaiz(filtered) {
+  const canvas = document.getElementById('kpi-chart-causa-raiz');
+  if (!canvas || typeof Chart === 'undefined') return;
+  const causaCounts = {};
+  filtered.forEach(h => {
+    const causa = h.causaRaiz || 'Outros';
+    causaCounts[causa] = (causaCounts[causa] || 0) + 1;
+  });
+  const labels = Object.keys(causaCounts);
+  const data = Object.values(causaCounts);
+  const palette = [
+    'hsla(245,80%,65%,0.85)','hsla(142,70%,50%,0.85)','hsla(38,80%,55%,0.85)',
+    'hsla(0,70%,55%,0.85)','hsla(190,80%,50%,0.85)','hsla(280,70%,55%,0.85)',
+    'hsla(330,70%,55%,0.85)','hsla(60,80%,55%,0.85)','hsla(210,70%,55%,0.85)'
+  ];
+  if (kpiChartCausaRaiz) kpiChartCausaRaiz.destroy();
+  if (labels.length === 0) return;
+  kpiChartCausaRaiz = new Chart(canvas, {
+    type: 'doughnut',
+    data: {
+      labels,
+      datasets: [{ data, backgroundColor: labels.map((_,i) => palette[i % palette.length]), borderColor: 'hsla(222,47%,12%,0.8)', borderWidth: 2, hoverOffset: 8 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: true, position: 'right', labels: { color: 'hsl(215,16%,70%)', font: { family: 'Inter', size: 11 }, padding: 12, boxWidth: 14 } },
+        tooltip: {
+          backgroundColor: 'hsla(222,47%,12%,0.95)', titleColor: '#fff', bodyColor: 'hsl(215,20%,75%)',
+          borderColor: 'hsla(222,47%,22%,0.6)', borderWidth: 1, cornerRadius: 8, padding: 12,
+          callbacks: { label: ctx => { const total = ctx.dataset.data.reduce((s,v) => s+v,0); return ` ${ctx.label}: ${ctx.parsed} (${((ctx.parsed/total)*100).toFixed(1)}%)`; } }
+        }
+      }
+    }
+  });
+}
+
+// --- CHART: Apoios por Semana do Mês (Heatmap-bar) ---
+let kpiChartSemana = null;
+function renderKpiChartSemana(filtered) {
+  const canvas = document.getElementById('kpi-chart-semana');
+  if (!canvas || typeof Chart === 'undefined') return;
+  const weekCounts = { 'Sem 1': 0, 'Sem 2': 0, 'Sem 3': 0, 'Sem 4': 0, 'Sem 5': 0 };
+  filtered.forEach(h => {
+    if (h.data) {
+      const day = parseInt(h.data.substring(8,10), 10);
+      const sem = `Sem ${Math.min(5, Math.ceil(day/7))}`;
+      weekCounts[sem] = (weekCounts[sem] || 0) + 1;
+    }
+  });
+  const labels = Object.keys(weekCounts);
+  const data = Object.values(weekCounts);
+  const maxVal = Math.max(...data, 1);
+  if (kpiChartSemana) kpiChartSemana.destroy();
+  kpiChartSemana = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Apoios', data,
+        backgroundColor: data.map(v => { const p = v/maxVal; return `hsla(245,80%,${40 + p*25}%,${0.4 + p*0.55})`; }),
+        borderColor: 'hsl(245,80%,65%)', borderWidth: 1, borderRadius: 6, borderSkipped: false
+      }]
+    },
+    options: getChartOptions('Quantidade')
+  });
+}
+
 // --- Chart.js theme options ---
 function getChartOptions(yLabel) {
   return {
@@ -5555,6 +5653,49 @@ function renderKpiSemApoio(filtered) {
 
   html += '</tbody></table></div>';
   html += `<div style="padding: 8px 0 0; font-size: 0.75rem; color: var(--text-muted);">${semApoio.length} colaborador(es) sem apoio registrado no período</div>`;
+  container.innerHTML = html;
+}
+
+// --- TABELA: Colaboradores Recorrentes (IRI) ---
+function renderKpiIRI() {
+  const container = document.getElementById('kpi-iri-container');
+  if (!container) return;
+  const hoje = simulatedCurrentDate;
+  const [anoH, mesH] = hoje.split('-').map(Number);
+  const ultimos6 = [];
+  for (let i = 1; i <= 6; i++) {
+    const d = new Date(anoH, mesH - 1 - i, 1);
+    ultimos6.push(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`);
+  }
+  const elegiveis = users.filter(u => u.cargo !== 'GPI' && u.cargo !== 'OPMAN');
+  const iriData = elegiveis.map(u => {
+    let mesesAlerta = 0;
+    const detalhe = {};
+    ultimos6.forEach(mes => {
+      const count = history.filter(h => h.usuarioId === u.id && h.data && h.data.substring(0,7) === mes).length;
+      detalhe[mes] = count;
+      if (count >= 2) mesesAlerta++;
+    });
+    return { ...u, mesesAlerta, detalhe };
+  }).filter(u => u.mesesAlerta >= 3).sort((a,b) => b.mesesAlerta - a.mesesAlerta);
+
+  if (iriData.length === 0) {
+    container.innerHTML = '<div class="kpi-no-data" style="padding:24px;">\u2705 Nenhum colaborador com padr\u00e3o de sobrecarga recorrente nos \u00faltimos 6 meses.</div>';
+    return;
+  }
+  const mNomes = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const headerMeses = ultimos6.map(m => { const [a,mo] = m.split('-'); return `<th style="text-align:center;font-size:0.72rem;">${mNomes[parseInt(mo,10)-1]}/${a.slice(2)}</th>`; }).join('');
+  let html = `<div class="table-responsive"><table class="ranking-table" style="width:100%;"><thead><tr><th>Colaborador</th><th>Chave</th>${headerMeses}<th style="text-align:center;">Meses \u26a0\ufe0f</th></tr></thead><tbody>`;
+  iriData.forEach(u => {
+    const cells = ultimos6.map(mes => {
+      const c = u.detalhe[mes];
+      const s = c >= 2 ? 'background:hsla(0,70%,55%,0.15);color:var(--danger);' : c === 1 ? 'background:hsla(38,80%,55%,0.1);color:var(--warning);' : 'color:var(--text-muted);';
+      return `<td style="text-align:center;font-weight:600;font-size:0.85rem;${s}">${c > 0 ? c : '\u2014'}</td>`;
+    }).join('');
+    const ac = u.mesesAlerta >= 5 ? 'color:var(--danger);' : u.mesesAlerta >= 4 ? 'color:var(--warning);' : 'color:var(--info);';
+    html += `<tr><td><strong style="color:var(--text-primary);">${u.nome}</strong></td><td style="font-family:var(--font-mono);font-size:0.8rem;color:var(--text-muted);">${u.id.toUpperCase()}</td>${cells}<td style="text-align:center;font-weight:700;${ac}">${u.mesesAlerta}/6</td></tr>`;
+  });
+  html += `</tbody></table></div><div style="padding:8px 0 0;font-size:0.75rem;color:var(--text-muted);">${iriData.length} colaborador(es) com padr\u00e3o recorrente \u2014 Considere redistribui\u00e7\u00e3o de carga.</div>`;
   container.innerHTML = html;
 }
 

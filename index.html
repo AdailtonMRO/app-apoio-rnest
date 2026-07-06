@@ -216,10 +216,28 @@
 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
                   <div class="form-group">
+                    <label class="form-label">🔍 Causa Raiz do Apoio:</label>
+                    <select id="reg-causa-raiz" class="input-field" required>
+                      <option value="">-- Selecione a causa --</option>
+                      <option value="Composição de Turno">👥 Composição de Turno</option>
+                      <option value="Licença Médica">🏥 Licença Médica</option>
+                      <option value="Férias">🌴 Férias</option>
+                      <option value="OPMAN Ausente">🔧 OPMAN Ausente</option>
+                      <option value="Treinamento">📚 Treinamento</option>
+                      <option value="Partida/Parada de Máquinas">⚙️ Partida/Parada de Máquinas</option>
+                      <option value="Contingência/Emergência">🚨 Contingência/Emergência</option>
+                      <option value="GPI/Administrativo">📋 GPI/Administrativo</option>
+                      <option value="Outros">📌 Outros</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
                     <label class="form-label">Área / Atividade Realizada:</label>
                     <input type="text" id="reg-subgrupo" class="input-field" placeholder="Ex: Painel Térmico, Campo Caldeira, Águas" required>
                   </div>
-                  <div class="form-group">
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                  <div class="form-group" style="grid-column: 2;">
                     <label class="form-label">Data de Término do Apoio:</label>
                     <input type="date" id="reg-data" class="input-field" required>
                     <span id="reg-date-warning" style="font-size: 0.75rem; color: var(--danger); display: none; margin-top: 4px;">
@@ -502,6 +520,18 @@
                       <canvas id="kpi-chart-rules"></canvas>
                     </div>
                   </div>
+                  <div class="kpi-chart-container">
+                    <h4 class="kpi-chart-title">🔍 Distribuição por Causa Raiz</h4>
+                    <div class="kpi-chart-canvas-wrapper">
+                      <canvas id="kpi-chart-causa-raiz"></canvas>
+                    </div>
+                  </div>
+                  <div class="kpi-chart-container">
+                    <h4 class="kpi-chart-title">📅 Apoios por Semana do Mês</h4>
+                    <div class="kpi-chart-canvas-wrapper">
+                      <canvas id="kpi-chart-semana"></canvas>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -532,6 +562,17 @@
               <div>
                 <h3 class="kpi-section-title">⚠️ Colaboradores sem Apoios no Período</h3>
                 <div id="kpi-sem-apoio-container" class="kpi-table-section">
+                  <!-- Preenchido via JS -->
+                </div>
+              </div>
+
+              <!-- Tabela: Colaboradores Recorrentes (IRI) -->
+              <div id="kpi-iri-section">
+                <h3 class="kpi-section-title">🔄 Colaboradores Recorrentes (Últimos 6 Meses)</h3>
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">
+                  Colaboradores com ≥2 apoios/mês em 3 ou mais dos últimos 6 meses. Atenção especial para redistribuição de carga.
+                </p>
+                <div id="kpi-iri-container" class="kpi-table-section">
                   <!-- Preenchido via JS -->
                 </div>
               </div>
