@@ -213,6 +213,14 @@ const btnCalendarNext = document.getElementById('btn-calendar-next');
 let calendarSelectedGroupId = '';
 let calendarStartMonthOffset = 0;
 
+// Elementos de Detalhes do Calendário
+const calendarDetailsModal = document.getElementById('calendar-details-modal');
+const btnCloseCalendarDetails = document.getElementById('btn-close-calendar-details');
+const btnCloseCalendarDetailsFooter = document.getElementById('btn-close-calendar-details-footer');
+const calendarDetailsTitle = document.getElementById('calendar-details-title');
+const calendarDetailsBody = document.getElementById('calendar-details-body');
+let calendarSelectedDateDetails = '';
+
 // Elementos de Autotroca
 const confirmAssumeModal = document.getElementById('confirm-assume-modal');
 const confirmNormalBtnContainer = document.getElementById('confirm-normal-btn-container');
@@ -666,6 +674,20 @@ function init() {
   if (btnCancelConfirmModal) btnCancelConfirmModal.addEventListener('click', () => { confirmAssumeModal.style.display = 'none'; });
   if (btnCloseConfirmModal) btnCloseConfirmModal.addEventListener('click', () => { confirmAssumeModal.style.display = 'none'; });
 
+  // Ouvintes de Eventos dos Detalhes do Calendário
+  if (btnCloseCalendarDetails) {
+    btnCloseCalendarDetails.addEventListener('click', () => {
+      calendarDetailsModal.style.display = 'none';
+      calendarSelectedDateDetails = '';
+    });
+  }
+  if (btnCloseCalendarDetailsFooter) {
+    btnCloseCalendarDetailsFooter.addEventListener('click', () => {
+      calendarDetailsModal.style.display = 'none';
+      calendarSelectedDateDetails = '';
+    });
+  }
+
   if (btnOpenAutotrocaContrariaModal) {
     btnOpenAutotrocaContrariaModal.addEventListener('click', () => {
       populateAutotrocaContrariaUsers();
@@ -697,6 +719,10 @@ function init() {
     if (e.target === confirmAssumeModal) confirmAssumeModal.style.display = 'none';
     if (e.target === autotrocaContrariaModal) autotrocaContrariaModal.style.display = 'none';
     if (e.target === agendarPagamentoModal) agendarPagamentoModal.style.display = 'none';
+    if (e.target === calendarDetailsModal) {
+      calendarDetailsModal.style.display = 'none';
+      calendarSelectedDateDetails = '';
+    }
   });
 
   // Inicialização obrigatória do Firebase
@@ -2384,6 +2410,133 @@ function renderAdminBar() {
   }
 }
 
+function getSlotCardHtml(slot) {
+  const isDisputa = false; // Vagas são apenas de acesso Direto
+  const candList = [];
+  const vencedor = getDisputeWinner(slot.id);
+  const apontee = users.find(u => u.id === slot.usuarioId);
+  
+  // Características previstas
+  const regrasPrevistas = slot.regrasPrevistas || [];
+  const pesoPrevisao = calculateSupportScore(regrasPrevistas);
+
+  const isPast = slot.data < simulatedCurrentDate;
+  const cardStatusClass = isPast ? 'concluido' : (isDisputa ? 'pendente' : slot.status.toLowerCase());
+  const isSelfSlot = currentUser && slot.usuarioId === currentUser.id;
+
+  return `
+    <div class="slot-card glass-panel status-${cardStatusClass} ${isSelfSlot ? 'my-assigned-slot' : ''}">
+      <div class="slot-meta">
+        <span class="slot-subgrupo">${slot.subgrupo}</span>
+        <div style="display: flex; gap: 6px; align-items: center;">
+          ${slot.autotroca ? `<span class="badge" style="background: rgba(99, 102, 241, 0.2); color: var(--info); border: 1px solid var(--info); font-size: 0.65rem; padding: 2px 6px;">🔄 Autotroca</span>` : ''}
+          ${slot.autotrocaPayback ? `<span class="badge" style="background: rgba(245, 158, 11, 0.2); color: var(--warning); border: 1px solid var(--warning); font-size: 0.65rem; padding: 2px 6px;">🔒 Quitação Débito</span>` : ''}
+          ${isDisputa ? `
+            <span class="badge badge-pending">Em Disputa</span>
+          ` : `
+            <span class="badge ${isPast ? 'badge-concluido' : (isSelfSlot ? 'badge-self' : `badge-${slot.status.toLowerCase()}`)}">
+              ${isPast ? 'Concluído' : (slot.status === 'LIVRE' ? 'Disponível' : 
+                slot.status === 'CANCELADO' ? 'Cancelado' : (isSelfSlot ? 'Seu Apoio ⭐' : 'Fechada'))}
+            </span>
+          `}
+        </div>
+      </div>
+
+      <div class="slot-schedule">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+        <span>${formatDatePt(slot.data)}</span>
+        <span>•</span>
+        <span>Turno: ${slot.horario}</span>
+      </div>
+
+      <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 4px;">
+        <strong>Áreas/Funções:</strong> 
+        <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; margin-bottom: 8px;">
+          ${(slot.areasFuncoes || []).map(area => `<span class="badge" style="font-size: 0.65rem; padding: 2px 6px; background: hsla(220, 50%, 50%, 0.15); border: 1px solid hsla(220, 50%, 50%, 0.25); text-transform: uppercase; color: hsl(220, 50%, 80%);">${area}</span>`).join('') || '<span style="font-style: italic; color: var(--text-muted);">Não direcionada</span>'}
+        </div>
+      </div>
+
+      <div style="font-size: 0.8rem; color: var(--text-secondary);">
+        <strong>Pontuação Prevista:</strong> <code style="color: var(--info); font-weight: bold;">${pesoPrevisao.toFixed(2)} pts</code> 
+        ${regrasPrevistas.length > 0 ? `(${regrasPrevistas.join(' × ')})` : ''}
+      </div>
+
+      <!-- Se estiver em Disputa por Prioridade (Art. 3º e 8º) -->
+      ${isDisputa ? `
+        <div style="background: hsla(222, 47%, 9%, 0.6); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 8px;">
+          <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary);">
+            👥 Candidatos na fila (${candList.length}):
+          </span>
+          <div style="display: flex; flex-direction: column; gap: 5px;">
+            ${(() => {
+              const sortedCands = [...candList].sort((a, b) => {
+                if (hasHigherPriority(a, b)) return -1;
+                if (hasHigherPriority(b, a)) return 1;
+                return 0;
+              });
+              return sortedCands.map((cid, i) => {
+                const u = users.find(user => user.id === cid);
+                const score = calculateUserPointsGeral(cid);
+                const lastDate = getUserLastSupportDate(cid);
+                const eLider = vencedor && vencedor.id === cid;
+                return `
+                  <div style="font-size: 0.72rem; display: flex; justify-content: space-between; align-items: center; color: ${eLider ? 'var(--success)' : 'var(--text-secondary)'}; font-weight: ${eLider ? 700 : 400};">
+                    <span>${i+1}. ${u?.nome || 'Desconhecido'} ${eLider ? '🏆 (Líder)' : ''}</span>
+                    <span style="font-size: 0.65rem;">
+                      ${score.toFixed(2)} pts | Último: ${lastDate ? formatDatePt(lastDate) : 'Nenhum'}
+                    </span>
+                  </div>
+                `;
+              }).join('');
+            })()}
+            ${candList.length === 0 ? `
+              <span style="font-size: 0.75rem; color: var(--text-muted); font-style: italic;">
+                Nenhum voluntário inscrito na fila.
+              </span>
+            ` : ''}
+          </div>
+        </div>
+      ` : ''}
+
+      <!-- Se já estiver preenchido -->
+      ${!isDisputa && slot.usuarioId ? (() => {
+        const monthlyCount = getUserMonthlySupportCount(slot.usuarioId, slot.data);
+        const needsAuth = slot.requerAutorizacao && !slot.autorizadoPorId;
+        const isAuthorized = slot.autorizadoPorId;
+        const autorizador = isAuthorized ? users.find(u => u.id === slot.autorizadoPorId) : null;
+        return `
+        <div class="slot-details">
+          <div class="slot-assignee">
+            <div>
+              <span style="font-size: 0.75rem; color: var(--text-muted); display: block;">Voluntário confirmado:</span>
+              <span class="assignee-name">${apontee?.nome || 'Desconhecido'}</span>
+              <span style="font-size: 0.7rem; color: var(--text-muted); display: block;">${monthlyCount} apoio(s) neste mês</span>
+            </div>
+            <span class="assignee-count" style="font-weight: bold; color: var(--info);">
+              ${calculateUserPointsGeral(slot.usuarioId).toFixed(2)} pts gerais
+            </span>
+          </div>
+          ${needsAuth ? `
+            <div style="margin-top: 8px; padding: 8px 12px; background: var(--warning-glow); border: 1px solid hsla(38, 92%, 50%, 0.3); border-radius: var(--radius-sm); font-size: 0.78rem; color: var(--warning);">
+              ⚠️ <strong>${monthlyCount}º apoio no mês</strong> — Aguardando autorização gerencial (limite: 3 apoios/mês sem autorização).
+            </div>
+          ` : ''}
+          ${isAuthorized ? `
+            <div style="margin-top: 8px; padding: 8px 12px; background: var(--success-glow); border: 1px solid hsla(142, 72%, 45%, 0.3); border-radius: var(--radius-sm); font-size: 0.78rem; color: var(--success);">
+              ✅ Autorizado por <strong>${autorizador ? autorizador.nome : slot.autorizadoPorId}</strong>
+            </div>
+          ` : ''}
+        </div>
+      `; })() : ''}
+
+      <!-- Ações do Slot -->
+      <div class="slot-actions" data-slot-id="${slot.id}">
+        <!-- Preenchido via listeners -->
+      </div>
+    </div>
+  `;
+}
+
 function renderSlots() {
   let filtered = [...slots];
   
@@ -2426,139 +2579,17 @@ function renderSlots() {
 
   let html = '';
   filtered.forEach(slot => {
-    const isDisputa = false; // Vagas são apenas de acesso Direto
-    const candList = [];
-    const vencedor = getDisputeWinner(slot.id);
-    const apontee = users.find(u => u.id === slot.usuarioId);
-    
-    // Características previstas
-    const regrasPrevistas = slot.regrasPrevistas || [];
-    const pesoPrevisao = calculateSupportScore(regrasPrevistas);
-
-    const isPast = slot.data < simulatedCurrentDate;
-    const cardStatusClass = isPast ? 'concluido' : (isDisputa ? 'pendente' : slot.status.toLowerCase());
-    const isSelfSlot = slot.usuarioId === currentUser.id;
-
-    html += `
-      <div class="slot-card glass-panel status-${cardStatusClass} ${isSelfSlot ? 'my-assigned-slot' : ''}">
-        <div class="slot-meta">
-          <span class="slot-subgrupo">${slot.subgrupo}</span>
-          <div style="display: flex; gap: 6px; align-items: center;">
-            ${slot.autotroca ? `<span class="badge" style="background: rgba(99, 102, 241, 0.2); color: var(--info); border: 1px solid var(--info); font-size: 0.65rem; padding: 2px 6px;">🔄 Autotroca</span>` : ''}
-            ${slot.autotrocaPayback ? `<span class="badge" style="background: rgba(245, 158, 11, 0.2); color: var(--warning); border: 1px solid var(--warning); font-size: 0.65rem; padding: 2px 6px;">🔒 Quitação Débito</span>` : ''}
-            ${isDisputa ? `
-              <span class="badge badge-pending">Em Disputa</span>
-            ` : `
-              <span class="badge ${isPast ? 'badge-concluido' : (isSelfSlot ? 'badge-self' : `badge-${slot.status.toLowerCase()}`)}">
-                ${isPast ? 'Concluído' : (slot.status === 'LIVRE' ? 'Disponível' : 
-                  slot.status === 'CANCELADO' ? 'Cancelado' : (isSelfSlot ? 'Seu Apoio ⭐' : 'Fechada'))}
-              </span>
-            `}
-          </div>
-        </div>
-
-        <div class="slot-schedule">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-          <span>${formatDatePt(slot.data)}</span>
-          <span>•</span>
-          <span>Turno: ${slot.horario}</span>
-        </div>
-
-        <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 4px;">
-          <strong>Áreas/Funções:</strong> 
-          <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; margin-bottom: 8px;">
-            ${(slot.areasFuncoes || []).map(area => `<span class="badge" style="font-size: 0.65rem; padding: 2px 6px; background: hsla(220, 50%, 50%, 0.15); border: 1px solid hsla(220, 50%, 50%, 0.25); text-transform: uppercase; color: hsl(220, 50%, 80%);">${area}</span>`).join('') || '<span style="font-style: italic; color: var(--text-muted);">Não direcionada</span>'}
-          </div>
-        </div>
-
-        <div style="font-size: 0.8rem; color: var(--text-secondary);">
-          <strong>Pontuação Prevista:</strong> <code style="color: var(--info); font-weight: bold;">${pesoPrevisao.toFixed(2)} pts</code> 
-          ${regrasPrevistas.length > 0 ? `(${regrasPrevistas.join(' × ')})` : ''}
-        </div>
-
-        <!-- Se estiver em Disputa por Prioridade (Art. 3º e 8º) -->
-        ${isDisputa ? `
-          <div style="background: hsla(222, 47%, 9%, 0.6); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 8px;">
-            <span style="font-size: 0.8rem; font-weight: 600; color: var(--text-secondary);">
-              👥 Candidatos na fila (${candList.length}):
-            </span>
-            <div style="display: flex; flex-direction: column; gap: 5px;">
-              ${(() => {
-                const sortedCands = [...candList].sort((a, b) => {
-                  if (hasHigherPriority(a, b)) return -1;
-                  if (hasHigherPriority(b, a)) return 1;
-                  return 0;
-                });
-                return sortedCands.map((cid, i) => {
-                  const u = users.find(user => user.id === cid);
-                  const score = calculateUserPointsGeral(cid);
-                  const lastDate = getUserLastSupportDate(cid);
-                  const eLider = vencedor && vencedor.id === cid;
-                  return `
-                    <div style="font-size: 0.72rem; display: flex; justify-content: space-between; align-items: center; color: ${eLider ? 'var(--success)' : 'var(--text-secondary)'}; font-weight: ${eLider ? 700 : 400};">
-                      <span>${i+1}. ${u?.nome || 'Desconhecido'} ${eLider ? '🏆 (Líder)' : ''}</span>
-                      <span style="font-size: 0.65rem;">
-                        ${score.toFixed(2)} pts | Último: ${lastDate ? formatDatePt(lastDate) : 'Nenhum'}
-                      </span>
-                    </div>
-                  `;
-                }).join('');
-              })()}
-              ${candList.length === 0 ? `
-                <span style="font-size: 0.75rem; color: var(--text-muted); font-style: italic;">
-                  Nenhum voluntário inscrito na fila.
-                </span>
-              ` : ''}
-            </div>
-          </div>
-        ` : ''}
-
-        <!-- Se já estiver preenchido -->
-        ${!isDisputa && slot.usuarioId ? (() => {
-          const monthlyCount = getUserMonthlySupportCount(slot.usuarioId, slot.data);
-          const needsAuth = slot.requerAutorizacao && !slot.autorizadoPorId;
-          const isAuthorized = slot.autorizadoPorId;
-          const autorizador = isAuthorized ? users.find(u => u.id === slot.autorizadoPorId) : null;
-          return `
-          <div class="slot-details">
-            <div class="slot-assignee">
-              <div>
-                <span style="font-size: 0.75rem; color: var(--text-muted); display: block;">Voluntário confirmado:</span>
-                <span class="assignee-name">${apontee?.nome || 'Desconhecido'}</span>
-                <span style="font-size: 0.7rem; color: var(--text-muted); display: block;">${monthlyCount} apoio(s) neste mês</span>
-              </div>
-              <span class="assignee-count" style="font-weight: bold; color: var(--info);">
-                ${calculateUserPointsGeral(slot.usuarioId).toFixed(2)} pts gerais
-              </span>
-            </div>
-            ${needsAuth ? `
-              <div style="margin-top: 8px; padding: 8px 12px; background: var(--warning-glow); border: 1px solid hsla(38, 92%, 50%, 0.3); border-radius: var(--radius-sm); font-size: 0.78rem; color: var(--warning);">
-                ⚠️ <strong>${monthlyCount}º apoio no mês</strong> — Aguardando autorização gerencial (limite: 3 apoios/mês sem autorização).
-              </div>
-            ` : ''}
-            ${isAuthorized ? `
-              <div style="margin-top: 8px; padding: 8px 12px; background: var(--success-glow); border: 1px solid hsla(142, 72%, 45%, 0.3); border-radius: var(--radius-sm); font-size: 0.78rem; color: var(--success);">
-                ✅ Autorizado por <strong>${autorizador ? autorizador.nome : slot.autorizadoPorId}</strong>
-              </div>
-            ` : ''}
-          </div>
-        `; })() : ''}
-
-        <!-- Ações do Slot -->
-        <div class="slot-actions" data-slot-id="${slot.id}">
-          <!-- Preenchido via listeners -->
-        </div>
-      </div>
-    `;
+    html += getSlotCardHtml(slot);
   });
 
   slotsGrid.innerHTML = html;
   attachSlotActionsListeners(filtered);
 }
 
-function attachSlotActionsListeners(filteredSlots) {
+function attachSlotActionsListeners(filteredSlots, container = slotsGrid) {
   filteredSlots.forEach(slot => {
-    const actionContainer = slotsGrid.querySelector(`[data-slot-id="${slot.id}"]`);
+    if (!container) return;
+    const actionContainer = container.querySelector(`[data-slot-id="${slot.id}"]`);
     if (!actionContainer) return;
 
     const isDisputa = false; // Vagas são apenas de acesso Direto
@@ -2897,6 +2928,19 @@ function renderCalendarView() {
   let monthsHtml = '';
   monthsHtml += renderSingleCalendarMonth(year1, month1);
   calendarMonthsContainer.innerHTML = monthsHtml;
+
+  // Ligar eventos nos dias com apoios
+  calendarMonthsContainer.querySelectorAll('.calendar-day-cell.has-apoios').forEach(cell => {
+    cell.addEventListener('click', () => {
+      const dateStr = cell.getAttribute('data-date');
+      openCalendarDayDetails(dateStr);
+    });
+  });
+
+  // Atualizar modal de detalhes se estiver aberto
+  if (calendarSelectedDateDetails && calendarDetailsModal.style.display === 'flex') {
+    openCalendarDayDetails(calendarSelectedDateDetails);
+  }
 }
 
 function renderSingleCalendarMonth(year, month) {
@@ -2959,10 +3003,38 @@ function renderSingleCalendarMonth(year, month) {
 
     const todayClass = dateStr === simulatedCurrentDate ? 'calendar-today' : '';
 
+    // Filtrar apoios (vagas e histórico) para esta data
+    const daySlots = slots.filter(s => s.data === dateStr);
+    const dayHistory = history.filter(h => h.data === dateStr);
+    const totalSupports = daySlots.length + dayHistory.length;
+
+    const hasApoiosClass = totalSupports > 0 ? 'has-apoios' : '';
+    const dataDateAttr = totalSupports > 0 ? `data-date="${dateStr}"` : '';
+
+    let indicatorsHtml = '';
+    if (totalSupports > 0) {
+      const freeSlotsCount = daySlots.filter(s => s.status === 'LIVRE').length;
+      const occupiedSlotsCount = daySlots.filter(s => s.status === 'ATRIBUIDO').length;
+      const historyCount = dayHistory.length;
+
+      indicatorsHtml = '<div class="calendar-day-indicators">';
+      if (freeSlotsCount > 0) {
+        indicatorsHtml += `<span class="calendar-indicator indicator-free" title="${freeSlotsCount} vaga(s) livre(s)">${freeSlotsCount}v</span>`;
+      }
+      if (occupiedSlotsCount > 0) {
+        indicatorsHtml += `<span class="calendar-indicator indicator-occupied" title="${occupiedSlotsCount} vaga(s) ocupada(s)">${occupiedSlotsCount}o</span>`;
+      }
+      if (historyCount > 0) {
+        indicatorsHtml += `<span class="calendar-indicator indicator-history" title="${historyCount} apoio(s) realizado(s)">${historyCount}h</span>`;
+      }
+      indicatorsHtml += '</div>';
+    }
+
     gridHtml += `
-      <div class="calendar-day-cell ${shiftClass} ${todayClass}" title="${formatDatePt(dateStr)}">
+      <div class="calendar-day-cell ${shiftClass} ${todayClass} ${hasApoiosClass}" ${dataDateAttr} title="${formatDatePt(dateStr)}">
         <span class="calendar-day-num">${dayNum}</span>
         <span class="calendar-day-shift">${shiftText}</span>
+        ${totalSupports > 0 ? indicatorsHtml : ''}
       </div>
     `;
   }
@@ -2975,6 +3047,86 @@ function renderSingleCalendarMonth(year, month) {
       </div>
     </div>
   `;
+}
+
+function openCalendarDayDetails(dateStr) {
+  calendarSelectedDateDetails = dateStr;
+  
+  // Filtrar vagas e histórico do dia
+  const daySlots = slots.filter(s => s.data === dateStr);
+  const dayHistory = history.filter(h => h.data === dateStr);
+
+  calendarDetailsTitle.innerHTML = `📅 Apoios do Dia - ${formatDatePt(dateStr)}`;
+
+  let bodyHtml = '';
+
+  // 1. Seção de Vagas Operacionais (Slots)
+  bodyHtml += `<h3 style="font-size: 1rem; color: var(--primary); margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border-color); margin-top: 8px;">📋 Escalas de Trabalho (Vagas)</h3>`;
+  if (daySlots.length === 0) {
+    bodyHtml += `
+      <div class="glass-panel" style="padding: 16px; text-align: center; color: var(--text-muted); font-size: 0.85rem; margin-bottom: 24px;">
+        Nenhuma escala cadastrada para esta data.
+      </div>
+    `;
+  } else {
+    bodyHtml += `<div style="display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 24px;">`;
+    daySlots.forEach(slot => {
+      bodyHtml += getSlotCardHtml(slot);
+    });
+    bodyHtml += `</div>`;
+  }
+
+  // 2. Seção de Histórico de Apoios Registrados (Histórico)
+  bodyHtml += `<h3 style="font-size: 1rem; color: var(--success); margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border-color);">✅ Apoios Registrados (Histórico)</h3>`;
+  if (dayHistory.length === 0) {
+    bodyHtml += `
+      <div class="glass-panel" style="padding: 16px; text-align: center; color: var(--text-muted); font-size: 0.85rem;">
+        Nenhum registro de apoio executado nesta data.
+      </div>
+    `;
+  } else {
+    bodyHtml += `<div style="display: flex; flex-direction: column; gap: 8px;">`;
+    dayHistory.forEach(h => {
+      const user = users.find(u => u.id === h.usuarioId);
+      const regBy = users.find(u => u.id === h.registradoPorId);
+      const group = groups.find(g => g.id === h.grupoId);
+      const groupName = group ? group.nome : '';
+
+      bodyHtml += `
+        <div class="glass-panel" style="padding: 12px; border-left: 4px solid var(--success); display: flex; flex-direction: column; gap: 6px;">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+              <strong style="font-size: 0.9rem; color: var(--text-primary);">${user?.nome || 'Desconhecido'}</strong>
+              ${groupName ? `<span style="font-size: 0.7rem; font-weight: bold; text-transform: uppercase; color: var(--info); display: block; margin-top: 2px;">Grupo ${groupName}</span>` : ''}
+            </div>
+            <span style="font-weight: bold; color: var(--info); font-size: 0.95rem;">${h.pontuacao.toFixed(2)} pts</span>
+          </div>
+          <div style="font-size: 0.82rem; color: var(--text-secondary);">
+            <strong>Atividade:</strong> ${h.subgrupo}
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.72rem; color: var(--text-muted); flex-wrap: wrap; gap: 6px; margin-top: 4px;">
+            <div style="display: flex; gap: 4px;">
+              ${h.regras.map(rid => {
+                const rule = SUPPORT_RULES.find(r => r.id === rid);
+                const color = rid === 'R13' ? 'var(--danger)' : 'var(--primary)';
+                return `<code style="font-size: 0.65rem; padding: 1px 4px; border-radius: 4px; background: rgba(255,255,255,0.05); color: ${color};" title="${rule?.descricao || rid}">${rid}</code>`;
+              }).join('')}
+            </div>
+            <span>Registrado por ${regBy?.nome || 'Sistema'}</span>
+          </div>
+        </div>
+      `;
+    });
+    bodyHtml += `</div>`;
+  }
+
+  calendarDetailsBody.innerHTML = bodyHtml;
+  calendarDetailsModal.style.display = 'flex';
+
+  // Ligar listeners de eventos para as vagas no modal
+  if (daySlots.length > 0) {
+    attachSlotActionsListeners(daySlots, calendarDetailsBody);
+  }
 }
 
 

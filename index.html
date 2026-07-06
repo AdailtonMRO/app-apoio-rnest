@@ -1119,6 +1119,22 @@
         </div>
       </div>
 
+      <!-- MODAL: DETALHES DE APOIOS DO CALENDÁRIO -->
+      <div id="calendar-details-modal" class="modal-overlay" style="display: none; z-index: 9999;">
+        <div class="modal-content glass-panel" style="max-width: 600px; max-height: 85vh; display: flex; flex-direction: column;">
+          <div class="modal-header">
+            <h2 id="calendar-details-title" class="modal-title">Apoios do Dia</h2>
+            <button id="btn-close-calendar-details" style="background: transparent; border: none; color: #fff; font-size: 1.25rem; cursor: pointer;">✕</button>
+          </div>
+          <div id="calendar-details-body" style="overflow-y: auto; flex: 1; padding: 12px 0;">
+            <!-- Preenchido via JS -->
+          </div>
+          <div class="modal-footer" style="margin-top: 16px; display: flex; justify-content: flex-end;">
+            <button id="btn-close-calendar-details-footer" class="btn btn-secondary">Fechar</button>
+          </div>
+        </div>
+      </div>
+
       <!-- MODAL: CONFIRMAR ASSUMIR VAGA (NORMAL vs AUTOTROCA) -->
       <div id="confirm-assume-modal" class="modal-overlay" style="display: none; z-index: 9999;">
         <div class="modal-content glass-panel" style="max-width: 450px;">

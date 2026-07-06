@@ -1259,6 +1259,48 @@ a:hover {
   border: 2px solid var(--danger) !important;
   box-shadow: 0 0 10px hsla(0, 84%, 60%, 0.4) !important;
   position: relative;
+}/* Interatividade e Indicadores de Apoio no Calendário */
+.calendar-day-cell.has-apoios {
+  cursor: pointer;
+  position: relative;
+}
+
+.calendar-day-cell.has-apoios:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+  border-color: var(--primary) !important;
+}
+
+.calendar-day-indicators {
+  display: flex;
+  gap: 3px;
+  margin-top: 4px;
+  justify-content: center;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.calendar-indicator {
+  font-size: 0.6rem;
+  font-weight: 700;
+  border-radius: 4px;
+  padding: 1px 4px;
+  color: #ffffff !important;
+  line-height: 1;
+  display: inline-block;
+  text-align: center;
+}
+
+.calendar-indicator.indicator-free {
+  background-color: #10b981; /* Verde */
+}
+
+.calendar-indicator.indicator-occupied {
+  background-color: #3b82f6; /* Azul */
+}
+
+.calendar-indicator.indicator-history {
+  background-color: #8b5cf6; /* Roxo */
 }
 
 /* Botões Circulares do Seletor de Grupo */
