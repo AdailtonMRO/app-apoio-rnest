@@ -3003,10 +3003,9 @@ function renderSingleCalendarMonth(year, month) {
 
     const todayClass = dateStr === simulatedCurrentDate ? 'calendar-today' : '';
 
-    // Filtrar apoios (vagas e histórico) para esta data
+    // Filtrar apoios (vagas) para esta data (removemos histórico da indicação do calendário)
     const daySlots = slots.filter(s => s.data === dateStr);
-    const dayHistory = history.filter(h => h.data === dateStr);
-    const totalSupports = daySlots.length + dayHistory.length;
+    const totalSupports = daySlots.length;
 
     const hasApoiosClass = totalSupports > 0 ? 'has-apoios' : '';
     const dataDateAttr = totalSupports > 0 ? `data-date="${dateStr}"` : '';
@@ -3015,7 +3014,6 @@ function renderSingleCalendarMonth(year, month) {
     if (totalSupports > 0) {
       const freeSlotsCount = daySlots.filter(s => s.status === 'LIVRE').length;
       const occupiedSlotsCount = daySlots.filter(s => s.status === 'ATRIBUIDO').length;
-      const historyCount = dayHistory.length;
 
       indicatorsHtml = '<div class="calendar-day-indicators">';
       if (freeSlotsCount > 0) {
@@ -3023,9 +3021,6 @@ function renderSingleCalendarMonth(year, month) {
       }
       if (occupiedSlotsCount > 0) {
         indicatorsHtml += `<span class="calendar-indicator indicator-occupied" title="${occupiedSlotsCount} vaga(s) ocupada(s)">${occupiedSlotsCount}o</span>`;
-      }
-      if (historyCount > 0) {
-        indicatorsHtml += `<span class="calendar-indicator indicator-history" title="${historyCount} apoio(s) realizado(s)">${historyCount}h</span>`;
       }
       indicatorsHtml += '</div>';
     }

@@ -1599,6 +1599,11 @@ a:hover {
     padding: 16px 10px !important;
   }
 
+  #calendar-months-container {
+    max-height: 380px !important;
+    gap: 16px !important;
+  }
+
   .calendar-month-grid {
     gap: 4px !important;
     margin-bottom: 12px !important;
@@ -1625,6 +1630,18 @@ a:hover {
     transform-origin: center;
     white-space: nowrap;
     margin-top: 1px;
+  }
+
+  .calendar-day-indicators {
+    gap: 2px !important;
+    margin-top: 2px !important;
+  }
+
+  .calendar-indicator {
+    font-size: 0.52rem !important;
+    padding: 0px 3px !important;
+    border-radius: 3px !important;
+    line-height: 1.1 !important;
   }
 
   .group-circle-btn {
