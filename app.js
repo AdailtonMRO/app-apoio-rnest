@@ -784,6 +784,47 @@ function init() {
   }
 }
 
+// --- TEMA DE CORES ---
+
+const THEME_KEY = 'apoio-rnest-theme';
+const THEMES = {
+  padrao:  { label: '🌌 Padrão',  attr: null },
+  empresa: { label: '🟢 Empresa', attr: 'empresa' }
+};
+
+function applyTheme(themeKey) {
+  const html = document.documentElement;
+  const theme = THEMES[themeKey] || THEMES.padrao;
+  if (theme.attr) {
+    html.setAttribute('data-theme', theme.attr);
+  } else {
+    html.removeAttribute('data-theme');
+  }
+  // Atualiza o label do botão
+  const label = document.getElementById('theme-toggle-label');
+  if (label) label.textContent = theme.label;
+  // Salva preferência
+  localStorage.setItem(THEME_KEY, themeKey);
+}
+
+function toggleTheme() {
+  const current = localStorage.getItem(THEME_KEY) || 'padrao';
+  const next = current === 'padrao' ? 'empresa' : 'padrao';
+  applyTheme(next);
+}
+
+// Aplica o tema salvo imediatamente ao carregar
+(function initTheme() {
+  const saved = localStorage.getItem(THEME_KEY) || 'padrao';
+  applyTheme(saved);
+})();
+
+// Wiring do botão de tema
+const btnThemeToggle = document.getElementById('btn-theme-toggle');
+if (btnThemeToggle) {
+  btnThemeToggle.addEventListener('click', toggleTheme);
+}
+
 let unsubscribers = [];
 
 function showConnectionError() {

@@ -46,6 +46,129 @@
   --transition-normal: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* ============================================================
+   TEMA EMPRESA — Cores Oficiais
+   Ativado por: <html data-theme="empresa">
+   ============================================================ */
+[data-theme="empresa"] {
+  /* Fundos — verde muito escuro como base */
+  --bg-color:        #0b1f14;
+  --bg-card:         hsla(150, 55%, 9%, 0.88);
+  --bg-card-hover:   hsla(150, 55%, 13%, 0.96);
+  --bg-input:        hsla(150, 55%, 7%, 1);
+  --border-color:    hsla(155, 60%, 25%, 0.45);
+  --border-hover:    hsla(155, 60%, 38%, 0.75);
+
+  /* Textos — brancos levemente esverdeados */
+  --text-primary:    hsl(140, 30%, 96%);
+  --text-secondary:  hsl(145, 18%, 72%);
+  --text-muted:      hsl(145, 12%, 48%);
+
+  /* Cor primária: verde empresa */
+  --primary:         #008542;
+  --primary-hover:   #00a553;
+  --primary-glow:    rgba(0, 133, 66, 0.28);
+
+  /* Status */
+  --success:         #c4d600;
+  --success-glow:    rgba(196, 214, 0, 0.15);
+  --warning:         #fdc82f;
+  --warning-glow:    rgba(253, 200, 47, 0.15);
+  --danger:          #ed8b00;
+  --danger-glow:     rgba(237, 139, 0, 0.15);
+  --info:            #3ddaff;
+
+  /* Gradientes com verde + teal empresa */
+  --gradient-primary: linear-gradient(135deg, #008542 0%, #00b2a9 100%);
+  --gradient-card:    linear-gradient(180deg, hsla(150,55%,12%,0.75) 0%, hsla(150,55%,8%,0.9) 100%);
+  --gradient-glow:    linear-gradient(135deg, rgba(0,133,66,0.18) 0%, rgba(0,178,169,0.15) 100%);
+
+  /* Sombras ajustadas para o verde */
+  --shadow-primary:  0 0 20px 2px rgba(0, 133, 66, 0.25);
+}
+
+[data-theme="empresa"] body {
+  background-image:
+    radial-gradient(at 0% 0%,   hsla(150, 60%, 5%, 1) 0, transparent 50%),
+    radial-gradient(at 100% 0%, hsla(155, 70%, 12%, 0.3) 0, transparent 50%),
+    radial-gradient(at 50% 100%, hsla(150, 55%, 8%, 1) 0, transparent 50%);
+}
+
+[data-theme="empresa"] .btn-secondary {
+  background: hsla(150, 55%, 15%, 0.55);
+  border-color: hsla(155, 60%, 25%, 0.5);
+}
+
+[data-theme="empresa"] .btn-secondary:hover {
+  background: hsla(150, 55%, 20%, 0.8);
+  border-color: hsla(155, 60%, 38%, 0.8);
+}
+
+[data-theme="empresa"] .btn-icon-only:hover {
+  background: hsla(150, 55%, 15%, 0.55);
+  border-color: var(--border-color);
+}
+
+[data-theme="empresa"] .btn-primary:hover {
+  box-shadow: 0 0 25px 4px rgba(0, 133, 66, 0.5);
+}
+
+/* Botão de toggle de tema */
+#btn-theme-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-color);
+  background: hsla(222, 47%, 18%, 0.5);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  white-space: nowrap;
+  font-family: var(--font-sans);
+}
+
+#btn-theme-toggle:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-glow);
+}
+
+[data-theme="empresa"] #btn-theme-toggle {
+  background: hsla(150, 55%, 15%, 0.45);
+}
+
+.theme-toggle-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--primary);
+  box-shadow: 0 0 6px var(--primary);
+  flex-shrink: 0;
+}
+
+/* Transição suave ao trocar tema */
+body,
+.glass-panel,
+.btn,
+.btn-primary,
+.btn-secondary,
+.input-field,
+.badge,
+.app-header,
+.sidebar {
+  transition:
+    background-color 0.35s ease,
+    border-color 0.35s ease,
+    box-shadow 0.35s ease,
+    color 0.25s ease;
+}
+
+/* ============================================================ */
+
 * {
   box-sizing: border-box;
   margin: 0;
