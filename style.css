@@ -47,71 +47,153 @@
 }
 
 /* ============================================================
-   TEMA EMPRESA — Cores Oficiais
+   TEMA EMPRESA — Cores Oficiais (Modo Claro)
    Ativado por: <html data-theme="empresa">
    ============================================================ */
 [data-theme="empresa"] {
-  /* Fundos — verde muito escuro como base */
-  --bg-color:        #0b1f14;
-  --bg-card:         hsla(150, 55%, 9%, 0.88);
-  --bg-card-hover:   hsla(150, 55%, 13%, 0.96);
-  --bg-input:        hsla(150, 55%, 7%, 1);
-  --border-color:    hsla(155, 60%, 25%, 0.45);
-  --border-hover:    hsla(155, 60%, 38%, 0.75);
+  /* Fundos — branco e off-white levemente esverdeado */
+  --bg-color:        #f4f8f5;
+  --bg-card:         rgba(255, 255, 255, 0.92);
+  --bg-card-hover:   rgba(255, 255, 255, 1);
+  --bg-input:        #ffffff;
+  --border-color:    rgba(0, 133, 66, 0.18);
+  --border-hover:    rgba(0, 133, 66, 0.38);
 
-  /* Textos — brancos levemente esverdeados */
-  --text-primary:    hsl(140, 30%, 96%);
-  --text-secondary:  hsl(145, 18%, 72%);
-  --text-muted:      hsl(145, 12%, 48%);
+  /* Textos — escuros para contraste no fundo claro */
+  --text-primary:    #0f2419;
+  --text-secondary:  #3a5c47;
+  --text-muted:      #75787b;
 
   /* Cor primária: verde empresa */
   --primary:         #008542;
-  --primary-hover:   #00a553;
-  --primary-glow:    rgba(0, 133, 66, 0.28);
+  --primary-hover:   #006830;
+  --primary-glow:    rgba(0, 133, 66, 0.12);
 
-  /* Status */
-  --success:         #c4d600;
-  --success-glow:    rgba(196, 214, 0, 0.15);
-  --warning:         #fdc82f;
-  --warning-glow:    rgba(253, 200, 47, 0.15);
-  --danger:          #ed8b00;
-  --danger-glow:     rgba(237, 139, 0, 0.15);
-  --info:            #3ddaff;
+  /* Status com as cores da empresa */
+  --success:         #008542;
+  --success-glow:    rgba(0, 133, 66, 0.10);
+  --warning:         #ed8b00;
+  --warning-glow:    rgba(237, 139, 0, 0.12);
+  --danger:          #c0392b;
+  --danger-glow:     rgba(192, 57, 43, 0.10);
+  --info:            #006298;
 
-  /* Gradientes com verde + teal empresa */
+  /* Gradientes suaves com verde + teal empresa */
   --gradient-primary: linear-gradient(135deg, #008542 0%, #00b2a9 100%);
-  --gradient-card:    linear-gradient(180deg, hsla(150,55%,12%,0.75) 0%, hsla(150,55%,8%,0.9) 100%);
-  --gradient-glow:    linear-gradient(135deg, rgba(0,133,66,0.18) 0%, rgba(0,178,169,0.15) 100%);
+  --gradient-card:    linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(244,248,245,0.85) 100%);
+  --gradient-glow:    linear-gradient(135deg, rgba(0,133,66,0.06) 0%, rgba(0,178,169,0.06) 100%);
 
-  /* Sombras ajustadas para o verde */
-  --shadow-primary:  0 0 20px 2px rgba(0, 133, 66, 0.25);
+  /* Sombras suaves — adequadas para fundo claro */
+  --shadow-lg:       0 4px 24px -4px rgba(0, 133, 66, 0.10), 0 1px 4px rgba(0,0,0,0.06);
+  --shadow-primary:  0 0 18px 2px rgba(0, 133, 66, 0.18);
 }
 
+/* Fundo do body — branco com gradiente verde suavíssimo */
 [data-theme="empresa"] body {
   background-image:
-    radial-gradient(at 0% 0%,   hsla(150, 60%, 5%, 1) 0, transparent 50%),
-    radial-gradient(at 100% 0%, hsla(155, 70%, 12%, 0.3) 0, transparent 50%),
-    radial-gradient(at 50% 100%, hsla(150, 55%, 8%, 1) 0, transparent 50%);
+    radial-gradient(at 0% 0%,   rgba(0, 133, 66, 0.05) 0, transparent 55%),
+    radial-gradient(at 100% 0%, rgba(0, 178, 169, 0.06) 0, transparent 55%),
+    radial-gradient(at 50% 100%, rgba(253, 200, 47, 0.04) 0, transparent 55%);
 }
 
+/* Cards e painéis — borda verde suave, sombra discreta */
+[data-theme="empresa"] .glass-panel {
+  box-shadow: 0 2px 16px -2px rgba(0, 133, 66, 0.10), 0 1px 3px rgba(0,0,0,0.05);
+  border-color: rgba(0, 133, 66, 0.15);
+}
+
+[data-theme="empresa"] .glass-panel:hover {
+  box-shadow: 0 6px 24px -4px rgba(0, 133, 66, 0.16), 0 2px 6px rgba(0,0,0,0.06);
+  border-color: rgba(0, 133, 66, 0.30);
+}
+
+/* Botões secundários adaptados ao fundo claro */
 [data-theme="empresa"] .btn-secondary {
-  background: hsla(150, 55%, 15%, 0.55);
-  border-color: hsla(155, 60%, 25%, 0.5);
+  background: rgba(0, 133, 66, 0.07);
+  color: #0f2419;
+  border: 1px solid rgba(0, 133, 66, 0.22);
 }
 
 [data-theme="empresa"] .btn-secondary:hover {
-  background: hsla(150, 55%, 20%, 0.8);
-  border-color: hsla(155, 60%, 38%, 0.8);
+  background: rgba(0, 133, 66, 0.13);
+  border-color: rgba(0, 133, 66, 0.40);
+  color: #008542;
+}
+
+/* Botão de perigo adaptado */
+[data-theme="empresa"] .btn-danger {
+  background: rgba(192, 57, 43, 0.08);
+  color: #c0392b;
+  border: 1px solid rgba(192, 57, 43, 0.25);
+}
+
+[data-theme="empresa"] .btn-danger:hover {
+  background: rgba(192, 57, 43, 0.15);
+  border-color: #c0392b;
 }
 
 [data-theme="empresa"] .btn-icon-only:hover {
-  background: hsla(150, 55%, 15%, 0.55);
-  border-color: var(--border-color);
+  background: rgba(0, 133, 66, 0.08);
+  border-color: rgba(0, 133, 66, 0.22);
+  color: #008542;
 }
 
 [data-theme="empresa"] .btn-primary:hover {
-  box-shadow: 0 0 25px 4px rgba(0, 133, 66, 0.5);
+  box-shadow: 0 0 22px 4px rgba(0, 133, 66, 0.35);
 }
+
+/* Inputs no modo claro */
+[data-theme="empresa"] .input-field {
+  background-color: #ffffff;
+  border-color: rgba(0, 133, 66, 0.22);
+  color: #0f2419;
+}
+
+[data-theme="empresa"] .input-field:focus {
+  border-color: #008542;
+  box-shadow: 0 0 0 3px rgba(0, 133, 66, 0.12);
+}
+
+/* Scrollbar com cor da empresa */
+[data-theme="empresa"] ::-webkit-scrollbar-track {
+  background: #f4f8f5;
+}
+
+[data-theme="empresa"] ::-webkit-scrollbar-thumb {
+  background: rgba(0, 133, 66, 0.25);
+}
+
+[data-theme="empresa"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 133, 66, 0.45);
+}
+
+/* Badges adaptados ao fundo claro */
+[data-theme="empresa"] .badge-open {
+  background-color: rgba(0, 133, 66, 0.10);
+  color: #006830;
+  border-color: rgba(0, 133, 66, 0.25);
+}
+
+[data-theme="empresa"] .badge-pending {
+  background-color: rgba(237, 139, 0, 0.10);
+  color: #b36a00;
+  border-color: rgba(237, 139, 0, 0.28);
+}
+
+/* Select e role-select */
+[data-theme="empresa"] select,
+[data-theme="empresa"] .role-select {
+  background-color: #ffffff;
+  color: #0f2419;
+  border-color: rgba(0, 133, 66, 0.25);
+}
+
+/* Acento com amarelo empresa em elementos de destaque */
+[data-theme="empresa"] .logo-icon {
+  filter: drop-shadow(0 0 8px rgba(253, 200, 47, 0.5));
+}
+
+/* ============================================================ */
 
 /* Botão de toggle de tema */
 #btn-theme-toggle {
@@ -138,7 +220,15 @@
 }
 
 [data-theme="empresa"] #btn-theme-toggle {
-  background: hsla(150, 55%, 15%, 0.45);
+  background: rgba(0, 133, 66, 0.07);
+  border-color: rgba(0, 133, 66, 0.22);
+  color: #3a5c47;
+}
+
+[data-theme="empresa"] #btn-theme-toggle:hover {
+  background: rgba(0, 133, 66, 0.13);
+  border-color: #008542;
+  color: #008542;
 }
 
 .theme-toggle-dot {
@@ -156,18 +246,21 @@ body,
 .btn,
 .btn-primary,
 .btn-secondary,
+.btn-danger,
 .input-field,
 .badge,
 .app-header,
 .sidebar {
   transition:
     background-color 0.35s ease,
+    background 0.35s ease,
     border-color 0.35s ease,
     box-shadow 0.35s ease,
     color 0.25s ease;
 }
 
 /* ============================================================ */
+
 
 * {
   box-sizing: border-box;
