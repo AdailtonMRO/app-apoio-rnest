@@ -241,6 +241,74 @@
   box-shadow: 0 2px 10px rgba(0, 133, 66, 0.25);
 }
 
+/* ================================================================
+   Linhas de status nos cards de apoio — cores distintas por estado
+   ================================================================ */
+
+/* 🟢 LIVRE — Teal: disponível, convida à ação */
+[data-theme="empresa"] .slot-card.status-livre::before {
+  background: #00b2a9;
+}
+
+/* 🔵 ATRIBUÍDO — Azul petróleo: ocupado/fechado */
+[data-theme="empresa"] .slot-card.status-atribuido::before {
+  background: #006298;
+}
+
+/* 🟡 PENDENTE — Amarelo empresa: atenção necessária */
+[data-theme="empresa"] .slot-card.status-pendente::before {
+  background: #fdc82f;
+}
+
+/* ⬜ CANCELADO — Cinza neutro: inativo */
+[data-theme="empresa"] .slot-card.status-cancelado::before {
+  background: #75787b;
+}
+
+/* ✅ CONCLUÍDO — Verde empresa: sucesso */
+[data-theme="empresa"] .slot-card.status-concluido::before {
+  background: #008542;
+}
+
+/* ================================================================
+   Badges de status adaptados ao modo claro — cores empresa
+   ================================================================ */
+
+/* LIVRE → teal */
+[data-theme="empresa"] .badge-open {
+  background-color: rgba(0, 178, 169, 0.12);
+  color: #007a72;
+  border-color: rgba(0, 178, 169, 0.35);
+}
+
+/* PENDENTE → amarelo empresa */
+[data-theme="empresa"] .badge-pending {
+  background-color: rgba(253, 200, 47, 0.15);
+  color: #a07800;
+  border-color: rgba(253, 200, 47, 0.40);
+}
+
+/* ATRIBUÍDO → azul petróleo */
+[data-theme="empresa"] .badge-assigned {
+  background-color: rgba(0, 98, 152, 0.10);
+  color: #004e7a;
+  border-color: rgba(0, 98, 152, 0.28);
+}
+
+/* CANCELADO → cinza neutro */
+[data-theme="empresa"] .badge-cancelled {
+  background-color: rgba(117, 120, 123, 0.10);
+  color: #4a4d50;
+  border-color: rgba(117, 120, 123, 0.28);
+}
+
+/* CONCLUÍDO → verde empresa */
+[data-theme="empresa"] .badge-concluido {
+  background-color: rgba(0, 133, 66, 0.10);
+  color: #006830;
+  border-color: rgba(0, 133, 66, 0.28);
+}
+
 /* ============================================================ */
 
 
