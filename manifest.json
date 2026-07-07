@@ -1,6 +1,6 @@
 {
-  "name": "Apoio RNEST",
-  "short_name": "Apoio RNEST",
+  "name": "",
+  "short_name": "",
   "description": "Sistema de Classificação de Prioridade & Apoio RNEST",
   "start_url": "./index.html",
   "display": "standalone",

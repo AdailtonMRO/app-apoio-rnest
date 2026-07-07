@@ -76,7 +76,7 @@ exports.notifyNewSupportSlot = onDocumentUpdated("rnest_database/slots", async (
   // 3. Montar a notificação push
   const payload = {
     notification: {
-      title: "Nova Vaga de Apoio Disponível! 🚦",
+      title: "🚦 Solicitação de Apoio 🚦",
       body: `${newSlot.subgrupo} | Data: ${newSlot.data} | Horário: ${newSlot.horario}`,
     },
     // Parâmetros para PWA (Web Push)

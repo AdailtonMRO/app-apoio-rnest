@@ -23,7 +23,7 @@ const messaging = firebase.messaging();
 messaging.onBackgroundMessage((payload) => {
   console.log('[sw.js] Mensagem FCM recebida em background:', payload);
 
-  const title = payload.notification?.title || 'Nova Vaga de Apoio 🚦';
+  const title = payload.notification?.title || '🚦 Solicitação de Apoio 🚦';
   const body  = payload.notification?.body  || 'Uma nova vaga foi cadastrada no sistema!';
 
   const options = {

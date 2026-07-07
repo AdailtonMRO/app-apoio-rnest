@@ -4965,14 +4965,17 @@ function generateWhatsappTemplate() {
   );
 
   if (openSlotsTodayOrTomorrow.length > 0) {
-    output += `🚨 *ATENÇÃO: VAGAS DE APOIO EM ABERTO HOJE/AMANHÃ!* 🚨\n`;
+    output += `============================\n`;
+    output += `        🚨 *ATENÇÃO* 🚨\n`;
+    output += ` *APOIO EM ABERTO HOJE e AMANHÃ!*\n`;
+    output += `============================\n\n`;
     openSlotsTodayOrTomorrow.forEach(s => {
       const group = groups.find(g => g.id === s.grupoId);
       const groupName = group ? group.nome : 'Sem Grupo';
       output += `• *${groupName}* - ${s.subgrupo} em *${formatDatePt(s.data)}* (${s.horario})\n`;
     });
     output += `\n👉 Cadastre-se no sistema antes que as vagas sejam preenchidas!\n`;
-    output += `*===================================*\n\n`;
+    output += `============================\n\n`;
   }
 
   groups.forEach(group => {

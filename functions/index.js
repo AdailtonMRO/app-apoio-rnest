@@ -85,7 +85,7 @@ exports.notifyNewSupportSlot = onDocumentUpdated("rnest_database/slots", async (
   const message = {
     tokens: allTokens,
     notification: {
-      title: "🚦 Nova Vaga de Apoio Disponível!",
+      title: "🚦 Solicitação de Apoio 🚦",
       body: `${newSlot.subgrupo} | ${newSlot.data} | Turno: ${newSlot.horario}`,
     },
     webpush: {
