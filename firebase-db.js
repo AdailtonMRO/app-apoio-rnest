@@ -22,13 +22,14 @@ let docFn = null;
 let updateDocFn = null;
 let getDocFn = null;
 let onSnapshotFn = null;
+let setDocFn = null;
 
 if (isFirebaseEnabled) {
   try {
     // Importações dinâmicas via ES Modules
     const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js');
     const { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js');
-    const { getFirestore, doc, updateDoc, getDoc, onSnapshot } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js');
+    const { getFirestore, doc, updateDoc, getDoc, onSnapshot, setDoc } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js');
 
     firebaseApp = initializeApp(firebaseConfig);
     auth = getAuth(firebaseApp);
@@ -42,6 +43,7 @@ if (isFirebaseEnabled) {
     updateDocFn = updateDoc;
     getDocFn = getDoc;
     onSnapshotFn = onSnapshot;
+    setDocFn = setDoc;
 
     console.log("🔥 Firebase inicializado com sucesso!");
 
@@ -100,9 +102,25 @@ export function onAuthChange(callback) {
 
 // --- MÉTODOS DE BANCO DE DADOS (FIRESTORE) ---
 
+// Obtém o ID da organização a partir do parâmetro 'org' na URL (ex: ?org=transpetro)
+// Caso não esteja presente, assume 'rnest' por padrão (retrocompatibilidade)
+const urlParams = new URLSearchParams(window.location.search);
+export const orgId = urlParams.get('org') || 'rnest';
+
+// Função auxiliar para obter o caminho correto do documento para a organização ativa
+function getDocPath(docName) {
+  if (orgId === 'rnest') {
+    // Para manter compatibilidade com a base de produção atual da RNEST
+    return `rnest_database/${docName}`;
+  } else {
+    // Para novas organizações, usamos a estrutura multi-tenant isolada sob organizations/
+    return `organizations/${orgId}/database/${docName}`;
+  }
+}
+
 /**
  * Escuta mudanças em tempo real em um documento da coleção e aciona o callback.
- * Se o documento não existir no Firestore, exibe um erro crítico e bloqueia a interface.
+ * Se o documento não existir no Firestore, inicializa-o automaticamente com os dados padrão.
  */
 export function syncDocument(docName, defaultData, callback) {
   if (!isFirebaseEnabled || !db) {
@@ -110,7 +128,8 @@ export function syncDocument(docName, defaultData, callback) {
     return () => {};
   }
 
-  const docRef = docFn(db, 'rnest_database', docName);
+  const docPath = getDocPath(docName);
+  const docRef = docFn(db, docPath);
 
   return onSnapshotFn(docRef, async (snapshot) => {
     if (snapshot.exists()) {
@@ -122,25 +141,34 @@ export function syncDocument(docName, defaultData, callback) {
         if (typeof window.showFatalError === 'function') {
           window.showFatalError(
             "Erro Crítico de Estrutura de Banco de Dados",
-            `O documento '${docName}' existe no Firestore, mas a chave 'data' está ausente ou corrompida. Para segurança dos dados, a gravação foi bloqueada.`
+            `O documento '${docPath}' existe no Firestore, mas a chave 'data' está ausente ou corrompida. Para segurança dos dados, a gravação foi bloqueada.`
           );
         }
       }
     } else {
-      console.error(`❌ ERRO CRÍTICO: O documento '${docName}' não existe no Firestore!`);
-      if (typeof window.showFatalError === 'function') {
-        window.showFatalError(
-          "Erro Crítico de Banco de Dados",
-          `O documento '${docName}' não foi encontrado no Firebase Firestore. A sincronização e gravação para este documento foram bloqueadas.`
-        );
+      console.log(`Documento '${docPath}' não encontrado. Inicializando com dados padrão...`);
+      try {
+        if (setDocFn) {
+          await setDocFn(docRef, { data: defaultData });
+        } else {
+          console.error("setDocFn não está inicializado!");
+        }
+      } catch (err) {
+        console.error(`Erro ao inicializar o documento '${docPath}' no Firestore:`, err);
+        if (typeof window.showFatalError === 'function') {
+          window.showFatalError(
+            "Erro ao Inicializar Banco de Dados",
+            `Não foi possível criar o documento '${docPath}' com dados padrão no Firestore. Verifique suas permissões: ${err.message || err}`
+          );
+        }
       }
     }
   }, (error) => {
-    console.error(`Erro ao escutar o documento ${docName}:`, error);
+    console.error(`Erro ao escutar o documento ${docName} em ${docPath}:`, error);
     if (typeof window.showFatalError === 'function') {
       window.showFatalError(
         "Erro de Conexão com o Banco de Dados",
-        `Erro de conexão/permissão ao escutar '${docName}': ${error.message || error}`
+        `Erro de conexão/permissão ao escutar '${docPath}': ${error.message || error}`
       );
     }
   });
@@ -148,7 +176,6 @@ export function syncDocument(docName, defaultData, callback) {
 
 /**
  * Atualiza os dados de um documento existente no Firestore.
- * Usa updateDoc para falhar caso o documento tenha sido deletado.
  */
 export async function updateDocument(docName, dataArrayOrObj) {
   if (!isFirebaseEnabled || !db) {
@@ -156,11 +183,12 @@ export async function updateDocument(docName, dataArrayOrObj) {
     throw new Error("Sem conexão com o Firebase.");
   }
 
-  const docRef = docFn(db, 'rnest_database', docName);
+  const docPath = getDocPath(docName);
+  const docRef = docFn(db, docPath);
   try {
     await updateDocFn(docRef, { data: dataArrayOrObj });
   } catch (error) {
-    console.error(`Erro ao gravar o documento ${docName} no Firestore:`, error);
+    console.error(`Erro ao gravar o documento ${docName} no Firestore em ${docPath}:`, error);
     throw error;
   }
 }

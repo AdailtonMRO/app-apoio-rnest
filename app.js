@@ -1,5 +1,5 @@
-import { getStoredData, saveStoredData, SUPPORT_RULES, INITIAL_USERS, INITIAL_GROUPS, INITIAL_SLOTS, INITIAL_HISTORY, AREAS_FUNCOES, SHIFT_CYCLE, GROUP_START_DATES } from './data.js';
-import { isFirebaseEnabled, loginWithGoogle, logout, onAuthChange, syncDocument, updateDocument, getNotificationToken } from './firebase-db.js';
+import { getStoredData, saveStoredData, SUPPORT_RULES, INITIAL_USERS, INITIAL_GROUPS, INITIAL_SLOTS, INITIAL_HISTORY, AREAS_FUNCOES, SHIFT_CYCLE, GROUP_START_DATES, DEFAULT_CONFIG } from './data.js';
+import { isFirebaseEnabled, loginWithGoogle, logout, onAuthChange, syncDocument, updateDocument, getNotificationToken, orgId } from './firebase-db.js';
 
 // --- ESTADO GLOBAL DA APLICAÇÃO ---
 let users = [];
@@ -16,6 +16,10 @@ let authenticatedGoogleUser = null;
 let dbConnected = false;
 let connectionTimeout = null;
 
+// Configuração dinâmica parametrizada
+let currentConfig = { ...DEFAULT_CONFIG };
+let supportRules = [ ...SUPPORT_RULES ];
+
 // Acompanha quais coleções foram carregadas com sucesso do Firebase
 let syncedDocs = {
   users: false,
@@ -23,11 +27,12 @@ let syncedDocs = {
   slots: false,
   history: false,
   candidatos: false,
-  autotrocas: false
+  autotrocas: false,
+  config: false
 };
 
 function areAllDocsSynced() {
-  return syncedDocs.users && syncedDocs.groups && syncedDocs.slots && syncedDocs.history && syncedDocs.candidatos && syncedDocs.autotrocas;
+  return syncedDocs.users && syncedDocs.groups && syncedDocs.slots && syncedDocs.history && syncedDocs.candidatos && syncedDocs.autotrocas && syncedDocs.config;
 }
 
 // Funções Auxiliares de Permissão
@@ -194,7 +199,9 @@ const tabBtnAutotrocas = document.getElementById('tab-btn-autotrocas');
 const tabBtnUsuarios = document.getElementById('tab-btn-usuarios');
 const tabBtnAuditoria = document.getElementById('tab-btn-auditoria');
 const tabBtnRelatorios = document.getElementById('tab-btn-relatorios');
+const tabBtnConfiguracoes = document.getElementById('tab-btn-configuracoes');
 const viewEscalas = document.getElementById('view-escalas');
+const viewConfiguracoes = document.getElementById('view-configuracoes');
 const viewCalendario = document.getElementById('view-calendario');
 const viewRegistro = document.getElementById('view-registro');
 const viewHistorico = document.getElementById('view-historico');
@@ -349,6 +356,7 @@ const btnSubmitReg = document.getElementById('btn-submit-reg');
 // --- INICIALIZAÇÃO ---
 function init() {
   loadData();
+  initConfiguracoesWiring();
 
   // Configurar data de hoje
   if (simCurrentDateInput) {
@@ -440,6 +448,9 @@ function init() {
   }
   if (tabBtnRelatorios) {
     tabBtnRelatorios.addEventListener('click', () => switchView('relatorios'));
+  }
+  if (tabBtnConfiguracoes) {
+    tabBtnConfiguracoes.addEventListener('click', () => switchView('configuracoes'));
   }
 
   // Listeners de filtros de data para escalas
@@ -1063,6 +1074,23 @@ function setupRealtimeSync() {
     autotrocas = data;
     renderAll();
   }));
+
+  // Sync config
+  unsubscribers.push(syncDocument('config', DEFAULT_CONFIG, (data) => {
+    syncedDocs.config = true;
+    if (areAllDocsSynced()) {
+      dbConnected = true;
+      hideConnectionError();
+      if (connectionTimeout) clearTimeout(connectionTimeout);
+    }
+
+    currentConfig = {
+      ...DEFAULT_CONFIG,
+      ...data
+    };
+    supportRules = currentConfig.supportRules || [ ...SUPPORT_RULES ];
+    renderAll();
+  }));
 }
 
 function loadData() {
@@ -1073,7 +1101,8 @@ function loadData() {
   history = data.history;
   candidatos = {};
   autotrocas = [];
-
+  currentConfig = { ...DEFAULT_CONFIG };
+  supportRules = [ ...SUPPORT_RULES ];
   currentUser = users.find(u => u.id === currentUserId) || users[0];
   currentUserId = currentUser.id;
 }
@@ -1082,7 +1111,7 @@ function persistChanges(onlyDocName = null) {
   if (isFirebaseEnabled) {
     const docsToUpdate = onlyDocName 
       ? (Array.isArray(onlyDocName) ? onlyDocName : [onlyDocName])
-      : ['users', 'groups', 'slots', 'history', 'candidatos', 'autotrocas'];
+      : ['users', 'groups', 'slots', 'history', 'candidatos', 'autotrocas', 'config'];
 
     docsToUpdate.forEach(docName => {
       // Salvaguarda crítica: nunca sobrescrever o Firebase se o documento ainda não foi sincronizado localmente.
@@ -1097,6 +1126,7 @@ function persistChanges(onlyDocName = null) {
       else if (docName === 'history') updateDocument('history', history);
       else if (docName === 'candidatos') updateDocument('candidatos', candidatos);
       else if (docName === 'autotrocas') updateDocument('autotrocas', autotrocas);
+      else if (docName === 'config') updateDocument('config', currentConfig);
     });
   } else {
     showConnectionError();
@@ -1125,6 +1155,9 @@ function switchView(view) {
   }
   if (tabBtnAutotrocas) {
     tabBtnAutotrocas.classList.toggle('active', view === 'autotrocas');
+  }
+  if (tabBtnConfiguracoes) {
+    tabBtnConfiguracoes.classList.toggle('active', view === 'configuracoes');
   }
 
   // Sincronizar abas móveis (barra inferior)
@@ -1160,6 +1193,9 @@ function switchView(view) {
   if (viewAutotrocas) {
     viewAutotrocas.style.display = view === 'autotrocas' ? 'block' : 'none';
   }
+  if (viewConfiguracoes) {
+    viewConfiguracoes.style.display = view === 'configuracoes' ? 'block' : 'none';
+  }
   if (viewMeuPainel) {
     viewMeuPainel.style.display = view === 'meu-painel' ? 'block' : 'none';
   }
@@ -1186,6 +1222,10 @@ function switchView(view) {
 
   if (view === 'autotrocas') {
     renderAutotrocasTable();
+  }
+
+  if (view === 'configuracoes') {
+    renderConfiguracoes();
   }
 
   if (view === 'registro') {
@@ -1444,7 +1484,7 @@ function executeSubstituirVaga(slotId, isAutotroca, folgaDate = '', isPayback = 
 
   // 2. Verificar limite mensal de 3 apoios para o novo usuário
   const monthlyCount = getUserMonthlySupportCount(currentUser.id, slot.data);
-  const needsAuthorization = monthlyCount >= 3;
+  const needsAuthorization = monthlyCount >= currentConfig.monthlyLimit;
 
   // 3. Reatribuir
   slots = slots.map(s => {
@@ -1714,7 +1754,7 @@ function calculateSupportScore(regrasArray) {
   
   let prod = 1.0;
   regrasArray.forEach(rid => {
-    const rule = SUPPORT_RULES.find(r => r.id === rid);
+    const rule = supportRules.find(r => r.id === rid);
     if (rule) {
       prod *= (rule.peso / 10);
     }
@@ -1927,7 +1967,7 @@ function renderAuditoriaTable() {
       // Detalhes do registro encontrado no histórico
       historyDetails = matchingHistory.map(h => {
         const regrasText = h.regras.map(r => {
-          const ruleObj = SUPPORT_RULES.find(rule => rule.id === r);
+          const ruleObj = supportRules.find(rule => rule.id === r);
           return ruleObj ? ruleObj.descricao : r;
         }).join(', ');
         return `
@@ -2389,27 +2429,32 @@ function renderTabs() {
   const drawerBtnUsuarios = document.getElementById('drawer-btn-usuarios');
   const drawerBtnAuditoria = document.getElementById('drawer-btn-auditoria');
   const drawerBtnRelatorios = document.getElementById('drawer-btn-relatorios');
+  const drawerBtnConfiguracoes = document.getElementById('drawer-btn-configuracoes');
 
   if (isGestor) {
     tabBtnUsuarios.style.display = 'inline-flex';
     if (tabBtnAuditoria) tabBtnAuditoria.style.display = 'inline-flex';
     if (tabBtnRelatorios) tabBtnRelatorios.style.display = 'inline-flex';
     if (tabBtnAutotrocas) tabBtnAutotrocas.style.display = 'inline-flex';
+    if (tabBtnConfiguracoes) tabBtnConfiguracoes.style.display = 'inline-flex';
 
     if (drawerBtnAutotrocas) drawerBtnAutotrocas.style.display = 'flex';
     if (drawerBtnUsuarios) drawerBtnUsuarios.style.display = 'flex';
     if (drawerBtnAuditoria) drawerBtnAuditoria.style.display = 'flex';
     if (drawerBtnRelatorios) drawerBtnRelatorios.style.display = 'flex';
+    if (drawerBtnConfiguracoes) drawerBtnConfiguracoes.style.display = 'flex';
   } else {
     tabBtnUsuarios.style.display = 'none';
     if (tabBtnAuditoria) tabBtnAuditoria.style.display = 'none';
     if (tabBtnRelatorios) tabBtnRelatorios.style.display = 'none';
     if (tabBtnAutotrocas) tabBtnAutotrocas.style.display = 'none';
+    if (tabBtnConfiguracoes) tabBtnConfiguracoes.style.display = 'none';
 
     if (drawerBtnAutotrocas) drawerBtnAutotrocas.style.display = 'none';
     if (drawerBtnUsuarios) drawerBtnUsuarios.style.display = 'none';
     if (drawerBtnAuditoria) drawerBtnAuditoria.style.display = 'none';
     if (drawerBtnRelatorios) drawerBtnRelatorios.style.display = 'none';
+    if (drawerBtnConfiguracoes) drawerBtnConfiguracoes.style.display = 'none';
   }
 
   const isOperador = isCurrentUserOperador();
@@ -2736,7 +2781,7 @@ function attachSlotActionsListeners(filteredSlots, container = slotsGrid) {
           const daysDiff = getDaysDifference(simulatedCurrentDate, slot.data);
           if (daysDiff <= 1) {
             actionHtml = `<button class="btn btn-secondary" style="width: 100%; cursor: not-allowed;" disabled>🔒 Ocupado (Substituição Indisponível - Menos de 1 dia)</button>`;
-          } else if (hasPriority) {
+          } else if (hasPriority && currentConfig.bumpingEnabled) {
             actionHtml = `<button class="btn btn-primary btn-substituir" style="width: 100%;">🔄 Substituir (Maior Prioridade)</button>`;
           } else if (slot.autotrocaPayback) {
             actionHtml = `<button class="btn btn-secondary" style="width: 100%; cursor: not-allowed;" disabled>🔒 Vaga Reservada (Quitação de Débito)</button>`;
@@ -2873,10 +2918,10 @@ function renderMyPanel() {
           </div>
           <div>
             <span style="color: var(--text-muted); display: block;">Apoios em ${monthName}:</span>
-            <strong style="font-size: 1.2rem; color: ${monthlyCount >= 3 ? 'var(--warning)' : 'var(--success)'}">
-              ${monthlyCount}/3
+            <strong style="font-size: 1.2rem; color: ${monthlyCount >= currentConfig.monthlyLimit ? 'var(--warning)' : 'var(--success)'}">
+              ${monthlyCount}/${currentConfig.monthlyLimit}
             </strong>
-            ${monthlyCount >= 3 ? '<span style="font-size: 0.65rem; color: var(--warning); display: block;">Requer autorização</span>' : ''}
+            ${monthlyCount >= currentConfig.monthlyLimit ? '<span style="font-size: 0.65rem; color: var(--warning); display: block;">Requer autorização</span>' : ''}
           </div>
         </div>
 
@@ -3176,7 +3221,7 @@ function openCalendarDayDetails(dateStr) {
           <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.72rem; color: var(--text-muted); flex-wrap: wrap; gap: 6px; margin-top: 4px;">
             <div style="display: flex; gap: 4px;">
               ${h.regras.map(rid => {
-                const rule = SUPPORT_RULES.find(r => r.id === rid);
+                const rule = supportRules.find(r => r.id === rid);
                 const color = rid === 'R13' ? 'var(--danger)' : 'var(--primary)';
                 return `<code style="font-size: 0.65rem; padding: 1px 4px; border-radius: 4px; background: rgba(255,255,255,0.05); color: ${color};" title="${rule?.descricao || rid}">${rid}</code>`;
               }).join('')}
@@ -3353,7 +3398,7 @@ function renderHistoryTable() {
         </td>
         <td>
           ${h.regras.map(rid => {
-            const rule = SUPPORT_RULES.find(r => r.id === rid);
+            const rule = supportRules.find(r => r.id === rid);
             const color = rid === 'R13' ? 'var(--danger)' : 'var(--primary)';
             return `<code style="font-size: 0.7rem; padding: 2px 4px; border-radius: 4px; background: hsla(222, 47%, 20%, 0.5); color: ${color}; margin-right: 4px;" title="${rule?.descricao}">${rid}</code>`;
           }).join('')}
@@ -3396,7 +3441,7 @@ function renderHistoryTable() {
           <span style="color: var(--text-muted); font-size: 0.75rem; display: block; margin-bottom: 4px;">Regras Aplicadas:</span>
           <div style="display: flex; flex-wrap: wrap; gap: 4px;">
             ${h.regras.map(rid => {
-              const rule = SUPPORT_RULES.find(r => r.id === rid);
+              const rule = supportRules.find(r => r.id === rid);
               const color = rid === 'R13' ? 'var(--danger)' : 'var(--primary)';
               return `<code style="font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; background: hsla(222, 47%, 20%, 0.5); color: ${color};" title="${rule?.descricao}">${rid}</code>`;
             }).join('')}
@@ -3828,8 +3873,8 @@ function updateFormUsuarioSelectCompatibility() {
     const [mY, mM] = mesLabel.split('-');
     const mNomes = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
     const mAbrev = mNomes[parseInt(mM, 10) - 1];
-    const countColor = mensalCount >= 3 ? ' 🔴' : mensalCount === 2 ? ' 🟡' : '';
-    formUserHtml += `<option value="${u.id}">${u.nome} (${u.cargo})${label} [${mensalCount}/3 ${mAbrev}${countColor}]</option>`;
+    const countColor = mensalCount >= currentConfig.monthlyLimit ? ' 🔴' : mensalCount === (currentConfig.monthlyLimit - 1) ? ' 🟡' : '';
+    formUserHtml += `<option value="${u.id}">${u.nome} (${u.cargo})${label} [${mensalCount}/${currentConfig.monthlyLimit} ${mAbrev}${countColor}]</option>`;
   });
   
   selectFormUsuario.innerHTML = formUserHtml;
@@ -3844,7 +3889,7 @@ function updateFormUsuarioSelectCompatibility() {
 
 function renderRulesCheckboxes() {
   let html = '';
-  SUPPORT_RULES.filter(r => r.id !== 'R13').forEach(r => {
+  supportRules.filter(r => r.id !== 'R13').forEach(r => {
     html += `
       <label class="rules-checkbox-item">
         <input type="checkbox" name="reg-regras" value="${r.id}" data-peso="${r.peso}">
@@ -3858,7 +3903,7 @@ function renderRulesCheckboxes() {
   rulesCheckboxContainer.innerHTML = html;
 
   let modalHtml = '';
-  SUPPORT_RULES.filter(r => r.id !== 'R13').forEach(r => {
+  supportRules.filter(r => r.id !== 'R13').forEach(r => {
     modalHtml += `
       <label style="display: flex; align-items: flex-start; gap: 8px; font-size: 0.8rem; color: var(--text-secondary); cursor: pointer; padding: 4px;">
         <input type="checkbox" name="modal-prev-regras" value="${r.id}">
@@ -3881,7 +3926,7 @@ function updatePointsPreview() {
 
   const isLate = isSubmissionLate();
   const isBypassed = regBypassLimit && regBypassLimit.checked;
-  const applyPenalty = isLate && !isBypassed;
+  const applyPenalty = isLate && !isBypassed && currentConfig.penaltiesEnabled;
   
   if (applyPenalty) {
     regPointsPreview.textContent = '2.0000';
@@ -3906,7 +3951,7 @@ function updatePointsPreview() {
     let prod = 1.0;
     let formulaText = '';
     regras.forEach((rid, index) => {
-      const rule = SUPPORT_RULES.find(r => r.id === rid);
+      const rule = supportRules.find(r => r.id === rid);
       prod *= (rule.peso / 10);
       formulaText += `${index > 0 ? ' × ' : ''}(${rule.peso}/10)`;
     });
@@ -3926,7 +3971,7 @@ function isSubmissionLate() {
   const simDate = new Date(simulatedCurrentDate + 'T00:00:00');
 
   const diffTime = simDate - supportDate;
-  const limitMs = 3 * 24 * 60 * 60 * 1000;
+  const limitMs = currentConfig.lateSubmissionHours * 60 * 60 * 1000;
   
   return diffTime > limitMs;
 }
@@ -3935,13 +3980,13 @@ function checkLateSubmission() {
   const isLate = isSubmissionLate();
   const isBypassed = regBypassLimit && regBypassLimit.checked;
   
-  if (isLate) {
+  if (isLate && currentConfig.penaltiesEnabled) {
     regDateWarning.style.display = 'block';
     if (isBypassed) {
-      regDateWarning.textContent = 'ℹ️ Lançamento fora do prazo de 72h, mas a penalidade R13 foi ignorada por ajuste administrativo.';
+      regDateWarning.textContent = `ℹ️ Lançamento fora do prazo de ${currentConfig.lateSubmissionHours}h, mas a penalidade R13 foi ignorada por ajuste administrativo.`;
       regDateWarning.style.color = 'var(--warning)';
     } else {
-      regDateWarning.textContent = '⚠️ Lançamento fora do prazo de 72 horas! Será aplicada a penalidade R13 automaticamente.';
+      regDateWarning.textContent = `⚠️ Lançamento fora do prazo de ${currentConfig.lateSubmissionHours} horas! Será aplicada a penalidade R13 automaticamente.`;
       regDateWarning.style.color = 'var(--danger)';
     }
   } else {
@@ -4060,7 +4105,7 @@ function executeAssumirVagaDireta(slotId, isAutotroca, folgaDate = '', isPayback
   const finalIsPayback = isPayback || userHasDebt;
 
   const monthlyCount = getUserMonthlySupportCount(currentUser.id, slot.data);
-  const needsAuthorization = monthlyCount >= 3;
+  const needsAuthorization = monthlyCount >= currentConfig.monthlyLimit;
 
   slots = slots.map(s => {
     if (s.id === slotId) {
@@ -4211,7 +4256,7 @@ function handleEncerrarDisputa(slotId) {
 
   // Verificar limite mensal de 3 apoios para o vencedor
   const monthlyCount = getUserMonthlySupportCount(vencedor.id, slot.data);
-  const needsAuthorization = monthlyCount >= 3;
+  const needsAuthorization = monthlyCount >= currentConfig.monthlyLimit;
 
   slots = slots.map(s => {
     if (s.id === slotId) {
@@ -4304,15 +4349,15 @@ function handleAutoRegistroApoio(e) {
   const isLate = isSubmissionLate();
   const isGestor = isCurrentUserGestor();
   const isBypassed = regBypassLimit && regBypassLimit.checked;
-  const applyPenalty = isLate && !isBypassed;
+  const applyPenalty = isLate && !isBypassed && currentConfig.penaltiesEnabled;
 
-  // Verificar limite mensal de 3 apoios
+  // Verificar limite mensal de apoios
   const monthlyCount = getUserMonthlySupportCount(regUserId, regData);
-  const exceedsMonthlyLimit = monthlyCount >= 3;
+  const exceedsMonthlyLimit = monthlyCount >= currentConfig.monthlyLimit;
 
   // Se o operador está registrando para si mesmo e excede o limite, precisa de autorização
   if (exceedsMonthlyLimit && !isGestor && !editingHistoryId) {
-    showBanner(`Este é o ${monthlyCount + 1}º apoio de ${users.find(u => u.id === regUserId)?.nome || 'colaborador'} neste mês. Apenas um Supervisor, Gerente ou Administrador pode registrar apoios além do limite de 3/mês.`, 'danger');
+    showBanner(`Este é o ${monthlyCount + 1}º apoio de ${users.find(u => u.id === regUserId)?.nome || 'colaborador'} neste mês. Apenas um Supervisor, Gerente ou Administrador pode registrar apoios além do limite de ${currentConfig.monthlyLimit}/mês.`, 'danger');
     return;
   }
 
@@ -4320,7 +4365,7 @@ function handleAutoRegistroApoio(e) {
   if (!isGestor) {
     if (regUserId !== currentUser.id) {
       if (!isLate) {
-        showBanner('Você só pode registrar apoios dentro do prazo para si mesmo. Lançamentos para terceiros só são permitidos após 72h com a penalidade R13 aplicada.', 'danger');
+        showBanner(`Você só pode registrar apoios dentro do prazo para si mesmo. Lançamentos para terceiros só são permitidos após ${currentConfig.lateSubmissionHours}h com a penalidade R13 aplicada.`, 'danger');
         return;
       }
     }
@@ -4846,7 +4891,7 @@ function handleCriarSolicitacaoSlot(e) {
           
           if (newUsuarioId) {
             const monthlyCount = getUserMonthlySupportCount(newUsuarioId, formData);
-            const needsAuthorization = monthlyCount >= 3;
+            const needsAuthorization = monthlyCount >= currentConfig.monthlyLimit;
             if (needsAuthorization) {
               updated.requerAutorizacao = true;
               updated.autorizadoPorId = currentUser.id; // Pré-autorizado pelo admin
@@ -4906,7 +4951,7 @@ function handleCriarSolicitacaoSlot(e) {
       let needsAuthorization = false;
       if (selectedUsuarioId) {
         const monthlyCount = getUserMonthlySupportCount(selectedUsuarioId, dStr);
-        needsAuthorization = monthlyCount >= 3;
+        needsAuthorization = monthlyCount >= currentConfig.monthlyLimit;
       }
 
       const novoSlot = {
@@ -5481,7 +5526,7 @@ function renderKpiChartRules(filtered) {
   if (!canvas || typeof Chart === 'undefined') return;
 
   const ruleCounts = {};
-  SUPPORT_RULES.forEach(r => { ruleCounts[r.id] = 0; });
+  supportRules.forEach(r => { ruleCounts[r.id] = 0; });
 
   filtered.forEach(h => {
     if (h.regras) {
@@ -5491,8 +5536,8 @@ function renderKpiChartRules(filtered) {
     }
   });
 
-  const labels = SUPPORT_RULES.map(r => `${r.id}: ${r.descricao.substring(0, 35)}${r.descricao.length > 35 ? '...' : ''}`);
-  const data = SUPPORT_RULES.map(r => ruleCounts[r.id] || 0);
+  const labels = supportRules.map(r => `${r.id}: ${r.descricao.substring(0, 35)}${r.descricao.length > 35 ? '...' : ''}`);
+  const data = supportRules.map(r => ruleCounts[r.id] || 0);
 
   if (kpiChartRules) kpiChartRules.destroy();
   kpiChartRules = new Chart(canvas, {
@@ -5502,8 +5547,8 @@ function renderKpiChartRules(filtered) {
       datasets: [{
         label: 'Ocorrências',
         data,
-        backgroundColor: SUPPORT_RULES.map((_, i) => `hsla(${200 + i * 12}, 75%, 55%, 0.7)`),
-        borderColor: SUPPORT_RULES.map((_, i) => `hsl(${200 + i * 12}, 75%, 55%)`),
+        backgroundColor: supportRules.map((_, i) => `hsla(${200 + i * 12}, 75%, 55%, 0.7)`),
+        borderColor: supportRules.map((_, i) => `hsl(${200 + i * 12}, 75%, 55%)`),
         borderWidth: 1,
         borderRadius: 4,
         borderSkipped: false
@@ -6322,6 +6367,120 @@ function handleImportHistoryCSV(event) {
     event.target.value = '';
   };
   reader.readAsText(file, 'utf-8');
+}
+
+function renderConfiguracoes() {
+  const configOrgId = document.getElementById('config-org-id');
+  const configShareUrl = document.getElementById('config-share-url');
+  const configMonthlyLimit = document.getElementById('config-monthly-limit');
+  const configLateHours = document.getElementById('config-late-hours');
+  const configBumpingEnabled = document.getElementById('config-bumping-enabled');
+  const configPenaltiesEnabled = document.getElementById('config-penalties-enabled');
+  const configRulesTableBody = document.getElementById('config-rules-table-body');
+
+  if (configOrgId) configOrgId.value = orgId;
+  
+  const shareUrl = window.location.origin + window.location.pathname + '?org=' + encodeURIComponent(orgId);
+  if (configShareUrl) configShareUrl.value = shareUrl;
+
+  if (configMonthlyLimit) configMonthlyLimit.value = currentConfig.monthlyLimit;
+  if (configLateHours) configLateHours.value = currentConfig.lateSubmissionHours;
+  if (configBumpingEnabled) configBumpingEnabled.checked = currentConfig.bumpingEnabled;
+  if (configPenaltiesEnabled) configPenaltiesEnabled.checked = currentConfig.penaltiesEnabled;
+
+  if (configRulesTableBody) {
+    let rulesHtml = '';
+    supportRules.forEach(r => {
+      rulesHtml += `
+        <tr>
+          <td><strong>${r.id}</strong></td>
+          <td>
+            <input type="text" class="input-field config-rule-desc" data-id="${r.id}" value="${r.descricao}" style="width: 100%; font-size: 0.85rem;">
+          </td>
+          <td style="text-align: center;">
+            <input type="number" class="input-field config-rule-weight" data-id="${r.id}" value="${r.peso}" min="1" max="20" style="width: 80px; text-align: center; font-size: 0.85rem; display: inline-block;">
+          </td>
+        </tr>
+      `;
+    });
+    configRulesTableBody.innerHTML = rulesHtml;
+  }
+}
+
+function initConfiguracoesWiring() {
+  const btnCopyShareUrl = document.getElementById('btn-copy-share-url');
+  if (btnCopyShareUrl) {
+    btnCopyShareUrl.addEventListener('click', () => {
+      const configShareUrl = document.getElementById('config-share-url');
+      if (configShareUrl) {
+        configShareUrl.select();
+        configShareUrl.setSelectionRange(0, 99999);
+        navigator.clipboard.writeText(configShareUrl.value)
+          .then(() => showBanner("Link copiado para a área de transferência!", "success"))
+          .catch(() => showBanner("Falha ao copiar o link.", "danger"));
+      }
+    });
+  }
+
+  const btnGoToNewOrg = document.getElementById('btn-go-to-new-org');
+  const configNewOrgInput = document.getElementById('config-new-org-input');
+  if (btnGoToNewOrg && configNewOrgInput) {
+    btnGoToNewOrg.addEventListener('click', () => {
+      const val = configNewOrgInput.value.trim().toLowerCase();
+      if (!val) {
+        showBanner("Digite um identificador válido para a organização.", "warning");
+        return;
+      }
+      const sanitized = val.replace(/[^a-z0-9_-]/g, '');
+      if (!sanitized) {
+        showBanner("Identificador contém caracteres inválidos.", "danger");
+        return;
+      }
+      window.location.search = '?org=' + encodeURIComponent(sanitized);
+    });
+  }
+
+  const btnSaveConfig = document.getElementById('btn-save-config');
+  if (btnSaveConfig) {
+    btnSaveConfig.addEventListener('click', async () => {
+      const configMonthlyLimit = document.getElementById('config-monthly-limit');
+      const configLateHours = document.getElementById('config-late-hours');
+      const configBumpingEnabled = document.getElementById('config-bumping-enabled');
+      const configPenaltiesEnabled = document.getElementById('config-penalties-enabled');
+
+      const monthlyLimitVal = parseInt(configMonthlyLimit?.value, 10) || 3;
+      const lateHoursVal = parseInt(configLateHours?.value, 10) || 72;
+      const bumpingVal = configBumpingEnabled ? configBumpingEnabled.checked : true;
+      const penaltiesVal = configPenaltiesEnabled ? configPenaltiesEnabled.checked : true;
+
+      const updatedRules = supportRules.map(r => {
+        const descInput = document.querySelector(`.config-rule-desc[data-id="${r.id}"]`);
+        const weightInput = document.querySelector(`.config-rule-weight[data-id="${r.id}"]`);
+        
+        return {
+          id: r.id,
+          descricao: descInput ? descInput.value.trim() : r.descricao,
+          peso: weightInput ? parseInt(weightInput.value, 10) || r.peso : r.peso
+        };
+      });
+
+      currentConfig.monthlyLimit = monthlyLimitVal;
+      currentConfig.lateSubmissionHours = lateHoursVal;
+      currentConfig.bumpingEnabled = bumpingVal;
+      currentConfig.penaltiesEnabled = penaltiesVal;
+      currentConfig.supportRules = updatedRules;
+
+      supportRules = updatedRules;
+
+      try {
+        await persistChanges('config');
+        showBanner("Configurações salvas com sucesso!", "success");
+        renderAll();
+      } catch (err) {
+        showBanner("Erro ao salvar configurações no banco de dados.", "danger");
+      }
+    });
+  }
 }
 
 // Rodar na carga

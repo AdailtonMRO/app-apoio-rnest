@@ -141,3 +141,12 @@ export const getStoredData = () => {
 export const saveStoredData = (data) => {
   console.warn("Aviso: Tentativa de salvamento no LocalStorage bloqueada. O sistema opera apenas online.");
 };
+
+// Configuração padrão inicial do sistema para novas organizações
+export const DEFAULT_CONFIG = {
+  monthlyLimit: 3,
+  lateSubmissionHours: 72,
+  bumpingEnabled: true,
+  penaltiesEnabled: true,
+  supportRules: SUPPORT_RULES
+};
