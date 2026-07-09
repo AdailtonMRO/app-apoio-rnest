@@ -44,6 +44,14 @@ function isCurrentUserAdminOnly() {
   return false;
 }
 
+function isCurrentUserAdminOrSupervisor() {
+  if (!currentUser) return false;
+  if (currentUser.tipo === 'ADMINISTRADOR' || currentUser.tipo === 'SUPERVISOR') {
+    return adminViewMode === 'admin';
+  }
+  return false;
+}
+
 function isCurrentUserGestor() {
   if (!currentUser) return false;
   const isGestorRole = currentUser.tipo === 'ADMINISTRADOR' || currentUser.tipo === 'GERENTE' || currentUser.tipo === 'SUPERVISOR';
@@ -529,7 +537,7 @@ function init() {
     addModal.style.display = 'flex';
     const elMotivo = document.getElementById('form-motivo');
     if (elMotivo) {
-      elMotivo.disabled = !isCurrentUserAdminOnly();
+      elMotivo.disabled = !isCurrentUserAdminOrSupervisor();
     }
   });
   btnCloseAddModal.addEventListener('click', handleCancelarSlotModal);
@@ -2505,11 +2513,9 @@ function renderAdminBar() {
       btnCreate.style.display = 'none';
     }
 
-    // Apenas Admin e Gerente aplicam multas de WhatsApp
+    // Apenas Admin e Gerente aplicavam multas de WhatsApp, mas agora está oculto para todos
     const btnInfracao = document.getElementById('btn-open-infracao-modal');
-    if (isCurrentUserAdminOnly() || (currentUser && currentUser.tipo === 'GERENTE')) {
-      btnInfracao.style.display = 'inline-flex';
-    } else {
+    if (btnInfracao) {
       btnInfracao.style.display = 'none';
     }
 
@@ -4592,7 +4598,7 @@ function handleIniciarEdicaoEscala(slotId) {
   const elMotivo = document.getElementById('form-motivo');
   if (elMotivo) {
     elMotivo.value = slot.motivo || '';
-    elMotivo.disabled = !isCurrentUserAdminOnly();
+    elMotivo.disabled = !isCurrentUserAdminOrSupervisor();
   }
 
   // Preencher as regras previstas
