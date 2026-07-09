@@ -1401,8 +1401,9 @@ function handleSubstituirVaga(slotId) {
     return;
   }
 
-  if (slot.data === simulatedCurrentDate) {
-    showBanner('Não é possível substituir vagas de apoio do dia atual.', 'danger');
+  const daysDiff = getDaysDifference(simulatedCurrentDate, slot.data);
+  if (daysDiff <= 1) {
+    showBanner('Não é possível substituir vagas de apoio faltando um dia ou menos para a realização.', 'danger');
     return;
   }
 
@@ -1418,6 +1419,12 @@ function handleSubstituirVaga(slotId) {
 function executeSubstituirVaga(slotId, isAutotroca, folgaDate = '', isPayback = false) {
   const slot = slots.find(s => s.id === slotId);
   if (!slot) return;
+
+  const daysDiff = getDaysDifference(simulatedCurrentDate, slot.data);
+  if (daysDiff <= 1) {
+    showBanner('Não é possível substituir vagas de apoio faltando um dia ou menos para a realização.', 'danger');
+    return;
+  }
 
   const oldAssigneeId = slot.usuarioId;
   const oldUser = users.find(u => u.id === oldAssigneeId);
@@ -1542,6 +1549,11 @@ function handleDesistirVaga(slotId) {
 
   if (slot.data < simulatedCurrentDate) {
     showBanner('Não é possível desistir de vagas de apoio do histórico (datas passadas).', 'danger');
+    return;
+  }
+
+  if (slot.data === simulatedCurrentDate) {
+    showBanner('Desistência não permitida no dia de realização da vaga. Contate a supervisão.', 'danger');
     return;
   }
 
@@ -2709,7 +2721,9 @@ function attachSlotActionsListeners(filteredSlots, container = slotsGrid) {
       else if (slot.status === 'ATRIBUIDO' && !isDisputa && isCurrentUserOperador()) {
         const isExcluido = currentUser.cargo === 'GPI' || currentUser.cargo === 'OPMAN';
         if (slot.usuarioId === currentUser.id) {
-          if (slot.autotrocaPayback) {
+          if (slot.data === simulatedCurrentDate) {
+            actionHtml = `<button class="btn btn-secondary" style="width: 100%; cursor: not-allowed; border-color: var(--warning); color: var(--warning);" disabled>🔒 Desistência Indisponível no Dia</button>`;
+          } else if (slot.autotrocaPayback) {
             actionHtml = `<button class="btn btn-secondary" style="width: 100%; cursor: not-allowed; border-color: var(--warning); color: var(--warning);" disabled>🔒 Bloqueado por Quitação de Autotroca</button>`;
           } else {
             actionHtml = `<button class="btn btn-danger btn-desistir-vaga" style="width: 100%;">❌ Desistir do Apoio (Liberar Vaga)</button>`;
@@ -2719,8 +2733,9 @@ function attachSlotActionsListeners(filteredSlots, container = slotsGrid) {
           const occupantIsExcluido = occupant && (occupant.cargo === 'GPI' || occupant.cargo === 'OPMAN');
           const hasPriority = occupantIsExcluido || hasHigherPriority(currentUser.id, slot.usuarioId, slot.id);
           
-          if (slot.data === simulatedCurrentDate) {
-            actionHtml = `<button class="btn btn-secondary" style="width: 100%; cursor: not-allowed;" disabled>🔒 Ocupado (Substituição Indisponível no Dia)</button>`;
+          const daysDiff = getDaysDifference(simulatedCurrentDate, slot.data);
+          if (daysDiff <= 1) {
+            actionHtml = `<button class="btn btn-secondary" style="width: 100%; cursor: not-allowed;" disabled>🔒 Ocupado (Substituição Indisponível - Menos de 1 dia)</button>`;
           } else if (hasPriority) {
             actionHtml = `<button class="btn btn-primary btn-substituir" style="width: 100%;">🔄 Substituir (Maior Prioridade)</button>`;
           } else if (slot.autotrocaPayback) {

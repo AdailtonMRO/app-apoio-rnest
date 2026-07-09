@@ -69,15 +69,22 @@ Visando preservar a saúde ocupacional e evitar sobrecarga de trabalho, fica est
 
 ---
 
+### TÍTULO III-A - DOS BLOQUEIOS E PRAZOS CRÍTICOS
+
+#### Art. 10º
+A vaga de apoio já ocupada por um voluntário não poderá ser assumida por outro colaborador por meio de substituição por prioridade com antecedência inferior a 1 (um) dia (24 horas) de sua data prevista de realização. Vagas livres (não ocupadas) permanecem disponíveis para candidatura rápida a qualquer momento. Fica igualmente vedada a desistência de vaga de apoio por parte do operador voluntário no próprio dia de sua realização. Alterações excepcionais de remoção de nome ou substituição neste período crítico somente poderão ser realizadas diretamente pela Supervisão ou Gestão.
+
+---
+
 ### TÍTULO IV - DO REGRAMENTO DE AUTOTROCAS
 
-#### Art. 10º (Autotroca Normal)
+#### Art. 11º (Autotroca Normal)
 A Autotroca Normal ocorre quando um colaborador assume uma vaga de apoio em sua folga e opta por receber outra folga em data futura.
 *   **Procedimento**: O operador deve informar a data da folga pretendida no ato de assumir a vaga.
 *   **Controle**: O lançamento é gravado com a marcação de autotroca pendente de aprovação de folga pela gestão.
 *   **Pontuação**: O operador é pontuado normalmente pelo apoio realizado, acumulando os pontos no ranking de classificação geral de acordo com as características do apoio.
 
-#### Art. 11º (Autotroca Contrária - Débito de Apoio)
+#### Art. 12º (Autotroca Contrária - Débito de Apoio)
 A Autotroca Contrária ocorre quando, por conveniência operacional, um operador usufrui de uma folga antecipada sem ter realizado um apoio correspondente anterior.
 *   **Procedimento**: A folga é lançada na base de dados por um Supervisor/Gerente na aba de Gestão de Autotrocras, definindo a data da folga usufruída.
 *   **Efeito**: O operador entra imediatamente em status de **"Em Débito" (Saldo de Apoios Negativo)**.
@@ -87,8 +94,9 @@ A Autotroca Contrária ocorre quando, por conveniência operacional, um operador
 
 ### TÍTULO V - DISPOSIÇÕES FINAIS
 
-#### Art. 12º
+#### Art. 13º
 Todos os dados de escala e histórico são públicos para fins de auditoria interna pelos próprios colaboradores, ficando vedadas alterações sem consulta prévia às partes envolvidas.
 
-#### Art. 13º
+#### Art. 14º
 Este regramento consolida e atualiza as regras vigentes da aplicação Apoio RNEST a partir de sua publicação oficial.
+
