@@ -943,7 +943,7 @@ function setupRealtimeSync() {
   const defaultCandidatos = {};
 
   // Sync users
-  unsubscribers.push(syncDocument('users', INITIAL_USERS, (data) => {
+  unsubscribers.push(syncDocument('users', [], (data) => {
     syncedDocs.users = true;
     if (areAllDocsSynced()) {
       dbConnected = true;
@@ -964,10 +964,29 @@ function setupRealtimeSync() {
     
     if (isFirebaseEnabled && authenticatedGoogleUser) {
       // Encontrar usuário correspondente
-      const matched = users.find(u => 
+      let matched = users.find(u => 
         u.email.toLowerCase() === authenticatedGoogleUser.email.toLowerCase() ||
         u.id.toLowerCase() === authenticatedGoogleUser.email.split('@')[0].toLowerCase()
       );
+
+      // Se a base de dados estiver vazia (nova org ou pós-limpeza),
+      // permite auto-inicialização do primeiro administrador criador
+      if (!matched && users.length === 0) {
+        const isCreator = authenticatedGoogleUser.email.toLowerCase() === 'adailton.medeiros@gmail.com';
+        matched = {
+          id: isCreator ? 'AB3R' : 'ADMIN',
+          nome: authenticatedGoogleUser.displayName || 'Administrador Inicial',
+          email: authenticatedGoogleUser.email.toLowerCase(),
+          tipo: 'ADMINISTRADOR',
+          cargo: 'Administrador',
+          infracoesWA: 0,
+          areasFuncoes: ['SUPERVISORES'],
+          grupoTrabalho: 'grupo_a'
+        };
+        users.push(matched);
+        persistChanges('users');
+        console.log("🚀 Primeira inicialização: Administrador inicial auto-criado.", matched);
+      }
 
       if (matched) {
         currentUser = matched;
@@ -1032,7 +1051,7 @@ function setupRealtimeSync() {
   }));
 
   // Sync slots
-  unsubscribers.push(syncDocument('slots', INITIAL_SLOTS, (data) => {
+  unsubscribers.push(syncDocument('slots', [], (data) => {
     syncedDocs.slots = true;
     if (areAllDocsSynced()) {
       dbConnected = true;
@@ -1045,7 +1064,7 @@ function setupRealtimeSync() {
   }));
 
   // Sync history
-  unsubscribers.push(syncDocument('history', INITIAL_HISTORY, (data) => {
+  unsubscribers.push(syncDocument('history', [], (data) => {
     syncedDocs.history = true;
     if (areAllDocsSynced()) {
       dbConnected = true;

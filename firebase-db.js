@@ -146,22 +146,17 @@ export function syncDocument(docName, defaultData, callback) {
         }
       }
     } else {
-      console.log(`Documento '${docPath}' não encontrado. Inicializando com dados padrão...`);
-      try {
-        if (setDocFn) {
-          await setDocFn(docRef, { data: defaultData });
-        } else {
-          console.error("setDocFn não está inicializado!");
-        }
-      } catch (err) {
-        console.error(`Erro ao inicializar o documento '${docPath}' no Firestore:`, err);
-        if (typeof window.showFatalError === 'function') {
-          window.showFatalError(
-            "Erro ao Inicializar Banco de Dados",
-            `Não foi possível criar o documento '${docPath}' com dados padrão no Firestore. Verifique suas permissões: ${err.message || err}`
-          );
-        }
+      console.warn(`⚠️ Documento '${docPath}' não encontrado no Firestore. Retornando estrutura vazia/padrão localmente.`);
+      // NUNCA escrevemos dados padrão automaticamente no Firestore para evitar sobreposição acidental ou resets indesejados.
+      let fallbackData = [];
+      if (docName === 'config') {
+        fallbackData = defaultData; // usa DEFAULT_CONFIG local
+      } else if (docName === 'candidatos') {
+        fallbackData = {};
+      } else if (docName === 'groups') {
+        fallbackData = defaultData; // usa INITIAL_GROUPS local
       }
+      callback(fallbackData);
     }
   }, (error) => {
     console.error(`Erro ao escutar o documento ${docName} em ${docPath}:`, error);
@@ -186,7 +181,13 @@ export async function updateDocument(docName, dataArrayOrObj) {
   const docPath = getDocPath(docName);
   const docRef = docFn(db, docPath);
   try {
-    await updateDocFn(docRef, { data: dataArrayOrObj });
+    // Usamos setDocFn em vez de updateDocFn para garantir que o documento seja criado se não existir,
+    // eliminando qualquer necessidade de pré-inicialização do banco de dados na nuvem com dados padrão fictícios.
+    if (setDocFn) {
+      await setDocFn(docRef, { data: dataArrayOrObj });
+    } else {
+      await updateDocFn(docRef, { data: dataArrayOrObj });
+    }
   } catch (error) {
     console.error(`Erro ao gravar o documento ${docName} no Firestore em ${docPath}:`, error);
     throw error;
