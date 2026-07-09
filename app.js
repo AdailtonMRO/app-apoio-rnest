@@ -773,14 +773,12 @@ function init() {
       });
     }
   } else {
-    // Sem Firebase: Exibir overlay de erro de conexão e travar a UI de forma definitiva
-    showConnectionError();
-    const errorTitle = document.querySelector('#connection-error-overlay h2');
-    const errorText = document.querySelector('#connection-error-overlay p');
-    const errorBtn = document.getElementById('btn-reload-connection-error');
-    if (errorTitle) errorTitle.textContent = "Erro de Configuração";
-    if (errorText) errorText.textContent = "O Firebase é obrigatório para o funcionamento deste sistema. A operação em modo local (offline) está desativada.";
-    if (errorBtn) errorBtn.style.display = 'none';
+    // Sem Firebase: Exibir overlay de erro de configuração e travar a UI
+    showConnectionError(
+      "Erro de Configuração",
+      "O Firebase é obrigatório para o funcionamento deste sistema. A operação em modo local (offline) está desativada.",
+      false
+    );
   }
 }
 
@@ -827,10 +825,18 @@ if (btnThemeToggle) {
 
 let unsubscribers = [];
 
-function showConnectionError() {
+function showConnectionError(title = null, text = null, showReload = true) {
   const overlay = document.getElementById('connection-error-overlay');
   if (overlay) {
     overlay.style.display = 'flex';
+    const errorTitle = overlay.querySelector('.modal-title');
+    const errorText = overlay.querySelector('p');
+    const errorBtn = document.getElementById('btn-reload-connection-error');
+    if (errorTitle && title) errorTitle.textContent = title;
+    if (errorText && text) errorText.textContent = text;
+    if (errorBtn) {
+      errorBtn.style.display = showReload ? 'block' : 'none';
+    }
   }
 }
 
@@ -841,10 +847,21 @@ function hideConnectionError() {
   }
 }
 
+// Expor função global de erro fatal para ser usada pelo firebase-db.js
+window.showFatalError = function(title, text) {
+  showConnectionError(title, text, false);
+};
+
 let tokenRegistered = false;
 
 async function registerFCMTokenForUser(userId) {
   if (tokenRegistered) return;
+  
+  // Salvaguarda: impede registro se a lista de usuários não estiver devidamente sincronizada do Firebase
+  if (!syncedDocs.users) {
+    console.warn("⚠️ Registro de token FCM adiado pois a lista de usuários ainda não foi sincronizada do Firebase.");
+    return;
+  }
 
   try {
     const token = await getNotificationToken();

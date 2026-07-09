@@ -19,7 +19,7 @@ let signInWithPopupFn = null;
 let signOutFn = null;
 let onAuthStateChangedFn = null;
 let docFn = null;
-let setDocFn = null;
+let updateDocFn = null;
 let getDocFn = null;
 let onSnapshotFn = null;
 
@@ -28,7 +28,7 @@ if (isFirebaseEnabled) {
     // Importações dinâmicas via ES Modules
     const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js');
     const { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js');
-    const { getFirestore, doc, setDoc, getDoc, onSnapshot } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js');
+    const { getFirestore, doc, updateDoc, getDoc, onSnapshot } = await import('https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js');
 
     firebaseApp = initializeApp(firebaseConfig);
     auth = getAuth(firebaseApp);
@@ -39,7 +39,7 @@ if (isFirebaseEnabled) {
     signOutFn = signOut;
     onAuthStateChangedFn = onAuthStateChanged;
     docFn = doc;
-    setDocFn = setDoc;
+    updateDocFn = updateDoc;
     getDocFn = getDoc;
     onSnapshotFn = onSnapshot;
 
@@ -102,7 +102,7 @@ export function onAuthChange(callback) {
 
 /**
  * Escuta mudanças em tempo real em um documento da coleção e aciona o callback.
- * Se o documento não existir, ele o cria (seed) apenas com estruturas vazias ou configurações essenciais.
+ * Se o documento não existir no Firestore, exibe um erro crítico e bloqueia a interface.
  */
 export function syncDocument(docName, defaultData, callback) {
   if (!isFirebaseEnabled || !db) {
@@ -115,20 +115,40 @@ export function syncDocument(docName, defaultData, callback) {
   return onSnapshotFn(docRef, async (snapshot) => {
     if (snapshot.exists()) {
       const payload = snapshot.data();
-      callback(payload.data);
+      if (payload && payload.data !== undefined) {
+        callback(payload.data);
+      } else {
+        console.error(`❌ ERRO CRÍTICO: O campo 'data' no documento '${docName}' está ausente no Firestore!`);
+        if (typeof window.showFatalError === 'function') {
+          window.showFatalError(
+            "Erro Crítico de Estrutura de Banco de Dados",
+            `O documento '${docName}' existe no Firestore, mas a chave 'data' está ausente ou corrompida. Para segurança dos dados, a gravação foi bloqueada.`
+          );
+        }
+      }
     } else {
-      console.error(`❌ ERRO CRÍTICO: O documento '${docName}' não existe no Firestore! A inicialização automática pelo cliente foi bloqueada para segurança dos dados de produção.`);
-      // Fornece dados padrão em memória para evitar crashes na interface, mas sem realizar escritas no banco
-      let initialData = (docName === 'users' || docName === 'groups') ? defaultData : (docName === 'candidatos' ? {} : []);
-      callback(initialData);
+      console.error(`❌ ERRO CRÍTICO: O documento '${docName}' não existe no Firestore!`);
+      if (typeof window.showFatalError === 'function') {
+        window.showFatalError(
+          "Erro Crítico de Banco de Dados",
+          `O documento '${docName}' não foi encontrado no Firebase Firestore. A sincronização e gravação para este documento foram bloqueadas.`
+        );
+      }
     }
   }, (error) => {
     console.error(`Erro ao escutar o documento ${docName}:`, error);
+    if (typeof window.showFatalError === 'function') {
+      window.showFatalError(
+        "Erro de Conexão com o Banco de Dados",
+        `Erro de conexão/permissão ao escutar '${docName}': ${error.message || error}`
+      );
+    }
   });
 }
 
 /**
- * Atualiza os dados de um documento no Firestore.
+ * Atualiza os dados de um documento existente no Firestore.
+ * Usa updateDoc para falhar caso o documento tenha sido deletado.
  */
 export async function updateDocument(docName, dataArrayOrObj) {
   if (!isFirebaseEnabled || !db) {
@@ -138,7 +158,7 @@ export async function updateDocument(docName, dataArrayOrObj) {
 
   const docRef = docFn(db, 'rnest_database', docName);
   try {
-    await setDocFn(docRef, { data: dataArrayOrObj });
+    await updateDocFn(docRef, { data: dataArrayOrObj });
   } catch (error) {
     console.error(`Erro ao gravar o documento ${docName} no Firestore:`, error);
     throw error;
