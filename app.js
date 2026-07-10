@@ -6556,6 +6556,65 @@ function handleImportHistoryCSV(event) {
   reader.readAsText(file, 'utf-8');
 }
 
+function updateLocalRulesFromInputs() {
+  const configRulesTableBody = document.getElementById('config-rules-table-body');
+  if (!configRulesTableBody) return;
+
+  const updatedRules = [];
+  const rows = configRulesTableBody.querySelectorAll('tr[data-id]');
+  rows.forEach(row => {
+    const id = row.getAttribute('data-id');
+    const idInput = row.querySelector('.config-rule-id');
+    const descInput = row.querySelector('.config-rule-desc');
+    const weightInput = row.querySelector('.config-rule-weight');
+
+    const ruleId = idInput ? idInput.value.trim().toUpperCase() : id;
+    const ruleDesc = descInput ? descInput.value.trim() : '';
+    const ruleWeight = weightInput ? parseInt(weightInput.value, 10) || 10 : 10;
+
+    updatedRules.push({
+      id: ruleId,
+      descricao: ruleDesc,
+      peso: ruleWeight
+    });
+  });
+  
+  supportRules = updatedRules;
+}
+
+function getNextRuleId() {
+  let maxNum = 0;
+  supportRules.forEach(r => {
+    const match = r.id.match(/^R(\d+)$/i);
+    if (match) {
+      const num = parseInt(match[1], 10);
+      if (num > maxNum) maxNum = num;
+    }
+  });
+  return `R${maxNum + 1}`;
+}
+
+function handleAddRule() {
+  updateLocalRulesFromInputs();
+  const nextId = getNextRuleId();
+  supportRules.push({
+    id: nextId,
+    descricao: 'Nova Regra de Apoio',
+    peso: 10
+  });
+  renderConfiguracoes();
+}
+
+function handleDeleteRule(ruleId) {
+  if (ruleId === 'R13') {
+    showBanner("A regra R13 é do sistema e não pode ser excluída.", "danger");
+    return;
+  }
+  updateLocalRulesFromInputs();
+  supportRules = supportRules.filter(r => r.id !== ruleId);
+  renderConfiguracoes();
+}
+
 function renderConfiguracoes() {
   const configOrgId = document.getElementById('config-org-id');
   const configShareUrl = document.getElementById('config-share-url');
@@ -6578,19 +6637,33 @@ function renderConfiguracoes() {
   if (configRulesTableBody) {
     let rulesHtml = '';
     supportRules.forEach(r => {
+      const isR13 = r.id === 'R13';
       rulesHtml += `
-        <tr>
-          <td><strong>${r.id}</strong></td>
+        <tr data-id="${r.id}">
           <td>
-            <input type="text" class="input-field config-rule-desc" data-id="${r.id}" value="${r.descricao}" style="width: 100%; font-size: 0.85rem;">
+            <input type="text" class="input-field config-rule-id" value="${r.id}" ${isR13 ? 'disabled' : ''} style="width: 100%; font-size: 0.85rem; font-weight: bold; text-align: center;">
+          </td>
+          <td>
+            <input type="text" class="input-field config-rule-desc" value="${r.descricao}" style="width: 100%; font-size: 0.85rem;">
           </td>
           <td style="text-align: center;">
-            <input type="number" class="input-field config-rule-weight" data-id="${r.id}" value="${r.peso}" min="1" max="20" style="width: 80px; text-align: center; font-size: 0.85rem; display: inline-block;">
+            <input type="number" class="input-field config-rule-weight" value="${r.peso}" min="1" max="20" style="width: 80px; text-align: center; font-size: 0.85rem; display: inline-block;">
+          </td>
+          <td style="text-align: center;">
+            ${isR13 ? '<span style="color: var(--text-muted); font-size: 0.75rem;">Sistema</span>' : `<button type="button" class="btn btn-danger btn-delete-rule" data-id="${r.id}" style="padding: 4px 8px; font-size: 0.75rem; background: var(--danger); border-color: var(--danger); color: white;">❌ Excluir</button>`}
           </td>
         </tr>
       `;
     });
     configRulesTableBody.innerHTML = rulesHtml;
+
+    // Vincular os cliques de exclusão
+    configRulesTableBody.querySelectorAll('.btn-delete-rule').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const id = e.currentTarget.getAttribute('data-id');
+        handleDeleteRule(id);
+      });
+    });
   }
 }
 
@@ -6627,6 +6700,11 @@ function initConfiguracoesWiring() {
     });
   }
 
+  const btnAddConfigRule = document.getElementById('btn-add-config-rule');
+  if (btnAddConfigRule) {
+    btnAddConfigRule.addEventListener('click', handleAddRule);
+  }
+
   const btnSaveConfig = document.getElementById('btn-save-config');
   if (btnSaveConfig) {
     btnSaveConfig.addEventListener('click', async () => {
@@ -6640,24 +6718,26 @@ function initConfiguracoesWiring() {
       const bumpingVal = configBumpingEnabled ? configBumpingEnabled.checked : true;
       const penaltiesVal = configPenaltiesEnabled ? configPenaltiesEnabled.checked : true;
 
-      const updatedRules = supportRules.map(r => {
-        const descInput = document.querySelector(`.config-rule-desc[data-id="${r.id}"]`);
-        const weightInput = document.querySelector(`.config-rule-weight[data-id="${r.id}"]`);
-        
-        return {
-          id: r.id,
-          descricao: descInput ? descInput.value.trim() : r.descricao,
-          peso: weightInput ? parseInt(weightInput.value, 10) || r.peso : r.peso
-        };
-      });
+      // Sincroniza dados atuais do DOM para o array supportRules
+      updateLocalRulesFromInputs();
+
+      // Validação das regras
+      const ids = supportRules.map(r => r.id);
+      if (ids.some(id => !id)) {
+        showBanner("O código da regra não pode ficar em branco.", "danger");
+        return;
+      }
+      const uniqueIds = new Set(ids);
+      if (uniqueIds.size !== ids.length) {
+        showBanner("Existem códigos de regras duplicados. Cada regra deve ter um código único.", "danger");
+        return;
+      }
 
       currentConfig.monthlyLimit = monthlyLimitVal;
       currentConfig.lateSubmissionHours = lateHoursVal;
       currentConfig.bumpingEnabled = bumpingVal;
       currentConfig.penaltiesEnabled = penaltiesVal;
-      currentConfig.supportRules = updatedRules;
-
-      supportRules = updatedRules;
+      currentConfig.supportRules = supportRules;
 
       try {
         await persistChanges('config');
