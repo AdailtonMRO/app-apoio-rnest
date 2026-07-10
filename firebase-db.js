@@ -103,15 +103,15 @@ export function onAuthChange(callback) {
 // --- MÉTODOS DE BANCO DE DADOS (FIRESTORE) ---
 
 // Obtém o ID da organização a partir do parâmetro 'org' na URL (ex: ?org=transpetro)
-// Caso não esteja presente, assume 'rnest' por padrão (retrocompatibilidade)
+// Caso não esteja presente, assume 'rnest_teu_ut' por padrão (retrocompatibilidade)
 const urlParams = new URLSearchParams(window.location.search);
-export const orgId = urlParams.get('org') || 'rnest';
+export const orgId = urlParams.get('org') || 'rnest_teu_ut';
 
 // Função auxiliar para obter o caminho correto do documento para a organização ativa
 function getDocPath(docName) {
-  if (orgId === 'rnest') {
+  if (orgId === 'rnest_teu_ut') {
     // Para manter compatibilidade com a base de produção atual da RNEST
-    return `rnest_database/${docName}`;
+    return `rnest_teu_ut_database/${docName}`;
   } else {
     // Para novas organizações, usamos a estrutura multi-tenant isolada sob organizations/
     return `organizations/${orgId}/database/${docName}`;

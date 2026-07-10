@@ -1,7 +1,7 @@
 /**
  * Firebase Cloud Function (Node.js) para envio de Notificações Web Push.
  * 
- * Monitora o documento 'slots' da coleção 'rnest_database' no Firestore.
+ * Monitora o documento 'slots' da coleção 'rnest_teu_ut_database' no Firestore.
  * Quando uma nova vaga de apoio é adicionada, envia notificação push via FCM
  * para todos os dispositivos dos operadores registrados.
  */
@@ -11,7 +11,7 @@ const admin = require("firebase-admin");
 
 admin.initializeApp();
 
-exports.notifyNewSupportSlot = onDocumentUpdated("rnest_database/slots", async (event) => {
+exports.notifyNewSupportSlot = onDocumentUpdated("rnest_teu_ut_database/slots", async (event) => {
   const newValue = event.data.after.data();
   const oldValue = event.data.before.data();
 
@@ -45,7 +45,7 @@ exports.notifyNewSupportSlot = onDocumentUpdated("rnest_database/slots", async (
 
   // 2. Buscar todos os tokens push dos usuários
   const db = admin.firestore();
-  const usersDocRef = db.doc("rnest_database/users");
+  const usersDocRef = db.doc("rnest_teu_ut_database/users");
   const usersSnapshot = await usersDocRef.get();
 
   if (!usersSnapshot.exists) {

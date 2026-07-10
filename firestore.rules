@@ -33,8 +33,8 @@ service cloud.firestore {
              ));
     }
 
-    // Regras para a base rnest (retrocompatibilidade)
-    match /rnest_database/{docName} {
+    // Regras para a base rnest_teu_ut (retrocompatibilidade)
+    match /rnest_teu_ut_database/{docName} {
       allow read: if isAuthenticated();
       allow write: if isAuthenticated() && isValidData(docName);
     }
