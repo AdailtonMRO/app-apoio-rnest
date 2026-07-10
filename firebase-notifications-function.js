@@ -87,7 +87,7 @@ exports.notifyNewSupportSlot = onDocumentUpdated("rnest_teu_ut_database/slots", 
       notification: {
         icon: "/icon-192.png",
         badge: "/icon-192.png",
-        click_action: "/", // Direciona ao site na raiz
+        click_action: "/?org=rnest_teu_ut", // Direciona ao site com o tenant ativo
         vibrate: [200, 100, 200]
       }
     }

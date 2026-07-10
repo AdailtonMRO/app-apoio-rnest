@@ -5323,7 +5323,7 @@ function generateWhatsappTemplate() {
 
   output += `Obs.: Se o número de apoios for superior a 3 será solicitada autorização gerencial.\n`;
   output += `Obrigado!\n\n`;
-  output += `Acesse o sistema: https://adailtonmro.github.io/app-apoio-rnest/\n`;
+  output += `Acesse o sistema: https://adailtonmro.github.io/app-apoio-rnest/?org=${encodeURIComponent(orgId)}\n`;
 
   return output;
 }

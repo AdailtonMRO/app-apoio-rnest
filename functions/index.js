@@ -97,7 +97,7 @@ exports.notifyNewSupportSlot = onDocumentUpdated("rnest_teu_ut_database/slots", 
         requireInteraction: false,
       },
       fcmOptions: {
-        link: "https://adailtonmro.github.io/app-apoio-rnest/"
+        link: "https://adailtonmro.github.io/app-apoio-rnest/?org=rnest_teu_ut"
       }
     }
   };
