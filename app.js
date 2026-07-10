@@ -1310,6 +1310,17 @@ function switchView(view) {
     updatePointsPreview();
   } else {
     // Limpar estado de edição ao sair da aba de registro
+    if (editingHistoryId) {
+      regSubgrupoInput.value = '';
+      regDataInput.value = '';
+      if (regGrupoSelect) regGrupoSelect.selectedIndex = 0;
+      rulesCheckboxContainer.querySelectorAll('input[name="reg-regras"]').forEach(cb => cb.checked = false);
+      document.querySelectorAll('input[name="reg-areas-funcoes"]').forEach(cb => cb.checked = false);
+      if (regBypassLimit) regBypassLimit.checked = false;
+      if (regIsAutotrocaCheckbox) regIsAutotrocaCheckbox.checked = false;
+      if (regDataFolgaInput) regDataFolgaInput.value = '';
+      if (containerRegDataFolga) containerRegDataFolga.style.display = 'none';
+    }
     editingHistoryId = null;
     regFormTitle.textContent = 'Registrar Apoio Concluído (Dobra Efetuada)';
     btnCancelEditReg.style.display = 'none';
@@ -1625,7 +1636,8 @@ function executeSubstituirVaga(slotId, isAutotroca, folgaDate = '', isPayback = 
       dataFolga: folgaDate,
       scheduledPaybackDate: folgaDate,
       paybackFulfilled: false,
-      slotId: slot.id
+      slotId: slot.id,
+      historyId: historyId
     };
     autotrocas = [...autotrocas, novaAutotroca];
   }
@@ -1752,8 +1764,31 @@ function handleIniciarEdicaoHistorico(historyId) {
   if (regGrupoSelect && item.grupoId) {
     regGrupoSelect.value = item.grupoId;
   }
-  regSubgrupoInput.value = item.subgrupo;
+  
+  let subgrupoVal = item.subgrupo || '';
+  subgrupoVal = subgrupoVal.replace(' (Autotroca)', '').replace(' (Quitação Autotroca)', '');
+  regSubgrupoInput.value = subgrupoVal;
+  
   regDataInput.value = item.data;
+
+  // Se for autotroca, carregar os dados correspondentes
+  const isAutotroca = !!item.isAutotroca;
+  if (regIsAutotrocaCheckbox) {
+    regIsAutotrocaCheckbox.checked = isAutotroca;
+  }
+  if (containerRegDataFolga) {
+    containerRegDataFolga.style.display = isAutotroca ? 'block' : 'none';
+  }
+  if (regDataFolgaInput) {
+    regDataFolgaInput.required = isAutotroca;
+    
+    // Buscar a autotroca correspondente para preencher a data da folga
+    const at = autotrocas.find(a => 
+      a.historyId === historyId || 
+      (a.usuarioId === item.usuarioId && a.dataApoio === item.data && a.tipo === 'NORMAL')
+    );
+    regDataFolgaInput.value = at ? (at.dataFolga || '') : '';
+  }
 
   rulesCheckboxContainer.querySelectorAll('input[name="reg-regras"]').forEach(cb => {
     cb.checked = item.regras.includes(cb.value);
@@ -1779,6 +1814,9 @@ function handleCancelarEdicaoApoio() {
   rulesCheckboxContainer.querySelectorAll('input[name="reg-regras"]').forEach(cb => cb.checked = false);
   document.querySelectorAll('input[name="reg-areas-funcoes"]').forEach(cb => cb.checked = false);
   if (regBypassLimit) regBypassLimit.checked = false;
+  if (regIsAutotrocaCheckbox) regIsAutotrocaCheckbox.checked = false;
+  if (regDataFolgaInput) regDataFolgaInput.value = '';
+  if (containerRegDataFolga) containerRegDataFolga.style.display = 'none';
   
   switchView('historico');
 }
@@ -4247,7 +4285,8 @@ function executeAssumirVagaDireta(slotId, isAutotroca, folgaDate = '', isPayback
       dataFolga: folgaDate,
       scheduledPaybackDate: folgaDate,
       paybackFulfilled: false,
-      slotId: slot.id
+      slotId: slot.id,
+      historyId: historyId
     };
     autotrocas = [...autotrocas, novaAutotroca];
   }
@@ -4454,9 +4493,11 @@ function handleAutoRegistroApoio(e) {
   const score = calculateSupportScore(regras);
 
   if (editingHistoryId) {
+    const prevItem = history.find(h => h.id === editingHistoryId);
+
     history = history.map(h => {
       if (h.id === editingHistoryId) {
-        return {
+        const updatedItem = {
           ...h,
           usuarioId: regUserId,
           grupoId: regGrupo,
@@ -4466,12 +4507,66 @@ function handleAutoRegistroApoio(e) {
           pontuacao: score,
           dataRegistro: new Date(simulatedCurrentDate + 'T12:00:00').toISOString(),
           registradoPorId: currentUser.id,
-          areasFuncoes: regAreas,
-          isAutotroca: isAutotroca || undefined
+          areasFuncoes: regAreas
         };
+        if (isAutotroca) {
+          updatedItem.isAutotroca = true;
+        } else {
+          delete updatedItem.isAutotroca;
+        }
+        return updatedItem;
       }
       return h;
     });
+
+    // Atualizar as autotrocas correspondentes
+    if (prevItem) {
+      const atIndex = autotrocas.findIndex(a => 
+        a.historyId === editingHistoryId || 
+        (a.usuarioId === prevItem.usuarioId && a.dataApoio === prevItem.data && a.tipo === 'NORMAL')
+      );
+
+      if (isAutotroca) {
+        if (atIndex !== -1) {
+          // Atualiza a autotroca existente
+          autotrocas = autotrocas.map((at, idx) => {
+            if (idx === atIndex) {
+              return {
+                ...at,
+                usuarioId: regUserId,
+                dataApoio: regData,
+                dataFolga: dataFolga,
+                scheduledPaybackDate: dataFolga,
+                historyId: editingHistoryId
+              };
+            }
+            return at;
+          });
+        } else {
+          // Cria uma nova autotroca
+          const autotrocaId = 'at_' + Date.now();
+          const novaAutotroca = {
+            id: autotrocaId,
+            usuarioId: regUserId,
+            tipo: 'NORMAL',
+            status: 'PENDENTE_APROVACAO',
+            dataSolicitacao: simulatedCurrentDate,
+            dataApoio: regData,
+            dataFolga: dataFolga,
+            scheduledPaybackDate: dataFolga,
+            paybackFulfilled: false,
+            slotId: '',
+            historyId: editingHistoryId
+          };
+          autotrocas = [...autotrocas, novaAutotroca];
+        }
+      } else {
+        // Se antes era autotroca e agora não é, removemos da lista
+        if (atIndex !== -1) {
+          autotrocas = autotrocas.filter((_, idx) => idx !== atIndex);
+        }
+      }
+    }
 
     const user = users.find(u => u.id === regUserId);
     showBanner(`Lançamento de apoio de ${user.nome} atualizado com sucesso! Nova pontuação: ${score.toFixed(4)} pts.`, 'success');
@@ -4509,7 +4604,8 @@ function handleAutoRegistroApoio(e) {
         dataFolga: dataFolga,
         scheduledPaybackDate: dataFolga,
         paybackFulfilled: false,
-        slotId: ''
+        slotId: '',
+        historyId: historyId
       };
       autotrocas = [...autotrocas, novaAutotroca];
     }
@@ -5117,12 +5213,21 @@ function handleAplicarInfracao(e) {
 
 function handleExcluirHistorico(historyId) {
   const item = history.find(h => h.id === historyId);
-  const user = users.find(u => u.id === item.usuarioId);
+  const user = users.find(u => u.id === item?.usuarioId);
 
   history = history.filter(h => h.id !== historyId);
-  showBanner(`Registro do dia ${formatDatePt(item.data)} de ${user?.nome || 'colaborador'} excluído do histórico.`, 'info');
   
-  persistChanges('history');
+  if (item && item.isAutotroca) {
+    autotrocas = autotrocas.filter(a => 
+      a.historyId !== historyId && 
+      !(a.usuarioId === item.usuarioId && a.dataApoio === item.data && a.tipo === 'NORMAL')
+    );
+    persistChanges(['history', 'autotrocas']);
+  } else {
+    persistChanges('history');
+  }
+  
+  showBanner(`Registro do dia ${formatDatePt(item?.data || '')} de ${user?.nome || 'colaborador'} excluído do histórico.`, 'info');
 }
 
 // --- INTEGRAÇÃO WHATSAPP ---
