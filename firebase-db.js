@@ -118,6 +118,9 @@ function getDocPath(docName) {
   }
 }
 
+// Memória local para validar integridade antes de salvar (Proteção contra reset de banco)
+const lastLoadedCounts = {};
+
 /**
  * Escuta mudanças em tempo real em um documento da coleção e aciona o callback.
  * Se o documento não existir no Firestore, inicializa-o automaticamente com os dados padrão.
@@ -135,6 +138,12 @@ export function syncDocument(docName, defaultData, callback) {
     if (snapshot.exists()) {
       const payload = snapshot.data();
       if (payload && payload.data !== undefined) {
+        // Armazena a contagem de registros carregados para validações de escrita futuras
+        if (Array.isArray(payload.data)) {
+          lastLoadedCounts[docName] = payload.data.length;
+        } else if (payload.data && typeof payload.data === 'object') {
+          lastLoadedCounts[docName] = Object.keys(payload.data).length;
+        }
         callback(payload.data);
       } else {
         console.error(`❌ ERRO CRÍTICO: O campo 'data' no documento '${docName}' está ausente no Firestore!`);
@@ -172,10 +181,36 @@ export function syncDocument(docName, defaultData, callback) {
 /**
  * Atualiza os dados de um documento existente no Firestore.
  */
-export async function updateDocument(docName, dataArrayOrObj) {
+export async function updateDocument(docName, dataArrayOrObj, force = false) {
   if (!isFirebaseEnabled || !db) {
     console.error(`Erro ao gravar documento '${docName}': Firebase não conectado.`);
     throw new Error("Sem conexão com o Firebase.");
+  }
+
+  // Validação de integridade antes de salvar (Proteção contra reset acidental)
+  const isCriticalDoc = ['users', 'history', 'slots'].includes(docName);
+  if (isCriticalDoc && !force) {
+    let newCount = 0;
+    if (Array.isArray(dataArrayOrObj)) {
+      newCount = dataArrayOrObj.length;
+    } else if (dataArrayOrObj && typeof dataArrayOrObj === 'object') {
+      newCount = Object.keys(dataArrayOrObj).length;
+    }
+
+    const lastCount = lastLoadedCounts[docName] || 0;
+
+    // Se já carregamos dados antes e o novo tamanho é menor que 50% do anterior, bloqueamos
+    if (lastCount > 0 && newCount < lastCount * 0.5) {
+      const errMsg = `❌ GRAVAÇÃO BLOQUEADA: Tentativa de reduzir '${docName}' de ${lastCount} para ${newCount} registros (mais de 50% de perda).`;
+      console.error(errMsg);
+      if (typeof window.showFatalError === 'function') {
+        window.showFatalError(
+          "Bloqueio de Segurança contra Perda de Dados",
+          `A gravação foi cancelada. A tabela '${docName}' seria reduzida de ${lastCount} para ${newCount} registros. Se você está sem internet ou a página carregou em branco, atualize e tente novamente.`
+        );
+      }
+      throw new Error(errMsg);
+    }
   }
 
   const docPath = getDocPath(docName);
@@ -187,6 +222,13 @@ export async function updateDocument(docName, dataArrayOrObj) {
       await setDocFn(docRef, { data: dataArrayOrObj });
     } else {
       await updateDocFn(docRef, { data: dataArrayOrObj });
+    }
+
+    // Atualiza a contagem local caso a escrita tenha sido bem-sucedida
+    if (Array.isArray(dataArrayOrObj)) {
+      lastLoadedCounts[docName] = dataArrayOrObj.length;
+    } else if (dataArrayOrObj && typeof dataArrayOrObj === 'object') {
+      lastLoadedCounts[docName] = Object.keys(dataArrayOrObj).length;
     }
   } catch (error) {
     console.error(`Erro ao gravar o documento ${docName} no Firestore em ${docPath}:`, error);

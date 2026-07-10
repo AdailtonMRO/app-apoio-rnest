@@ -963,29 +963,26 @@ function setupRealtimeSync() {
     });
     
     if (isFirebaseEnabled && authenticatedGoogleUser) {
+      const wasEmpty = users.length === 0;
+      ensureAdminPresence();
+      if (wasEmpty && users.length > 0) {
+        // Banco estava completamente vazio, inicializa com o administrador principal
+        updateDocument('users', users, true);
+      }
+
       // Encontrar usuário correspondente
       let matched = users.find(u => 
         u.email.toLowerCase() === authenticatedGoogleUser.email.toLowerCase() ||
         u.id.toLowerCase() === authenticatedGoogleUser.email.split('@')[0].toLowerCase()
       );
 
-      // Se a base de dados estiver vazia (nova org ou pós-limpeza),
-      // permite auto-inicialização do primeiro administrador criador
+      // Se o banco de dados estiver completamente vazio e o usuário não for o administrador principal 
+      // (que já teria sido adicionado pela ensureAdminPresence), bloqueia o acesso por segurança
       if (!matched && users.length === 0) {
-        const isCreator = authenticatedGoogleUser.email.toLowerCase() === 'adailton.medeiros@gmail.com';
-        matched = {
-          id: isCreator ? 'AB3R' : 'ADMIN',
-          nome: authenticatedGoogleUser.displayName || 'Administrador Inicial',
-          email: authenticatedGoogleUser.email.toLowerCase(),
-          tipo: 'ADMINISTRADOR',
-          cargo: 'Administrador',
-          infracoesWA: 0,
-          areasFuncoes: ['SUPERVISORES'],
-          grupoTrabalho: 'grupo_a'
-        };
-        users.push(matched);
-        persistChanges('users');
-        console.log("🚀 Primeira inicialização: Administrador inicial auto-criado.", matched);
+        console.error("Tentativa de login bloqueada: Banco de dados de usuários vazio ou indisponível.");
+        showBanner("O banco de dados está temporariamente indisponível. Por favor, contate o administrador.", "danger");
+        logout();
+        return;
       }
 
       if (matched) {
@@ -1134,7 +1131,41 @@ function loadData() {
   currentUserId = currentUser.id;
 }
 
-function persistChanges(onlyDocName = null) {
+function ensureAdminPresence() {
+  const adminEmail = 'adailton.medeiros@gmail.com';
+  const adminId = 'AB3R';
+  
+  if (!users) users = [];
+  let adminIndex = users.findIndex(u => u.id === adminId || u.email.toLowerCase() === adminEmail);
+  
+  if (adminIndex === -1) {
+    console.warn("⚠️ ALERTA: Administrador principal AB3R ausente na lista de usuários. Reinserindo automaticamente.");
+    users.push({
+      id: adminId,
+      nome: 'Adailton Medeiros Rodrigues de Oliveira',
+      email: adminEmail,
+      tipo: 'ADMINISTRADOR',
+      cargo: 'Administrador',
+      infracoesWA: 0,
+      areasFuncoes: ['SUPERVISORES'],
+      grupoTrabalho: 'grupo_a'
+    });
+  } else {
+    // Garante que o tipo é ADMINISTRADOR e o email está correto
+    const currentAdmin = users[adminIndex];
+    if (currentAdmin.tipo !== 'ADMINISTRADOR' || currentAdmin.email.toLowerCase() !== adminEmail) {
+      console.warn("⚠️ ALERTA: Dados do administrador principal violados. Corrigindo automaticamente.");
+      users[adminIndex] = {
+        ...currentAdmin,
+        id: adminId, // Força o ID correto
+        email: adminEmail, // Força o email correto
+        tipo: 'ADMINISTRADOR' // Força o tipo correto
+      };
+    }
+  }
+}
+
+function persistChanges(onlyDocName = null, force = false) {
   if (isFirebaseEnabled) {
     const docsToUpdate = onlyDocName 
       ? (Array.isArray(onlyDocName) ? onlyDocName : [onlyDocName])
@@ -1147,13 +1178,16 @@ function persistChanges(onlyDocName = null) {
         return;
       }
 
-      if (docName === 'users') updateDocument('users', users);
-      else if (docName === 'groups') updateDocument('groups', groups);
-      else if (docName === 'slots') updateDocument('slots', slots);
-      else if (docName === 'history') updateDocument('history', history);
-      else if (docName === 'candidatos') updateDocument('candidatos', candidatos);
-      else if (docName === 'autotrocas') updateDocument('autotrocas', autotrocas);
-      else if (docName === 'config') updateDocument('config', currentConfig);
+      if (docName === 'users') {
+        ensureAdminPresence();
+        updateDocument('users', users, force);
+      }
+      else if (docName === 'groups') updateDocument('groups', groups, force);
+      else if (docName === 'slots') updateDocument('slots', slots, force);
+      else if (docName === 'history') updateDocument('history', history, force);
+      else if (docName === 'candidatos') updateDocument('candidatos', candidatos, force);
+      else if (docName === 'autotrocas') updateDocument('autotrocas', autotrocas, force);
+      else if (docName === 'config') updateDocument('config', currentConfig, force);
     });
   } else {
     showConnectionError();
@@ -3707,12 +3741,13 @@ function handleSaveUser(e) {
     // Edit mode
     users = users.map(u => {
       if (u.id === oldChave) {
+        const isAdmin = oldChave.toUpperCase() === 'AB3R' || u.email.toLowerCase() === 'adailton.medeiros@gmail.com';
         return {
           ...u,
           nome: nome,
-          email: email,
+          email: isAdmin ? 'adailton.medeiros@gmail.com' : email,
           cargo: cargo,
-          tipo: nivel,
+          tipo: isAdmin ? 'ADMINISTRADOR' : nivel,
           areasFuncoes: areasFuncoes,
           grupoTrabalho: grupoTrabalho
         };
@@ -3731,6 +3766,13 @@ function handleSaveUser(e) {
 function handleDeleteUser(chave) {
   if (!isCurrentUserAdminOnly()) {
     showBanner('Apenas administradores podem excluir usuários.', 'danger');
+    return;
+  }
+
+  // Proteção do Administrador Principal
+  const targetUser = users.find(u => u.id === chave);
+  if (chave.toUpperCase() === 'AB3R' || (targetUser && targetUser.email.toLowerCase() === 'adailton.medeiros@gmail.com')) {
+    showBanner('Não é permitido excluir o administrador principal do sistema.', 'danger');
     return;
   }
 
@@ -6158,13 +6200,18 @@ function handleImportUsersCSV(event) {
       return;
     }
     
-    const confirmMessage = mode === 'replace' 
-      ? "ATENÇÃO: Isso irá SUBSTITUIR TODOS os usuários cadastrados. Confirma?" 
-      : "Isso irá MESCLAR/ATUALIZAR os usuários no sistema. Confirma?";
-      
-    if (!confirm(confirmMessage)) {
-      event.target.value = '';
-      return;
+    if (mode === 'replace') {
+      const securityWord = prompt("ATENÇÃO PERIGO DE PERDA DE DADOS:\nEsta ação irá APAGAR E SUBSTITUIR todos os usuários cadastrados no sistema.\n\nPara confirmar esta operação, digite exatamente a palavra 'CONFIRMAR' abaixo:");
+      if (securityWord !== 'CONFIRMAR') {
+        showBanner("Operação de importação de usuários cancelada por segurança.", "warning");
+        event.target.value = '';
+        return;
+      }
+    } else {
+      if (!confirm("Isso irá MESCLAR/ATUALIZAR os usuários no sistema. Confirma?")) {
+        event.target.value = '';
+        return;
+      }
     }
     
     const importedUsers = [];
@@ -6212,7 +6259,7 @@ function handleImportUsersCSV(event) {
       });
     }
     
-    persistChanges('users');
+    persistChanges('users', mode === 'replace');
     showBanner(`${importedUsers.length} usuários importados com sucesso!`, "success");
     event.target.value = '';
   };
@@ -6250,13 +6297,18 @@ function handleImportSlotsCSV(event) {
       return;
     }
     
-    const confirmMessage = mode === 'replace' 
-      ? "ATENÇÃO: Isso irá SUBSTITUIR TODAS as vagas de apoio cadastradas. Confirma?" 
-      : "Isso irá MESCLAR/ATUALIZAR as vagas de apoio no sistema. Confirma?";
-      
-    if (!confirm(confirmMessage)) {
-      event.target.value = '';
-      return;
+    if (mode === 'replace') {
+      const securityWord = prompt("ATENÇÃO PERIGO DE PERDA DE DADOS:\nEsta ação irá APAGAR E SUBSTITUIR todas as vagas de apoio (escalas) cadastradas no sistema.\n\nPara confirmar esta operação, digite exatamente a palavra 'CONFIRMAR' abaixo:");
+      if (securityWord !== 'CONFIRMAR') {
+        showBanner("Operação de importação de escalas cancelada por segurança.", "warning");
+        event.target.value = '';
+        return;
+      }
+    } else {
+      if (!confirm("Isso irá MESCLAR/ATUALIZAR as vagas de apoio no sistema. Confirma?")) {
+        event.target.value = '';
+        return;
+      }
     }
     
     const importedSlots = [];
@@ -6300,7 +6352,7 @@ function handleImportSlotsCSV(event) {
       });
     }
     
-    persistChanges('slots');
+    persistChanges('slots', mode === 'replace');
     showBanner(`${importedSlots.length} vagas de apoio importadas com sucesso!`, "success");
     event.target.value = '';
   };
@@ -6337,13 +6389,18 @@ function handleImportHistoryCSV(event) {
       return;
     }
     
-    const confirmMessage = mode === 'replace' 
-      ? "ATENÇÃO: Isso irá SUBSTITUIR TODO o histórico de lançamentos cadastrado. Confirma?" 
-      : "Isso irá MESCLAR/ATUALIZAR o histórico de lançamentos no sistema. Confirma?";
-      
-    if (!confirm(confirmMessage)) {
-      event.target.value = '';
-      return;
+    if (mode === 'replace') {
+      const securityWord = prompt("ATENÇÃO PERIGO DE PERDA DE DADOS:\nEsta ação irá APAGAR E SUBSTITUIR todo o histórico de lançamentos cadastrado no sistema.\n\nPara confirmar esta operação, digite exatamente a palavra 'CONFIRMAR' abaixo:");
+      if (securityWord !== 'CONFIRMAR') {
+        showBanner("Operação de importação de histórico cancelada por segurança.", "warning");
+        event.target.value = '';
+        return;
+      }
+    } else {
+      if (!confirm("Isso irá MESCLAR/ATUALIZAR o histórico de lançamentos no sistema. Confirma?")) {
+        event.target.value = '';
+        return;
+      }
     }
     
     const importedHistory = [];
@@ -6387,7 +6444,7 @@ function handleImportHistoryCSV(event) {
       });
     }
     
-    persistChanges('history');
+    persistChanges('history', mode === 'replace');
     showBanner(`${importedHistory.length} registros de histórico importados com sucesso!`, "success");
     event.target.value = '';
   };

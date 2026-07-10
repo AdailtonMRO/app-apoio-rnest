@@ -1,0 +1,48 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Função auxiliar para verificar se o usuário está autenticado
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Função para validar se a lista de dados não está vazia e tem integridade básica
+    // (O campo 'data' nas coleções deve ser um array/mapa e não pode ser limpo ou ter tamanho irrisório se já existirem dados)
+    function isValidData(collectionName) {
+      // 1. O dado enviado deve conter a chave 'data'
+      return request.resource.data.keys().hasAll(['data']) &&
+             
+             // 2. Se for a coleção de usuários, nunca pode ser vazia e deve conter pelo menos 5 usuários para evitar deleção em massa
+             (collectionName != 'users' || (request.resource.data.data is list && request.resource.data.data.size() >= 5)) &&
+
+             // 3. Se for a coleção de histórico, impede limpeza completa direta se o histórico antigo for maior que zero
+             (collectionName != 'history' || (
+               resource == null || 
+               !(resource.data.data is list) || 
+               resource.data.data.size() < 10 || 
+               (request.resource.data.data is list && request.resource.data.data.size() >= resource.data.data.size() * 0.5)
+             )) &&
+
+             // 4. Se for a coleção de vagas (slots), impede deleção completa em massa direta se já existirem vagas
+             (collectionName != 'slots' || (
+               resource == null || 
+               !(resource.data.data is list) || 
+               resource.data.data.size() < 10 || 
+               (request.resource.data.data is list && request.resource.data.data.size() >= resource.data.data.size() * 0.5)
+             ));
+    }
+
+    // Regras para a base rnest (retrocompatibilidade)
+    match /rnest_database/{docName} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isValidData(docName);
+    }
+
+    // Regras para outras organizações (estrutura multi-tenant)
+    match /organizations/{orgId}/database/{docName} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isValidData(docName);
+    }
+  }
+}
