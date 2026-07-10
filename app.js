@@ -6755,6 +6755,25 @@ function initConfiguracoesWiring() {
       }
     });
   }
+
+  const btnRestoreDbStructure = document.getElementById('btn-restore-db-structure');
+  if (btnRestoreDbStructure) {
+    btnRestoreDbStructure.addEventListener('click', async () => {
+      const confirmAction = confirm("Deseja criar os documentos de configuração ('config') e grupos ('groups') no banco de dados com os valores padrão de fábrica caso estejam ausentes?");
+      if (!confirmAction) return;
+
+      try {
+        await updateDocument('config', DEFAULT_CONFIG, true);
+        await updateDocument('groups', INITIAL_GROUPS, true);
+        
+        showBanner("Estrutura do banco de dados restaurada com sucesso!", "success");
+        setTimeout(() => window.location.reload(), 1500);
+      } catch (err) {
+        console.error(err);
+        showBanner("Erro ao restaurar estrutura: " + (err.message || err), "danger");
+      }
+    });
+  }
 }
 
 // Rodar na carga
