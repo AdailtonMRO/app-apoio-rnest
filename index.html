@@ -701,6 +701,32 @@
                 </div>
               </div>
 
+              <!-- Bloco 4: Grupos de Trabalho -->
+              <div class="glass-panel" style="padding: 16px; margin-bottom: 24px; border: 1px solid var(--border-color);">
+                <h3 style="font-size: 1rem; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">👥 Grupos de Trabalho / Escala</h3>
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">
+                  Configure os grupos de trabalho da organização. Grupos de escala podem ter uma data de início definida para o cálculo do ciclo de turnos (revezamento).
+                </p>
+                <div style="overflow-x: auto;">
+                  <table class="ranking-table" style="width: 100%; min-width: 600px;">
+                    <thead>
+                      <tr>
+                        <th style="width: 180px;">Código do Grupo (ID)</th>
+                        <th>Nome do Grupo</th>
+                        <th style="width: 180px; text-align: center;">Início do Ciclo (Apenas Turnos)</th>
+                        <th style="width: 100px; text-align: center;">Ações</th>
+                      </tr>
+                    </thead>
+                    <tbody id="config-groups-table-body">
+                      <!-- Preenchido via JS -->
+                    </tbody>
+                  </table>
+                </div>
+                <div style="margin-top: 12px; display: flex; justify-content: flex-start;">
+                  <button id="btn-add-config-group" type="button" class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.85rem; background: var(--border-color); color: var(--text); border: 1px solid rgba(255,255,255,0.1); cursor: pointer;">➕ Adicionar Novo Grupo</button>
+                </div>
+              </div>
+
               <!-- Ações -->
               <div style="display: flex; justify-content: flex-end; gap: 12px; align-items: center; flex-wrap: wrap;">
                 <button id="btn-restore-db-structure" class="btn btn-secondary" style="padding: 10px 16px; font-weight: bold; background: #b91c1c; color: white; border: none; cursor: pointer;">🔧 Criar Config/Grupos Faltantes</button>

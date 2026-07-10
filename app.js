@@ -126,7 +126,9 @@ function getGroupShiftForDate(grupoId, dateStr) {
     if (day === 0 || day === 6) return 'F';
     return 'ADM';
   }
-  const startDateStr = GROUP_START_DATES[grupoId];
+  // Tenta encontrar a dataInicio dinâmica do grupo na base
+  const group = groups.find(g => g.id === grupoId);
+  const startDateStr = (group && group.dataInicio) || GROUP_START_DATES[grupoId];
   if (!startDateStr) return 'F';
   
   const diffDays = getDaysDifference(startDateStr, dateStr);
@@ -1948,6 +1950,9 @@ function renderAll() {
     if (currentView === 'relatorios') {
       renderRelatorios();
     }
+    if (currentView === 'configuracoes') {
+      renderConfiguracoes();
+    }
   }
 }
 
@@ -3105,9 +3110,12 @@ function renderMyPanel() {
 function renderCalendarView() {
   if (!viewCalendario || viewCalendario.style.display === 'none') return;
 
-  // Inicializa o grupo de trabalho do calendário caso não esteja definido
-  if (!calendarSelectedGroupId) {
-    calendarSelectedGroupId = (currentUser && currentUser.grupoTrabalho) ? currentUser.grupoTrabalho : 'grupo_a';
+  // Inicializa o grupo de trabalho do calendário caso não esteja definido ou não seja válido
+  const isSelectedGroupValid = groups.some(g => g.id === calendarSelectedGroupId) || calendarSelectedGroupId === 'adm';
+  if (!calendarSelectedGroupId || !isSelectedGroupValid) {
+    calendarSelectedGroupId = (currentUser && currentUser.grupoTrabalho && (groups.some(g => g.id === currentUser.grupoTrabalho) || currentUser.grupoTrabalho === 'adm')) 
+      ? currentUser.grupoTrabalho 
+      : (groups[0] ? groups[0].id : 'grupo_a');
   }
 
   const currentDateObj = new Date(simulatedCurrentDate + 'T00:00:00');
@@ -3118,15 +3126,19 @@ function renderCalendarView() {
   const year1 = currentDateObj.getFullYear();
   const month1 = currentDateObj.getMonth();
 
-  // Renderizar seletor de grupos no rodapé
-  const groupsList = [
-    { id: 'grupo_a', label: 'A' },
-    { id: 'grupo_b', label: 'B' },
-    { id: 'grupo_c', label: 'C' },
-    { id: 'grupo_d', label: 'D' },
-    { id: 'grupo_e', label: 'E' },
-    { id: 'adm', label: 'ADM' }
-  ];
+  // Renderizar seletor de grupos no rodapé dinamicamente
+  const groupsList = groups.map(g => {
+    let label = g.nome;
+    if (g.nome.toLowerCase().startsWith('grupo ')) {
+      label = g.nome.substring(6).trim().toUpperCase();
+    } else if (g.nome.length > 5) {
+      label = g.nome.substring(0, 4) + '.';
+    }
+    return { id: g.id, label: label };
+  });
+  if (!groupsList.some(g => g.id === 'adm')) {
+    groupsList.push({ id: 'adm', label: 'ADM' });
+  }
 
   let selectorHtml = '';
   groupsList.forEach(g => {
@@ -3890,10 +3902,47 @@ function renderFormGroupsOptions() {
   groups.forEach(g => {
     html += `<option value="${g.id}">${g.nome}</option>`;
   });
-  selectGrupo.innerHTML = html;
+  if (selectGrupo) selectGrupo.innerHTML = html;
 
   if (regGrupoSelect) {
     regGrupoSelect.innerHTML = html;
+  }
+
+  // Povoar seletores de grupo nos formulários de usuário e operador
+  const selectUserGrupo = document.getElementById('user-form-grupo-trabalho');
+  if (selectUserGrupo) {
+    let userGrupoHtml = '';
+    groups.forEach(g => {
+      let cycleDesc = '';
+      if (g.dataInicio || GROUP_START_DATES[g.id]) {
+        cycleDesc = ' (Turno 12h)';
+      } else if (g.id === 'adm') {
+        cycleDesc = ' (Administrativo - Segunda a Sexta)';
+      }
+      userGrupoHtml += `<option value="${g.id}">${g.nome}${cycleDesc}</option>`;
+    });
+    if (!groups.some(g => g.id === 'adm')) {
+      userGrupoHtml += `<option value="adm">ADM (Administrativo - Segunda a Sexta)</option>`;
+    }
+    selectUserGrupo.innerHTML = userGrupoHtml;
+  }
+
+  const selectOperatorGrupo = document.getElementById('operator-form-grupo-trabalho');
+  if (selectOperatorGrupo) {
+    let opGrupoHtml = '';
+    groups.forEach(g => {
+      let cycleDesc = '';
+      if (g.dataInicio || GROUP_START_DATES[g.id]) {
+        cycleDesc = ' (Turno 12h)';
+      } else if (g.id === 'adm') {
+        cycleDesc = ' (Administrativo - Segunda a Sexta)';
+      }
+      opGrupoHtml += `<option value="${g.id}">${g.nome}${cycleDesc}</option>`;
+    });
+    if (!groups.some(g => g.id === 'adm')) {
+      opGrupoHtml += `<option value="adm">ADM (Administrativo - Segunda a Sexta)</option>`;
+    }
+    selectOperatorGrupo.innerHTML = opGrupoHtml;
   }
 
   const selectRegUsuario = document.getElementById('reg-usuario');
@@ -3904,14 +3953,16 @@ function renderFormGroupsOptions() {
   sortedRegUsers.forEach(u => {
     userHtml += `<option value="${u.id}">${u.nome} (${u.cargo})</option>`;
   });
-  selectRegUsuario.innerHTML = userHtml;
+  if (selectRegUsuario) selectRegUsuario.innerHTML = userHtml;
   
   // Re-ligar listener se mudou
-  selectRegUsuario.removeEventListener('change', checkLateSubmission);
-  selectRegUsuario.addEventListener('change', () => {
-    checkLateSubmission();
-    updatePointsPreview();
-  });
+  if (selectRegUsuario) {
+    selectRegUsuario.removeEventListener('change', checkLateSubmission);
+    selectRegUsuario.addEventListener('change', () => {
+      checkLateSubmission();
+      updatePointsPreview();
+    });
+  }
 
   const selectInfUsuario = document.getElementById('inf-usuario');
   let infHtml = '';
@@ -3921,7 +3972,7 @@ function renderFormGroupsOptions() {
   sortedInfUsers.forEach(u => {
     infHtml += `<option value="${u.id}">${u.nome} (${u.cargo})</option>`;
   });
-  selectInfUsuario.innerHTML = infHtml;
+  if (selectInfUsuario) selectInfUsuario.innerHTML = infHtml;
 
   updateFormUsuarioSelectCompatibility();
 }
@@ -6622,6 +6673,59 @@ function handleDeleteRule(ruleId) {
   renderConfiguracoes();
 }
 
+function updateLocalGroupsFromInputs() {
+  const configGroupsTableBody = document.getElementById('config-groups-table-body');
+  if (!configGroupsTableBody) return;
+
+  const updatedGroups = [];
+  const rows = configGroupsTableBody.querySelectorAll('tr[data-id]');
+  rows.forEach(row => {
+    const id = row.getAttribute('data-id');
+    const idInput = row.querySelector('.config-group-id');
+    const nomeInput = row.querySelector('.config-group-nome');
+    const dataInicioInput = row.querySelector('.config-group-datainicio');
+
+    const groupId = idInput ? idInput.value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '') : id;
+    const groupNome = nomeInput ? nomeInput.value.trim() : '';
+    const groupDataInicio = dataInicioInput ? dataInicioInput.value : '';
+
+    updatedGroups.push({
+      id: groupId,
+      nome: groupNome,
+      dataInicio: groupDataInicio
+    });
+  });
+  
+  groups = updatedGroups;
+}
+
+function handleAddGroup() {
+  updateLocalGroupsFromInputs();
+  const newId = `grupo_${Date.now()}`;
+  groups.push({
+    id: newId,
+    nome: 'Novo Grupo',
+    dataInicio: ''
+  });
+  renderConfiguracoes();
+}
+
+function handleDeleteGroup(groupId) {
+  const usersInGroup = users.filter(u => u.grupoTrabalho === groupId);
+  const slotsInGroup = slots.filter(s => s.grupoId === groupId);
+  if (usersInGroup.length > 0 || slotsInGroup.length > 0) {
+    const confirmDelete = confirm(`Aviso: Este grupo está associado a ${usersInGroup.length} colaboradores e ${slotsInGroup.length} vagas de escala. Se você excluir, eles poderão ficar sem grupo de trabalho ou com escalas órfãs. Deseja prosseguir mesmo assim?`);
+    if (!confirmDelete) return;
+  } else {
+    const confirmDelete = confirm("Deseja realmente excluir este grupo?");
+    if (!confirmDelete) return;
+  }
+
+  updateLocalGroupsFromInputs();
+  groups = groups.filter(g => g.id !== groupId);
+  renderConfiguracoes();
+}
+
 function renderConfiguracoes() {
   const configOrgId = document.getElementById('config-org-id');
   const configShareUrl = document.getElementById('config-share-url');
@@ -6672,6 +6776,40 @@ function renderConfiguracoes() {
       });
     });
   }
+
+  const configGroupsTableBody = document.getElementById('config-groups-table-body');
+  if (configGroupsTableBody) {
+    let groupsHtml = '';
+    groups.forEach(g => {
+      const isSystem = ['grupo_a', 'grupo_b', 'grupo_c', 'grupo_d', 'grupo_e', 'adm'].includes(g.id);
+      const dataInicioVal = g.dataInicio || GROUP_START_DATES[g.id] || '';
+      groupsHtml += `
+        <tr data-id="${g.id}">
+          <td>
+            <input type="text" class="input-field config-group-id" value="${g.id}" ${isSystem ? 'disabled' : ''} style="width: 100%; font-size: 0.85rem; font-weight: bold; text-align: center; font-family: monospace;">
+          </td>
+          <td>
+            <input type="text" class="input-field config-group-nome" value="${g.nome}" style="width: 100%; font-size: 0.85rem;">
+          </td>
+          <td>
+            <input type="date" class="input-field config-group-datainicio" value="${dataInicioVal}" style="width: 100%; text-align: center; font-size: 0.85rem;">
+          </td>
+          <td style="text-align: center;">
+            <button type="button" class="btn btn-danger btn-delete-group" data-id="${g.id}" style="padding: 4px 8px; font-size: 0.75rem; background: var(--danger); border-color: var(--danger); color: white;">❌ Excluir</button>
+          </td>
+        </tr>
+      `;
+    });
+    configGroupsTableBody.innerHTML = groupsHtml;
+
+    // Vincular os cliques de exclusão de grupos
+    configGroupsTableBody.querySelectorAll('.btn-delete-group').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const id = e.currentTarget.getAttribute('data-id');
+        handleDeleteGroup(id);
+      });
+    });
+  }
 }
 
 function initConfiguracoesWiring() {
@@ -6712,6 +6850,11 @@ function initConfiguracoesWiring() {
     btnAddConfigRule.addEventListener('click', handleAddRule);
   }
 
+  const btnAddConfigGroup = document.getElementById('btn-add-config-group');
+  if (btnAddConfigGroup) {
+    btnAddConfigGroup.addEventListener('click', handleAddGroup);
+  }
+
   const btnSaveConfig = document.getElementById('btn-save-config');
   if (btnSaveConfig) {
     btnSaveConfig.addEventListener('click', async () => {
@@ -6725,8 +6868,9 @@ function initConfiguracoesWiring() {
       const bumpingVal = configBumpingEnabled ? configBumpingEnabled.checked : true;
       const penaltiesVal = configPenaltiesEnabled ? configPenaltiesEnabled.checked : true;
 
-      // Sincroniza dados atuais do DOM para o array supportRules
+      // Sincroniza dados atuais do DOM para o array supportRules e grupos
       updateLocalRulesFromInputs();
+      updateLocalGroupsFromInputs();
 
       // Validação das regras
       const ids = supportRules.map(r => r.id);
@@ -6740,6 +6884,22 @@ function initConfiguracoesWiring() {
         return;
       }
 
+      // Validação dos grupos
+      const gIds = groups.map(g => g.id);
+      if (gIds.some(id => !id)) {
+        showBanner("O código/identificador do grupo não pode ficar em branco.", "danger");
+        return;
+      }
+      const uniqueGIds = new Set(gIds);
+      if (uniqueGIds.size !== gIds.length) {
+        showBanner("Existem códigos de grupos duplicados. Cada grupo deve ter um código único.", "danger");
+        return;
+      }
+      if (groups.some(g => !g.nome)) {
+        showBanner("O nome do grupo não pode ficar em branco.", "danger");
+        return;
+      }
+
       currentConfig.monthlyLimit = monthlyLimitVal;
       currentConfig.lateSubmissionHours = lateHoursVal;
       currentConfig.bumpingEnabled = bumpingVal;
@@ -6748,10 +6908,11 @@ function initConfiguracoesWiring() {
 
       try {
         await persistChanges('config');
-        showBanner("Configurações salvas com sucesso!", "success");
+        await persistChanges('groups');
+        showBanner("Configurações e grupos salvos com sucesso!", "success");
         renderAll();
       } catch (err) {
-        showBanner("Erro ao salvar configurações no banco de dados.", "danger");
+        showBanner("Erro ao salvar configurações e grupos no banco de dados.", "danger");
       }
     });
   }
