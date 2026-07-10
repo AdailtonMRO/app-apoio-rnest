@@ -1,4 +1,4 @@
-/* Apoio RNEST - Combined Stylesheet (Lei de Apoio 2025) */
+﻿/* Apoio RNEST - Combined Stylesheet (Lei de Apoio 2025) */
 
 :root {
   /* Cores base - HSL */
@@ -48,9 +48,9 @@
 
 /* ============================================================
    TEMA EMPRESA — Cores Oficiais (Modo Claro)
-   Ativado por: <html data-theme="empresa">
+   Ativado por: <html data-theme="claro">
    ============================================================ */
-[data-theme="empresa"] {
+[data-theme="claro"] {
   /* Fundos — branco puro */
   --bg-color:        #ffffff;
   --bg-card:         rgba(255, 255, 255, 0.95);
@@ -89,152 +89,152 @@
 }
 
 /* Fundo do body — branco puro */
-[data-theme="empresa"] body {
+[data-theme="claro"] body {
   background-image: none;
 }
 
 /* Cards e painéis — borda verde suave, sombra discreta */
-[data-theme="empresa"] .glass-panel {
+[data-theme="claro"] .glass-panel {
   box-shadow: 0 2px 16px -2px rgba(0, 133, 66, 0.10), 0 1px 3px rgba(0,0,0,0.05);
   border-color: rgba(0, 133, 66, 0.15);
 }
 
-[data-theme="empresa"] .glass-panel:hover {
+[data-theme="claro"] .glass-panel:hover {
   box-shadow: 0 6px 24px -4px rgba(0, 133, 66, 0.16), 0 2px 6px rgba(0,0,0,0.06);
   border-color: rgba(0, 133, 66, 0.30);
 }
 
 /* Botões secundários adaptados ao fundo claro */
-[data-theme="empresa"] .btn-secondary {
+[data-theme="claro"] .btn-secondary {
   background: rgba(0, 133, 66, 0.07);
   color: #0f2419;
   border: 1px solid rgba(0, 133, 66, 0.22);
 }
 
-[data-theme="empresa"] .btn-secondary:hover {
+[data-theme="claro"] .btn-secondary:hover {
   background: rgba(0, 133, 66, 0.13);
   border-color: rgba(0, 133, 66, 0.40);
   color: #008542;
 }
 
 /* Botão de perigo adaptado */
-[data-theme="empresa"] .btn-danger {
+[data-theme="claro"] .btn-danger {
   background: rgba(192, 57, 43, 0.08);
   color: #c0392b;
   border: 1px solid rgba(192, 57, 43, 0.25);
 }
 
-[data-theme="empresa"] .btn-danger:hover {
+[data-theme="claro"] .btn-danger:hover {
   background: rgba(192, 57, 43, 0.15);
   border-color: #c0392b;
 }
 
-[data-theme="empresa"] .btn-icon-only:hover {
+[data-theme="claro"] .btn-icon-only:hover {
   background: rgba(0, 133, 66, 0.08);
   border-color: rgba(0, 133, 66, 0.22);
   color: #008542;
 }
 
-[data-theme="empresa"] .btn-primary:hover {
+[data-theme="claro"] .btn-primary:hover {
   box-shadow: 0 0 22px 4px rgba(0, 133, 66, 0.35);
 }
 
 /* Inputs no modo claro */
-[data-theme="empresa"] .input-field {
+[data-theme="claro"] .input-field {
   background-color: #ffffff;
   border-color: rgba(0, 133, 66, 0.22);
   color: #0f2419;
 }
 
-[data-theme="empresa"] .input-field:focus {
+[data-theme="claro"] .input-field:focus {
   border-color: #008542;
   box-shadow: 0 0 0 3px rgba(0, 133, 66, 0.12);
 }
 
 /* Scrollbar com cor da empresa */
-[data-theme="empresa"] ::-webkit-scrollbar-track {
+[data-theme="claro"] ::-webkit-scrollbar-track {
   background: #f4f8f5;
 }
 
-[data-theme="empresa"] ::-webkit-scrollbar-thumb {
+[data-theme="claro"] ::-webkit-scrollbar-thumb {
   background: rgba(0, 133, 66, 0.25);
 }
 
-[data-theme="empresa"] ::-webkit-scrollbar-thumb:hover {
+[data-theme="claro"] ::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 133, 66, 0.45);
 }
 
 /* Badges adaptados ao fundo claro */
-[data-theme="empresa"] .badge-open {
+[data-theme="claro"] .badge-open {
   background-color: rgba(0, 133, 66, 0.10);
   color: #006830;
   border-color: rgba(0, 133, 66, 0.25);
 }
 
-[data-theme="empresa"] .badge-pending {
+[data-theme="claro"] .badge-pending {
   background-color: rgba(237, 139, 0, 0.10);
   color: #b36a00;
   border-color: rgba(237, 139, 0, 0.28);
 }
 
 /* Select e role-select */
-[data-theme="empresa"] select,
-[data-theme="empresa"] .role-select {
+[data-theme="claro"] select,
+[data-theme="claro"] .role-select {
   background-color: #ffffff;
   color: #0f2419;
   border-color: rgba(0, 133, 66, 0.25);
 }
 
 /* Acento com amarelo empresa em elementos de destaque */
-[data-theme="empresa"] .logo-icon {
+[data-theme="claro"] .logo-icon {
   filter: drop-shadow(0 0 8px rgba(253, 200, 47, 0.5));
 }
 
 /* Data e Turno nos cards de apoio — verde principal com texto branco */
-[data-theme="empresa"] .slot-schedule {
+[data-theme="claro"] .slot-schedule {
   background: #008542;
   color: #ffffff;
   border-color: #006830;
 }
 
-[data-theme="empresa"] .slot-schedule svg {
+[data-theme="claro"] .slot-schedule svg {
   color: #ffffff;
 }
 
 /* Tabs principais — fundo verde bem claro, aba ativa verde sólido */
-[data-theme="empresa"] .app-views-nav {
+[data-theme="claro"] .app-views-nav {
   background: rgba(0, 133, 66, 0.07);
   border-color: rgba(0, 133, 66, 0.18);
 }
 
-[data-theme="empresa"] .view-tab-btn {
+[data-theme="claro"] .view-tab-btn {
   color: #3a5c47;
 }
 
-[data-theme="empresa"] .view-tab-btn:hover {
+[data-theme="claro"] .view-tab-btn:hover {
   background: rgba(0, 133, 66, 0.12);
   color: #008542;
 }
 
-[data-theme="empresa"] .view-tab-btn.active {
+[data-theme="claro"] .view-tab-btn.active {
   background: #008542;
   color: #ffffff;
   box-shadow: 0 2px 12px rgba(0, 133, 66, 0.30);
 }
 
 /* Tabs secundárias (filtro de data, subgrupos) */
-[data-theme="empresa"] .tab-btn {
+[data-theme="claro"] .tab-btn {
   background: rgba(0, 133, 66, 0.05);
   border-color: rgba(0, 133, 66, 0.18);
   color: #3a5c47;
 }
 
-[data-theme="empresa"] .tab-btn:hover {
+[data-theme="claro"] .tab-btn:hover {
   background: rgba(0, 133, 66, 0.12);
   color: #008542;
 }
 
-[data-theme="empresa"] .tab-btn.active {
+[data-theme="claro"] .tab-btn.active {
   background: #008542;
   border-color: #008542;
   color: #ffffff;
@@ -246,27 +246,27 @@
    ================================================================ */
 
 /* 🟢 LIVRE — Teal: disponível, convida à ação */
-[data-theme="empresa"] .slot-card.status-livre::before {
+[data-theme="claro"] .slot-card.status-livre::before {
   background: #00b2a9;
 }
 
 /* 🔵 ATRIBUÍDO — Azul petróleo: ocupado/fechado */
-[data-theme="empresa"] .slot-card.status-atribuido::before {
+[data-theme="claro"] .slot-card.status-atribuido::before {
   background: #006298;
 }
 
 /* 🟡 PENDENTE — Amarelo empresa: atenção necessária */
-[data-theme="empresa"] .slot-card.status-pendente::before {
+[data-theme="claro"] .slot-card.status-pendente::before {
   background: #fdc82f;
 }
 
 /* ⬜ CANCELADO — Cinza neutro: inativo */
-[data-theme="empresa"] .slot-card.status-cancelado::before {
+[data-theme="claro"] .slot-card.status-cancelado::before {
   background: #75787b;
 }
 
 /* ✅ CONCLUÍDO — Verde empresa: sucesso */
-[data-theme="empresa"] .slot-card.status-concluido::before {
+[data-theme="claro"] .slot-card.status-concluido::before {
   background: #008542;
 }
 
@@ -275,35 +275,35 @@
    ================================================================ */
 
 /* LIVRE → teal */
-[data-theme="empresa"] .badge-open {
+[data-theme="claro"] .badge-open {
   background-color: rgba(0, 178, 169, 0.12);
   color: #007a72;
   border-color: rgba(0, 178, 169, 0.35);
 }
 
 /* PENDENTE → amarelo empresa */
-[data-theme="empresa"] .badge-pending {
+[data-theme="claro"] .badge-pending {
   background-color: rgba(253, 200, 47, 0.15);
   color: #a07800;
   border-color: rgba(253, 200, 47, 0.40);
 }
 
 /* ATRIBUÍDO → azul petróleo */
-[data-theme="empresa"] .badge-assigned {
+[data-theme="claro"] .badge-assigned {
   background-color: rgba(0, 98, 152, 0.10);
   color: #004e7a;
   border-color: rgba(0, 98, 152, 0.28);
 }
 
 /* CANCELADO → cinza neutro */
-[data-theme="empresa"] .badge-cancelled {
+[data-theme="claro"] .badge-cancelled {
   background-color: rgba(117, 120, 123, 0.10);
   color: #4a4d50;
   border-color: rgba(117, 120, 123, 0.28);
 }
 
 /* CONCLUÍDO → verde empresa */
-[data-theme="empresa"] .badge-concluido {
+[data-theme="claro"] .badge-concluido {
   background-color: rgba(0, 133, 66, 0.10);
   color: #006830;
   border-color: rgba(0, 133, 66, 0.28);
@@ -336,13 +336,13 @@
   background: var(--primary-glow);
 }
 
-[data-theme="empresa"] #btn-theme-toggle {
+[data-theme="claro"] #btn-theme-toggle {
   background: rgba(0, 133, 66, 0.07);
   border-color: rgba(0, 133, 66, 0.22);
   color: #3a5c47;
 }
 
-[data-theme="empresa"] #btn-theme-toggle:hover {
+[data-theme="claro"] #btn-theme-toggle:hover {
   background: rgba(0, 133, 66, 0.13);
   border-color: #008542;
   color: #008542;

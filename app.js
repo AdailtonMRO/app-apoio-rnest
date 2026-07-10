@@ -805,13 +805,13 @@ function init() {
 
 const THEME_KEY = 'apoio-rnest-theme';
 const THEMES = {
-  padrao:  { label: '🌌 Padrão',  attr: null },
-  empresa: { label: '🟢 Empresa', attr: 'empresa' }
+  escuro: { label: '🌙 Modo Escuro', attr: null },
+  claro:  { label: '☀️ Modo Claro',  attr: 'claro' }
 };
 
 function applyTheme(themeKey) {
   const html = document.documentElement;
-  const theme = THEMES[themeKey] || THEMES.padrao;
+  const theme = THEMES[themeKey] || THEMES.escuro;
   if (theme.attr) {
     html.setAttribute('data-theme', theme.attr);
   } else {
@@ -825,15 +825,22 @@ function applyTheme(themeKey) {
 }
 
 function toggleTheme() {
-  const current = localStorage.getItem(THEME_KEY) || 'padrao';
-  const next = current === 'padrao' ? 'empresa' : 'padrao';
+  const current = localStorage.getItem(THEME_KEY) || 'escuro';
+  const next = current === 'escuro' ? 'claro' : 'escuro';
   applyTheme(next);
 }
 
 // Aplica o tema salvo imediatamente ao carregar
 (function initTheme() {
-  const saved = localStorage.getItem(THEME_KEY) || 'padrao';
-  applyTheme(saved);
+  const saved = localStorage.getItem(THEME_KEY) || 'escuro';
+  // Lida com chaves antigas salvas em cache local
+  if (saved === 'padrao') {
+    applyTheme('escuro');
+  } else if (saved === 'empresa') {
+    applyTheme('claro');
+  } else {
+    applyTheme(saved);
+  }
 })();
 
 // Wiring do botão de tema
