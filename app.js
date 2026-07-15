@@ -1572,9 +1572,10 @@ function executeSubstituirVaga(slotId, isAutotroca, folgaDate = '', isPayback = 
   history = history.filter(h => !(h.usuarioId === oldAssigneeId && h.data === slot.data));
   autotrocas = autotrocas.filter(at => !(at.usuarioId === oldAssigneeId && at.slotId === slotId && at.tipo === 'NORMAL'));
 
-  // 2. Verificar limite mensal de 3 apoios para o novo usuário
-  const monthlyCount = getUserMonthlySupportCount(currentUser.id, slot.data);
-  const needsAuthorization = monthlyCount >= currentConfig.monthlyLimit;
+  // 2. Verificar limite mensal de horas de apoio para o novo usuário
+  const slotHours = calculateSupportHours(slot.horaInicio || '07:00', slot.horaTermino || '19:00');
+  const currentHours = getUserMonthlySupportHours(currentUser.id, slot.data);
+  const needsAuthorization = (currentHours + slotHours) > currentConfig.monthlyHoursLimit;
 
   // 3. Reatribuir
   slots = slots.map(s => {
@@ -1938,6 +1939,16 @@ function getUserMonthlySupportCount(userId, dateStr) {
     h.usuarioId === userId &&
     h.data && h.data.substring(0, 7) === targetMonth
   ).length;
+}
+
+// Soma o total de horas de apoio do usuário em um determinado mês
+function getUserMonthlySupportHours(userId, dateStr) {
+  if (!dateStr) return 0;
+  const targetMonth = dateStr.substring(0, 7); // YYYY-MM
+  return history.filter(h =>
+    h.usuarioId === userId &&
+    h.data && h.data.substring(0, 7) === targetMonth
+  ).reduce((sum, h) => sum + (h.totalHoras || 0), 0);
 }
 
 function getDisputeWinner(slotId) {
@@ -3013,7 +3024,7 @@ function renderMyPanel() {
     const lastDate = getUserLastSupportDate(currentUser.id);
     const isExcluido = currentUser.cargo === 'GPI' || currentUser.cargo === 'OPMAN';
     const currentMonth = getTodayStr();
-    const monthlyCount = getUserMonthlySupportCount(currentUser.id, currentMonth);
+    const monthlyHours = getUserMonthlySupportHours(currentUser.id, currentMonth);
     const rawMonth = new Date(currentMonth + 'T00:00:00').toLocaleDateString('pt-BR', { month: 'long' });
     const monthName = rawMonth.charAt(0).toUpperCase() + rawMonth.slice(1);
 
@@ -3065,11 +3076,11 @@ function renderMyPanel() {
             </strong>
           </div>
           <div>
-            <span style="color: var(--text-muted); display: block;">Apoios em ${monthName}:</span>
-            <strong style="font-size: 1.15rem; color: ${monthlyCount >= currentConfig.monthlyLimit ? 'var(--warning)' : 'var(--success)'}">
-              ${monthlyCount}/${currentConfig.monthlyLimit}
+            <span style="color: var(--text-muted); display: block;">Horas em ${monthName}:</span>
+            <strong style="font-size: 1.15rem; color: ${monthlyHours >= currentConfig.monthlyHoursLimit ? 'var(--warning)' : 'var(--success)'}">
+              ${monthlyHours}h/${currentConfig.monthlyHoursLimit}h
             </strong>
-            ${monthlyCount >= currentConfig.monthlyLimit ? '<span style="font-size: 0.65rem; color: var(--warning); display: block;">Requer autorização</span>' : ''}
+            ${monthlyHours >= currentConfig.monthlyHoursLimit ? '<span style="font-size: 0.65rem; color: var(--warning); display: block;">Requer autorização</span>' : ''}
           </div>
         </div>
 
@@ -4094,13 +4105,13 @@ function updateFormUsuarioSelectCompatibility() {
     }
     
     const mesAtualStr = getTodayStr();
-    const mensalCount = getUserMonthlySupportCount(u.id, dateVal || mesAtualStr);
+    const mensalHours = getUserMonthlySupportHours(u.id, dateVal || mesAtualStr);
     const mesLabel = (dateVal || mesAtualStr).substring(0, 7);
     const [mY, mM] = mesLabel.split('-');
     const mNomes = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
     const mAbrev = mNomes[parseInt(mM, 10) - 1];
-    const countColor = mensalCount >= currentConfig.monthlyLimit ? ' 🔴' : mensalCount === (currentConfig.monthlyLimit - 1) ? ' 🟡' : '';
-    formUserHtml += `<option value="${u.id}">${u.nome} (${u.cargo})${label} [${mensalCount}/${currentConfig.monthlyLimit} ${mAbrev}${countColor}]</option>`;
+    const countColor = mensalHours >= currentConfig.monthlyHoursLimit ? ' 🔴' : (mensalHours >= currentConfig.monthlyHoursLimit - 12) ? ' 🟡' : '';
+    formUserHtml += `<option value="${u.id}">${u.nome} (${u.cargo})${label} [${mensalHours}h/${currentConfig.monthlyHoursLimit}h ${mAbrev}${countColor}]</option>`;
   });
   
   selectFormUsuario.innerHTML = formUserHtml;
@@ -4336,8 +4347,9 @@ function executeAssumirVagaDireta(slotId, isAutotroca, folgaDate = '', isPayback
   const userHasDebt = debts.length > 0;
   const finalIsPayback = isPayback || userHasDebt;
 
-  const monthlyCount = getUserMonthlySupportCount(currentUser.id, slot.data);
-  const needsAuthorization = monthlyCount >= currentConfig.monthlyLimit;
+  const slotHours = calculateSupportHours(slot.horaInicio || '07:00', slot.horaTermino || '19:00');
+  const currentHours = getUserMonthlySupportHours(currentUser.id, slot.data);
+  const needsAuthorization = (currentHours + slotHours) > currentConfig.monthlyHoursLimit;
 
   slots = slots.map(s => {
     if (s.id === slotId) {
@@ -4487,9 +4499,10 @@ function handleEncerrarDisputa(slotId) {
   const vencedor = getDisputeWinner(slotId);
   const userVencedor = users.find(u => u.id === vencedor.id);
 
-  // Verificar limite mensal de 3 apoios para o vencedor
-  const monthlyCount = getUserMonthlySupportCount(vencedor.id, slot.data);
-  const needsAuthorization = monthlyCount >= currentConfig.monthlyLimit;
+  // Verificar limite mensal de horas de apoio para o vencedor
+  const slotHours = calculateSupportHours(slot.horaInicio || '07:00', slot.horaTermino || '19:00');
+  const currentHours = getUserMonthlySupportHours(vencedor.id, slot.data);
+  const needsAuthorization = (currentHours + slotHours) > currentConfig.monthlyHoursLimit;
 
   slots = slots.map(s => {
     if (s.id === slotId) {
@@ -4531,7 +4544,8 @@ function handleEncerrarDisputa(slotId) {
   history = [...history, novoHistorico];
 
   if (needsAuthorization) {
-    showBanner(`Disputa encerrada! Vaga atribuída a ${userVencedor.nome}, mas este é o ${monthlyCount + 1}º apoio dele(a) no mês. Aguardando autorização gerencial.`, 'warning');
+    const newTotalHours = currentHours + slotHours;
+    showBanner(`Disputa encerrada! Vaga atribuída a ${userVencedor.nome}, mas ele(a) acumulará ${newTotalHours}h de apoios neste mês. Aguardando autorização gerencial.`, 'warning');
   } else {
     showBanner(`Disputa encerrada! Vaga atribuída ao líder ${userVencedor.nome} (${vencedor.score.toFixed(2)} pts gerais)`, 'success');
   }
@@ -4584,13 +4598,18 @@ function handleAutoRegistroApoio(e) {
   const isBypassed = regBypassLimit && regBypassLimit.checked;
   const applyPenalty = isLate && !isBypassed && currentConfig.penaltiesEnabled;
 
-  // Verificar limite mensal de apoios
-  const monthlyCount = getUserMonthlySupportCount(regUserId, regData);
-  const exceedsMonthlyLimit = monthlyCount >= currentConfig.monthlyLimit;
+  const regHoraInicio = regHoraInicioInput ? regHoraInicioInput.value : '07:00';
+  const regHoraTermino = regHoraTerminoInput ? regHoraTerminoInput.value : '19:00';
+  const regTotalHoras = calculateSupportHours(regHoraInicio, regHoraTermino);
+
+  // Verificar limite mensal de horas de apoio
+  const currentHours = getUserMonthlySupportHours(regUserId, regData);
+  const newTotalHours = currentHours + regTotalHoras;
+  const exceedsMonthlyLimit = newTotalHours > currentConfig.monthlyHoursLimit;
 
   // Se o operador está registrando para si mesmo e excede o limite, precisa de autorização
   if (exceedsMonthlyLimit && !isGestor && !editingHistoryId) {
-    showBanner(`Este é o ${monthlyCount + 1}º apoio de ${users.find(u => u.id === regUserId)?.nome || 'colaborador'} neste mês. Apenas um Supervisor, Gerente ou Administrador pode registrar apoios além do limite de ${currentConfig.monthlyLimit}/mês.`, 'danger');
+    showBanner(`Este apoio tem ${regTotalHoras}h. Com ele, o colaborador ${users.find(u => u.id === regUserId)?.nome || 'colaborador'} acumularia ${newTotalHours}h neste mês. Apenas um Supervisor, Gerente ou Administrador pode registrar apoios além do limite de ${currentConfig.monthlyHoursLimit}h/mês.`, 'danger');
     return;
   }
 
@@ -4618,10 +4637,6 @@ function handleAutoRegistroApoio(e) {
   }
 
   const score = calculateSupportScore(regras);
-
-  const regHoraInicio = regHoraInicioInput ? regHoraInicioInput.value : '07:00';
-  const regHoraTermino = regHoraTerminoInput ? regHoraTerminoInput.value : '19:00';
-  const regTotalHoras = calculateSupportHours(regHoraInicio, regHoraTermino);
 
   if (editingHistoryId) {
     const prevItem = history.find(h => h.id === editingHistoryId);
@@ -5205,8 +5220,9 @@ function handleCriarSolicitacaoSlot(e) {
           };
           
           if (newUsuarioId) {
-            const monthlyCount = getUserMonthlySupportCount(newUsuarioId, formData);
-            const needsAuthorization = monthlyCount >= currentConfig.monthlyLimit;
+            const slotHours = calculateSupportHours(formHoraInicio, formHoraTermino);
+            const currentHours = getUserMonthlySupportHours(newUsuarioId, formData);
+            const needsAuthorization = (currentHours + slotHours) > currentConfig.monthlyHoursLimit;
             if (needsAuthorization) {
               updated.requerAutorizacao = true;
               updated.autorizadoPorId = currentUser.id; // Pré-autorizado pelo admin
@@ -5265,8 +5281,9 @@ function handleCriarSolicitacaoSlot(e) {
       
       let needsAuthorization = false;
       if (selectedUsuarioId) {
-        const monthlyCount = getUserMonthlySupportCount(selectedUsuarioId, dStr);
-        needsAuthorization = monthlyCount >= currentConfig.monthlyLimit;
+        const slotHours = calculateSupportHours(formHoraInicio, formHoraTermino);
+        const currentHours = getUserMonthlySupportHours(selectedUsuarioId, dStr);
+        needsAuthorization = (currentHours + slotHours) > currentConfig.monthlyHoursLimit;
       }
 
       const novoSlot = {
@@ -5454,12 +5471,12 @@ function generateWhatsappTemplate() {
           emoji = '🔴';
           if (u) {
             const primeiroNome = u.nome ? u.nome.trim().split(' ')[0] : '';
-            const monthlyCount = getUserMonthlySupportCount(u.id, s.data);
+            const monthlyHours = getUserMonthlySupportHours(u.id, s.data);
             if (u.id === currentUser.id) {
-              userText = `👉 *${u.id.trim().toUpperCase()} - ${primeiroNome} (${monthlyCount}) (VOCÊ)* 👈`;
+              userText = `👉 *${u.id.trim().toUpperCase()} - ${primeiroNome} (${monthlyHours}h) (VOCÊ)* 👈`;
               emoji = '⭐';
             } else {
-              userText = `${u.id.trim().toUpperCase()} - ${primeiroNome} (${monthlyCount})`;
+              userText = `${u.id.trim().toUpperCase()} - ${primeiroNome} (${monthlyHours}h)`;
             }
           } else {
             userText = 'Desconhecido';
@@ -5478,7 +5495,7 @@ function generateWhatsappTemplate() {
     output += `*-----------------------------------*\n\n`;
   });
 
-  output += `Obs.: Se o número de apoios for superior a 3 será solicitada autorização gerencial.\n`;
+  output += `Obs.: Se o número total de horas de apoios no mês ultrapassar ${currentConfig.monthlyHoursLimit}h, será solicitada autorização gerencial.\n`;
   output += `Obrigado!\n\n`;
   output += `Acesse o sistema: https://adailtonmro.github.io/app-apoio-rnest/?org=${encodeURIComponent(orgId)}\n`;
 
@@ -6858,7 +6875,7 @@ function renderConfiguracoes() {
   const shareUrl = window.location.origin + window.location.pathname + '?org=' + encodeURIComponent(orgId);
   if (configShareUrl) configShareUrl.value = shareUrl;
 
-  if (configMonthlyLimit) configMonthlyLimit.value = currentConfig.monthlyLimit;
+  if (configMonthlyLimit) configMonthlyLimit.value = currentConfig.monthlyHoursLimit;
   if (configLateHours) configLateHours.value = currentConfig.lateSubmissionHours;
   if (configBumpingEnabled) configBumpingEnabled.checked = currentConfig.bumpingEnabled;
   if (configPenaltiesEnabled) configPenaltiesEnabled.checked = currentConfig.penaltiesEnabled;
@@ -6984,7 +7001,7 @@ function initConfiguracoesWiring() {
       const configBumpingEnabled = document.getElementById('config-bumping-enabled');
       const configPenaltiesEnabled = document.getElementById('config-penalties-enabled');
 
-      const monthlyLimitVal = parseInt(configMonthlyLimit?.value, 10) || 3;
+      const monthlyLimitVal = parseInt(configMonthlyLimit?.value, 10) || 46;
       const lateHoursVal = parseInt(configLateHours?.value, 10) || 72;
       const bumpingVal = configBumpingEnabled ? configBumpingEnabled.checked : true;
       const penaltiesVal = configPenaltiesEnabled ? configPenaltiesEnabled.checked : true;
@@ -7021,7 +7038,7 @@ function initConfiguracoesWiring() {
         return;
       }
 
-      currentConfig.monthlyLimit = monthlyLimitVal;
+      currentConfig.monthlyHoursLimit = monthlyLimitVal;
       currentConfig.lateSubmissionHours = lateHoursVal;
       currentConfig.bumpingEnabled = bumpingVal;
       currentConfig.penaltiesEnabled = penaltiesVal;

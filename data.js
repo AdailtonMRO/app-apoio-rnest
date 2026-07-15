@@ -144,7 +144,7 @@ export const saveStoredData = (data) => {
 
 // Configuração padrão inicial do sistema para novas organizações
 export const DEFAULT_CONFIG = {
-  monthlyLimit: 3,
+  monthlyHoursLimit: 46,
   lateSubmissionHours: 72,
   bumpingEnabled: true,
   penaltiesEnabled: true,
