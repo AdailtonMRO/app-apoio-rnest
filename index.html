@@ -1113,6 +1113,11 @@
             </div>
 
             <div class="form-group">
+              <label class="form-label">Apelido (Inicialmente o primeiro nome):</label>
+              <input type="text" id="user-form-apelido" class="input-field" placeholder="Ex: Syan">
+            </div>
+
+            <div class="form-group">
               <label class="form-label">E-mail de Login Google (Obrigatório):</label>
               <input type="email" id="user-form-email" class="input-field" placeholder="Ex: colaborador@gmail.com ou ab2u@rnest.com.br" required>
             </div>
@@ -1164,15 +1169,20 @@
       <div id="operator-areas-modal" class="modal-overlay" style="display: none; z-index: 9999;">
         <div class="modal-content glass-panel" style="max-width: 480px;">
           <div class="modal-header">
-            <h2 class="modal-title">⚙️ Editar Minhas Áreas/Funções</h2>
+            <h2 class="modal-title">⚙️ Editar Meu Perfil / Áreas</h2>
             <button id="btn-close-operator-areas-modal" style="background: transparent; border: none; color: #fff; font-size: 1.25rem; cursor: pointer;">✕</button>
           </div>
           
           <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 12px;">
-            Selecione abaixo as áreas e funções que você tem conhecimento e está apto a assumir nas escalas de apoio.
+            Configure seu perfil de exibição e selecione abaixo as áreas e funções de atuação.
           </p>
 
           <form id="operator-areas-form" style="display: flex; flex-direction: column; gap: 16px;">
+            <div class="form-group">
+              <label class="form-label" style="display: block; margin-bottom: 6px;">Meu Apelido (Como será exibido nas escalas):</label>
+              <input type="text" id="operator-form-apelido" class="input-field" placeholder="Ex: Syan, Adailton" style="width: 100%;">
+            </div>
+
             <div class="form-group">
               <label class="form-label" style="display: block; margin-bottom: 6px;">Meu Grupo de Trabalho / Escala (Obrigatório):</label>
               <select id="operator-form-grupo-trabalho" class="input-field" required style="width: 100%;">

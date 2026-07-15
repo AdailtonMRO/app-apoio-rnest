@@ -118,6 +118,26 @@ function getDaysDifference(date1Str, date2Str) {
   return Math.floor(diffTime / (1000 * 60 * 60 * 24));
 }
 
+function getSimulatedCurrentDateTime() {
+  const now = new Date();
+  const timeStr = String(now.getHours()).padStart(2, '0') + ':' + 
+                  String(now.getMinutes()).padStart(2, '0') + ':' + 
+                  String(now.getSeconds()).padStart(2, '0');
+  return new Date(simulatedCurrentDate + 'T' + timeStr);
+}
+
+function getSlotStartDateTime(slot) {
+  const horaVal = slot.horaInicio || ((slot.horario && slot.horario.includes('19')) ? '19:00' : '07:00');
+  return new Date(slot.data + 'T' + horaVal + ':00');
+}
+
+function isLessThan24HoursBefore(slot) {
+  const now = getSimulatedCurrentDateTime();
+  const slotStart = getSlotStartDateTime(slot);
+  const diffMs = slotStart.getTime() - now.getTime();
+  return diffMs < 24 * 60 * 60 * 1000;
+}
+
 function getGroupShiftForDate(grupoId, dateStr) {
   if (!grupoId) return 'F';
   if (grupoId === 'adm') {
@@ -310,6 +330,7 @@ const userFormMode = document.getElementById('user-form-mode');
 const userFormOldChave = document.getElementById('user-form-old-chave');
 const userFormChave = document.getElementById('user-form-chave');
 const userFormNome = document.getElementById('user-form-nome');
+const userFormApelido = document.getElementById('user-form-apelido');
 const userFormEmail = document.getElementById('user-form-email');
 const userFormCargo = document.getElementById('user-form-cargo');
 const userFormNivel = document.getElementById('user-form-nivel');
@@ -322,6 +343,7 @@ const operatorAreasModal = document.getElementById('operator-areas-modal');
 const btnCloseOperatorAreasModal = document.getElementById('btn-close-operator-areas-modal');
 const btnCancelOperatorAreasModal = document.getElementById('btn-cancel-operator-areas-modal');
 const operatorAreasForm = document.getElementById('operator-areas-form');
+const operatorFormApelido = document.getElementById('operator-form-apelido');
 
 // Modais - CSV
 const csvModal = document.getElementById('csv-modal');
@@ -977,6 +999,9 @@ function setupRealtimeSync() {
       if (!updatedUser.grupoTrabalho) {
         updatedUser.grupoTrabalho = getDefaultGrupoTrabalho(updatedUser);
       }
+      if (!updatedUser.apelido) {
+        updatedUser.apelido = updatedUser.nome ? updatedUser.nome.trim().split(' ')[0] : 'Desconhecido';
+      }
       return updatedUser;
     });
     
@@ -1161,6 +1186,7 @@ function ensureAdminPresence() {
     users.push({
       id: adminId,
       nome: 'Adailton Medeiros Rodrigues de Oliveira',
+      apelido: 'Adailton',
       email: adminEmail,
       tipo: 'ADMINISTRADOR',
       cargo: 'Administrador',
@@ -1531,9 +1557,8 @@ function handleSubstituirVaga(slotId) {
     return;
   }
 
-  const daysDiff = getDaysDifference(simulatedCurrentDate, slot.data);
-  if (daysDiff <= 1) {
-    showBanner('Não é possível substituir vagas de apoio faltando um dia ou menos para a realização.', 'danger');
+  if (isLessThan24HoursBefore(slot)) {
+    showBanner('Não é possível substituir vagas de apoio faltando menos de 24 horas para o início.', 'danger');
     return;
   }
 
@@ -1550,9 +1575,8 @@ function executeSubstituirVaga(slotId, isAutotroca, folgaDate = '', isPayback = 
   const slot = slots.find(s => s.id === slotId);
   if (!slot) return;
 
-  const daysDiff = getDaysDifference(simulatedCurrentDate, slot.data);
-  if (daysDiff <= 1) {
-    showBanner('Não é possível substituir vagas de apoio faltando um dia ou menos para a realização.', 'danger');
+  if (isLessThan24HoursBefore(slot)) {
+    showBanner('Não é possível substituir vagas de apoio faltando menos de 24 horas para o início.', 'danger');
     return;
   }
 
@@ -2928,9 +2952,8 @@ function attachSlotActionsListeners(filteredSlots, container = slotsGrid) {
           const occupantIsExcluido = occupant && (occupant.cargo === 'GPI' || occupant.cargo === 'OPMAN');
           const hasPriority = occupantIsExcluido || hasHigherPriority(currentUser.id, slot.usuarioId, slot.id);
           
-          const daysDiff = getDaysDifference(simulatedCurrentDate, slot.data);
-          if (daysDiff <= 1) {
-            actionHtml = `<button class="btn btn-secondary" style="width: 100%; cursor: not-allowed;" disabled>🔒 Ocupado (Substituição Indisponível - Menos de 1 dia)</button>`;
+          if (isLessThan24HoursBefore(slot)) {
+            actionHtml = `<button class="btn btn-secondary" style="width: 100%; cursor: not-allowed;" disabled>🔒 Ocupado (Substituição Indisponível - Menos de 24h)</button>`;
           } else if (hasPriority && currentConfig.bumpingEnabled) {
             actionHtml = `<button class="btn btn-primary btn-substituir" style="width: 100%;">🔄 Substituir (Maior Prioridade)</button>`;
           } else if (slot.autotrocaPayback) {
@@ -3302,7 +3325,7 @@ function renderSingleCalendarMonth(year, month) {
     if (occupiedSlots.length > 0) {
       const names = occupiedSlots.map(s => {
         const u = users.find(user => user.id === s.usuarioId);
-        return u && u.nome ? u.nome.split(' ')[0] : 'Desconhecido';
+        return u ? (u.apelido || (u.nome ? u.nome.split(' ')[0] : 'Desconhecido')) : 'Desconhecido';
       });
       hoverText += `\nApoio: ${names.join(', ')}`;
     }
@@ -3720,7 +3743,10 @@ function renderUsersTable() {
     html += `
       <tr>
         <td><strong style="color: var(--primary);">${u.id.toUpperCase()}</strong></td>
-        <td><span style="font-weight: 600;">${u.nome}</span></td>
+        <td>
+          <span style="font-weight: 600;">${u.nome}</span>
+          ${u.apelido ? `<br><small style="color: var(--text-muted); font-size: 0.72rem;">Apelido: ${u.apelido}</small>` : ''}
+        </td>
         <td>
           <div>${u.cargo}</div>
           <div style="display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; max-width: 250px;">
@@ -3797,6 +3823,7 @@ function openUserModal(mode, id = '') {
     userModalTitle.textContent = 'Cadastrar Novo Colaborador';
     userFormChave.disabled = false;
     userFormOldChave.value = '';
+    if (userFormApelido) userFormApelido.value = '';
     userFormNivel.value = 'OPERADOR';
     userFormCargo.value = 'Operador';
     userFormGrupoTrabalho.value = 'grupo_a';
@@ -3808,6 +3835,7 @@ function openUserModal(mode, id = '') {
       userFormChave.disabled = true; // Chave não se edita
       userFormOldChave.value = user.id;
       userFormNome.value = user.nome;
+      if (userFormApelido) userFormApelido.value = user.apelido || '';
       userFormEmail.value = user.email || '';
       userFormCargo.value = user.cargo;
       userFormNivel.value = user.tipo;
@@ -3835,6 +3863,7 @@ function handleSaveUser(e) {
   const oldChave = userFormOldChave.value;
   const newChave = userFormChave.value.trim().toUpperCase(); // Normaliza chaves em caixa alta
   const nome = userFormNome.value.trim();
+  const apelido = userFormApelido ? userFormApelido.value.trim() : '';
   const email = userFormEmail.value.trim().toLowerCase();
   const cargo = userFormCargo.value.trim();
   const nivel = userFormNivel.value;
@@ -3859,6 +3888,7 @@ function handleSaveUser(e) {
     const novoUser = {
       id: newChave,
       nome: nome,
+      apelido: apelido || nome.split(' ')[0],
       email: email,
       tipo: nivel,
       cargo: cargo,
@@ -3877,6 +3907,7 @@ function handleSaveUser(e) {
         return {
           ...u,
           nome: nome,
+          apelido: apelido || u.apelido || nome.split(' ')[0],
           email: isAdmin ? 'adailton.medeiros@gmail.com' : email,
           cargo: cargo,
           tipo: isAdmin ? 'ADMINISTRADOR' : nivel,
@@ -3941,6 +3972,10 @@ function openOperatorAreasModal() {
     operatorFormGrupoTrabalho.value = currentUser.grupoTrabalho || 'adm';
   }
   
+  if (operatorFormApelido) {
+    operatorFormApelido.value = currentUser.apelido || (currentUser.nome ? currentUser.nome.trim().split(' ')[0] : '');
+  }
+  
   operatorAreasModal.style.display = 'flex';
 }
 
@@ -3955,16 +3990,23 @@ function handleSaveOperatorAreas(e) {
   const operatorFormGrupoTrabalho = document.getElementById('operator-form-grupo-trabalho');
   const grupoTrabalho = operatorFormGrupoTrabalho ? operatorFormGrupoTrabalho.value : currentUser.grupoTrabalho;
   
+  const apelido = operatorFormApelido ? operatorFormApelido.value.trim() : '';
+  
   users = users.map(u => {
     if (u.id === currentUser.id) {
-      const updated = { ...u, areasFuncoes: areasFuncoes, grupoTrabalho: grupoTrabalho };
+      const updated = { 
+        ...u, 
+        areasFuncoes: areasFuncoes, 
+        grupoTrabalho: grupoTrabalho,
+        apelido: apelido || u.apelido || u.nome.trim().split(' ')[0]
+      };
       currentUser = updated; // Atualizar usuário ativo
       return updated;
     }
     return u;
   });
   
-  showBanner('Suas áreas, funções e grupo de trabalho foram atualizados com sucesso!', 'success');
+  showBanner('Suas áreas, funções, grupo de trabalho e apelido foram atualizados com sucesso!', 'success');
   
   operatorAreasModal.style.display = 'none';
   persistChanges('users');
@@ -5410,6 +5452,13 @@ function openWhatsappExporter() {
   whatsappModal.style.display = 'flex';
 }
 
+function formatHorarioHoraCheia(horario) {
+  if (!horario) return '';
+  let h = horario.replace(/(\d{2})00x(\d{2})00/g, '$1x$2');
+  h = h.replace(/:00/g, '');
+  return h;
+}
+
 function generateWhatsappTemplate() {
   let output = '';
 
@@ -5436,7 +5485,7 @@ function generateWhatsappTemplate() {
     openSlotsTodayOrTomorrow.forEach(s => {
       const group = groups.find(g => g.id === s.grupoId);
       const groupName = group ? group.nome : 'Sem Grupo';
-      output += `• *${groupName}* - ${s.subgrupo} em *${formatDatePt(s.data)}* (${s.horario})\n`;
+      output += `• *${groupName}* - ${s.subgrupo} em *${formatDatePt(s.data)}* (${formatHorarioHoraCheia(s.horario)})\n`;
     });
     output += `\n👉 Cadastre-se no sistema antes que as vagas sejam preenchidas!\n`;
     output += `============================\n\n`;
@@ -5470,13 +5519,13 @@ function generateWhatsappTemplate() {
         } else if (s.status === 'ATRIBUIDO') {
           emoji = '🔴';
           if (u) {
-            const primeiroNome = u.nome ? u.nome.trim().split(' ')[0] : '';
+            const displayNickname = u.apelido || (u.nome ? u.nome.trim().split(' ')[0] : 'Desconhecido');
             const monthlyHours = getUserMonthlySupportHours(u.id, s.data);
             if (u.id === currentUser.id) {
-              userText = `👉 *${u.id.trim().toUpperCase()} - ${primeiroNome} (${monthlyHours}h) (VOCÊ)* 👈`;
+              userText = `👉 *${displayNickname} (${monthlyHours}h) (VOCÊ)* 👈`;
               emoji = '⭐';
             } else {
-              userText = `${u.id.trim().toUpperCase()} - ${primeiroNome} (${monthlyHours}h)`;
+              userText = `${displayNickname} (${monthlyHours}h)`;
             }
           } else {
             userText = 'Desconhecido';
@@ -5486,7 +5535,7 @@ function generateWhatsappTemplate() {
           userText = 'Livre';
         }
 
-        output += `${emoji} ${formatDatePt(s.data)} - ${s.horario}: ${userText}\n`;
+        output += `${emoji} ${formatDatePt(s.data)} - ${formatHorarioHoraCheia(s.horario)}: ${userText}\n`;
       });
       
       output += `\n`;
@@ -5497,7 +5546,7 @@ function generateWhatsappTemplate() {
 
   output += `Obs.: Se o número total de horas de apoios no mês ultrapassar ${currentConfig.monthlyHoursLimit}h, será solicitada autorização gerencial.\n`;
   output += `Obrigado!\n\n`;
-  output += `Acesse o sistema: https://adailtonmro.github.io/app-apoio-rnest/?org=${encodeURIComponent(orgId)}\n`;
+  output += `Acesse o sistema: https://app-apoio-rnest.web.app/?org=${encodeURIComponent(orgId)}\n`;
 
   return output;
 }
@@ -6406,12 +6455,13 @@ function downloadCSV(csvContent, filename) {
 
 // 1. Exportação
 function exportUsersToCSV() {
-  const headers = ['id', 'nome', 'email', 'tipo', 'cargo', 'infracoesWA', 'areasFuncoes', 'grupoTrabalho'];
+  const headers = ['id', 'nome', 'apelido', 'email', 'tipo', 'cargo', 'infracoesWA', 'areasFuncoes', 'grupoTrabalho'];
   let csv = headers.join(',') + '\n';
   users.forEach(u => {
     const row = [
       u.id,
       u.nome,
+      u.apelido || u.nome.split(' ')[0],
       u.email,
       u.tipo,
       u.cargo,
@@ -6483,6 +6533,7 @@ function handleImportUsersCSV(event) {
     const headers = lines[0].map(h => h.trim().toLowerCase());
     const idIdx = headers.indexOf('id');
     const nomeIdx = headers.indexOf('nome');
+    const apelidoIdx = headers.indexOf('apelido');
     const emailIdx = headers.indexOf('email');
     const tipoIdx = headers.indexOf('tipo');
     const cargoIdx = headers.indexOf('cargo');
@@ -6519,6 +6570,9 @@ function handleImportUsersCSV(event) {
       const cargo = cargoIdx !== -1 ? row[cargoIdx].trim() : 'Operador';
       const tipo = tipoIdx !== -1 ? row[tipoIdx].trim().toUpperCase() : 'OPERADOR';
       const nome = row[nomeIdx].trim();
+      const apelido = (apelidoIdx !== -1 && row[apelidoIdx] && row[apelidoIdx].trim())
+        ? row[apelidoIdx].trim()
+        : nome.split(' ')[0];
       
       const areasFuncoes = (areasIdx !== -1 && row[areasIdx] && row[areasIdx].trim())
         ? row[areasIdx].trim().split(';')
@@ -6531,6 +6585,7 @@ function handleImportUsersCSV(event) {
       importedUsers.push({
         id,
         nome,
+        apelido,
         email: row[emailIdx].trim(),
         tipo,
         cargo,

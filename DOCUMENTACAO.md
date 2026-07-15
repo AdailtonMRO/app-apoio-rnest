@@ -113,4 +113,4 @@ Para evitar que operadores assumam vagas na escala e esqueçam de registrar no h
     - `🟢` (bola verde) para vagas com status **Livre** (exibindo explicitamente o texto `: Livre` no lugar de um nome em branco).
     - `🔴` (bola vermelha) para vagas **Atribuídas** (exibindo a identificação e o nome do colaborador).
     - `⚪` (bola branca) para vagas com status **Cancelado**.
-*   **Link de Acesso**: Todo template gerado anexa automaticamente no rodapé o link da aplicação (`https://adailtonmro.github.io/app-apoio-rnest/`), facilitando o clique direto dos operadores a partir do celular para acessar o sistema.
+*   **Link de Acesso**: Todo template gerado anexa automaticamente no rodapé o link da aplicação (`https://app-apoio-rnest.web.app/`), facilitando o clique direto dos operadores a partir do celular para acessar o sistema.
