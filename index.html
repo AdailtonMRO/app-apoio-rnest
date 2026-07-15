@@ -243,12 +243,22 @@
                 </div>
 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-                  <div class="form-group" style="grid-column: 2;">
+                  <div class="form-group">
                     <label class="form-label">Data de Término do Apoio:</label>
                     <input type="date" id="reg-data" class="input-field" required>
                     <span id="reg-date-warning" style="font-size: 0.75rem; color: var(--danger); display: none; margin-top: 4px;">
                       ⚠️ Lançamento fora do prazo de 72 horas! Será aplicada a penalidade R13 automaticamente.
                     </span>
+                  </div>
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                    <div class="form-group">
+                      <label class="form-label">Hora Início:</label>
+                      <input type="time" id="reg-hora-inicio" class="input-field" value="07:00" required>
+                    </div>
+                    <div class="form-group">
+                      <label class="form-label">Hora Fim:</label>
+                      <input type="time" id="reg-hora-termino" class="input-field" value="19:00" required>
+                    </div>
                   </div>
                 </div>
 
@@ -299,14 +309,19 @@
                   </div>
                 </div>
 
-                <!-- Painel de Pré-visualização de Pontos -->
-                <div class="points-preview-card">
+                <!-- Painel de Pré-visualização de Pontos e Horas -->
+                <div class="points-preview-card" style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 16px; align-items: center;">
                   <div>
-                    <span style="font-size: 0.8rem; color: var(--text-secondary); display: block;">Pontuação Estimada para este Apoio:</span>
+                    <span style="font-size: 0.8rem; color: var(--text-secondary); display: block;">Pontuação Estimada:</span>
                     <strong id="reg-points-preview" style="font-size: 1.8rem; color: var(--info);">1.00</strong>
                   </div>
+                  <div>
+                    <span style="font-size: 0.8rem; color: var(--text-secondary); display: block;">Horas Geradas:</span>
+                    <strong id="reg-horas-preview" style="font-size: 1.8rem; color: var(--success);">12h</strong>
+                  </div>
                   <div style="font-size: 0.75rem; color: var(--text-muted); text-align: right; max-width: 250px;">
-                    Fórmula: <code id="reg-formula-preview">1.0</code>. Apoios mais pesados dão menos pontos, preservando sua prioridade!
+                    Fórmula: <code id="reg-formula-preview">1.0</code>.<br>
+                    Horas calculadas a partir de início e término.
                   </div>
                 </div>
 
@@ -552,6 +567,7 @@
                           <th style="width: 50px;">#</th>
                           <th>Colaborador</th>
                           <th style="text-align: center;">Qtd. Apoios</th>
+                          <th style="text-align: center;">Total Horas</th>
                           <th style="text-align: right;">Pontuação Acum.</th>
                           <th style="width: 25%;">Proporção</th>
                         </tr>
@@ -714,6 +730,7 @@
                         <th style="width: 180px;">Código do Grupo (ID)</th>
                         <th>Nome do Grupo</th>
                         <th style="width: 180px; text-align: center;">Início do Ciclo (Apenas Turnos)</th>
+                        <th style="width: 120px; text-align: center;">Visível no Calendário</th>
                         <th style="width: 100px; text-align: center;">Ações</th>
                       </tr>
                     </thead>
@@ -935,17 +952,22 @@
               <input type="text" id="form-subgrupo" class="input-field" placeholder="Ex: Painel Térmico, Caldeira, Águas" required />
             </div>
 
+            <div class="form-group">
+              <label class="form-label" for="form-tipo-data">Tipo de Data:</label>
+              <select id="form-tipo-data" class="input-field">
+                <option value="unica" selected>Data Única</option>
+                <option value="intervalo">Intervalo de Datas</option>
+              </select>
+            </div>
+
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
               <div class="form-group">
-                <label class="form-label" for="form-tipo-data">Tipo de Data:</label>
-                <select id="form-tipo-data" class="input-field">
-                  <option value="unica" selected>Data Única</option>
-                  <option value="intervalo">Intervalo de Datas</option>
-                </select>
+                <label class="form-label" for="form-hora-inicio">Hora Início:</label>
+                <input type="time" id="form-hora-inicio" class="input-field" value="07:00" required />
               </div>
               <div class="form-group">
-                <label class="form-label" for="form-horario">Turno / Horário:</label>
-                <input type="text" id="form-horario" class="input-field" placeholder="Ex: 07x19, 19x07, 07x18" value="07x19" required />
+                <label class="form-label" for="form-hora-termino">Hora Fim:</label>
+                <input type="time" id="form-hora-termino" class="input-field" value="19:00" required />
               </div>
             </div>
 

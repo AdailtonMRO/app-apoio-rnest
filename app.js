@@ -351,12 +351,15 @@ const regGrupoSelect = document.getElementById('reg-grupo');
 const regCausaRaizSelect = document.getElementById('reg-causa-raiz');
 const regSubgrupoInput = document.getElementById('reg-subgrupo');
 const regDataInput = document.getElementById('reg-data');
+const regHoraInicioInput = document.getElementById('reg-hora-inicio');
+const regHoraTerminoInput = document.getElementById('reg-hora-termino');
 const regDataLancamentoInput = document.getElementById('reg-data-lancamento');
 const regDateWarning = document.getElementById('reg-date-warning');
 const regBypassContainer = document.getElementById('reg-bypass-container');
 const regBypassLimit = document.getElementById('reg-bypass-limit');
 const rulesCheckboxContainer = document.getElementById('rules-checkbox-container');
 const regPointsPreview = document.getElementById('reg-points-preview');
+const regHorasPreview = document.getElementById('reg-horas-preview');
 const regFormulaPreview = document.getElementById('reg-formula-preview');
 const registerCompletedSupportForm = document.getElementById('register-completed-support-form');
 const regFormTitle = document.getElementById('reg-form-title');
@@ -613,6 +616,8 @@ function init() {
 
   // Formulário de Auto-Registro - Eventos
   regDataInput.addEventListener('change', checkLateSubmission);
+  regHoraInicioInput.addEventListener('change', updatePointsPreview);
+  regHoraTerminoInput.addEventListener('change', updatePointsPreview);
   regBypassLimit.addEventListener('change', updatePointsPreview);
   btnCancelEditReg.addEventListener('click', handleCancelarEdicaoApoio);
   registerCompletedSupportForm.addEventListener('submit', handleAutoRegistroApoio);
@@ -666,9 +671,13 @@ function init() {
   if (elFormData) {
     elFormData.addEventListener('change', updateFormUsuarioSelectCompatibility);
   }
-  const elFormHorario = document.getElementById('form-horario');
-  if (elFormHorario) {
-    elFormHorario.addEventListener('change', updateFormUsuarioSelectCompatibility);
+  const elFormHoraInicio = document.getElementById('form-hora-inicio');
+  if (elFormHoraInicio) {
+    elFormHoraInicio.addEventListener('change', updateFormUsuarioSelectCompatibility);
+  }
+  const elFormHoraTermino = document.getElementById('form-hora-termino');
+  if (elFormHoraTermino) {
+    elFormHoraTermino.addEventListener('change', updateFormUsuarioSelectCompatibility);
   }
 
   // Evento do filtro de compatibilidade do operador
@@ -1779,6 +1788,8 @@ function handleIniciarEdicaoHistorico(historyId) {
   regSubgrupoInput.value = subgrupoVal;
   
   regDataInput.value = item.data;
+  if (regHoraInicioInput) regHoraInicioInput.value = item.horaInicio || '07:00';
+  if (regHoraTerminoInput) regHoraTerminoInput.value = item.horaTermino || '19:00';
 
   // Se for autotroca, carregar os dados correspondentes
   const isAutotroca = !!item.isAutotroca;
@@ -1813,12 +1824,15 @@ function handleIniciarEdicaoHistorico(historyId) {
   btnSubmitReg.textContent = '💾 Salvar Alterações e Recalcular Ranking';
 
   checkLateSubmission();
+  updatePointsPreview();
 }
 
 function handleCancelarEdicaoApoio() {
   editingHistoryId = null;
   regSubgrupoInput.value = '';
   regDataInput.value = '';
+  if (regHoraInicioInput) regHoraInicioInput.value = '07:00';
+  if (regHoraTerminoInput) regHoraTerminoInput.value = '19:00';
   if (regGrupoSelect) regGrupoSelect.selectedIndex = 0;
   rulesCheckboxContainer.querySelectorAll('input[name="reg-regras"]').forEach(cb => cb.checked = false);
   document.querySelectorAll('input[name="reg-areas-funcoes"]').forEach(cb => cb.checked = false);
@@ -1869,6 +1883,18 @@ function calculateSupportScore(regrasArray) {
   });
   
   return parseFloat(prod.toFixed(4));
+}
+
+function calculateSupportHours(horaInicio, horaTermino) {
+  if (!horaInicio || !horaTermino) return 0;
+  const [h1, m1] = horaInicio.split(':').map(Number);
+  const [h2, m2] = horaTermino.split(':').map(Number);
+  let startMin = h1 * 60 + m1;
+  let endMin = h2 * 60 + m2;
+  if (endMin < startMin) {
+    endMin += 24 * 60; // Overnight
+  }
+  return parseFloat(((endMin - startMin) / 60).toFixed(2));
 }
 
 function getUserLastSupportDate(userId) {
@@ -2672,6 +2698,10 @@ function getSlotCardHtml(slot) {
         <span>${formatDatePt(slot.data)}</span>
         <span>•</span>
         <span>Turno: ${slot.horario}</span>
+        ${slot.horaInicio && slot.horaTermino ? `
+          <span>•</span>
+          <span style="color: var(--success); font-weight: bold;">⏱️ ${slot.horaInicio} às ${slot.horaTermino} (${calculateSupportHours(slot.horaInicio, slot.horaTermino)}h)</span>
+        ` : ''}
       </div>
 
       <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 4px;">
@@ -2987,6 +3017,9 @@ function renderMyPanel() {
     const rawMonth = new Date(currentMonth + 'T00:00:00').toLocaleDateString('pt-BR', { month: 'long' });
     const monthName = rawMonth.charAt(0).toUpperCase() + rawMonth.slice(1);
 
+    const userHistory = history.filter(h => h.usuarioId === currentUser.id);
+    const totalHorasAno = userHistory.reduce((acc, h) => acc + (h.totalHoras || 0), 0);
+
     const groupMap = {
       'grupo_a': 'Grupo A',
       'grupo_b': 'Grupo B',
@@ -3012,22 +3045,28 @@ function renderMyPanel() {
           <strong>${currentUser.nome} (${currentUser.cargo})</strong>
         </div>
         
-        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;">
           <div>
             <span style="color: var(--text-muted); display: block;">Pontuação Geral:</span>
-            <strong style="font-size: 1.2rem; color: ${isExcluido ? 'var(--text-muted)' : 'var(--info)'}">
+            <strong style="font-size: 1.15rem; color: ${isExcluido ? 'var(--text-muted)' : 'var(--info)'}">
               ${isExcluido ? 'Sem Classif.' : score.toFixed(4) + ' pts'}
+            </strong>
+          </div>
+          <div>
+            <span style="color: var(--text-muted); display: block;">Horas no Ano:</span>
+            <strong style="font-size: 1.15rem; color: var(--success)">
+              ${totalHorasAno}h
             </strong>
           </div>
           <div>
             <span style="color: var(--text-muted); display: block;">Último Apoio:</span>
             <strong style="font-size: 0.85rem; color: var(--text-primary)">
-              ${lastDate ? formatDatePt(lastDate) : 'Nenhum realizado'}
+              ${lastDate ? formatDatePt(lastDate) : 'Nenhum'}
             </strong>
           </div>
           <div>
             <span style="color: var(--text-muted); display: block;">Apoios em ${monthName}:</span>
-            <strong style="font-size: 1.2rem; color: ${monthlyCount >= currentConfig.monthlyLimit ? 'var(--warning)' : 'var(--success)'}">
+            <strong style="font-size: 1.15rem; color: ${monthlyCount >= currentConfig.monthlyLimit ? 'var(--warning)' : 'var(--success)'}">
               ${monthlyCount}/${currentConfig.monthlyLimit}
             </strong>
             ${monthlyCount >= currentConfig.monthlyLimit ? '<span style="font-size: 0.65rem; color: var(--warning); display: block;">Requer autorização</span>' : ''}
@@ -3110,12 +3149,13 @@ function renderMyPanel() {
 function renderCalendarView() {
   if (!viewCalendario || viewCalendario.style.display === 'none') return;
 
-  // Inicializa o grupo de trabalho do calendário caso não esteja definido ou não seja válido
-  const isSelectedGroupValid = groups.some(g => g.id === calendarSelectedGroupId) || calendarSelectedGroupId === 'adm';
+  // Inicializa o grupo de trabalho do calendário caso não esteja definido ou não seja válido/visível
+  const visibleGroups = groups.filter(g => g.visibleInCalendar !== false);
+  const isSelectedGroupValid = visibleGroups.some(g => g.id === calendarSelectedGroupId) || (calendarSelectedGroupId === 'adm' && groups.find(g => g.id === 'adm')?.visibleInCalendar !== false);
   if (!calendarSelectedGroupId || !isSelectedGroupValid) {
-    calendarSelectedGroupId = (currentUser && currentUser.grupoTrabalho && (groups.some(g => g.id === currentUser.grupoTrabalho) || currentUser.grupoTrabalho === 'adm')) 
+    calendarSelectedGroupId = (currentUser && currentUser.grupoTrabalho && (visibleGroups.some(g => g.id === currentUser.grupoTrabalho) || (currentUser.grupoTrabalho === 'adm' && groups.find(g => g.id === 'adm')?.visibleInCalendar !== false))) 
       ? currentUser.grupoTrabalho 
-      : (groups[0] ? groups[0].id : 'grupo_a');
+      : (visibleGroups[0] ? visibleGroups[0].id : 'grupo_a');
   }
 
   const currentDateObj = new Date(simulatedCurrentDate + 'T00:00:00');
@@ -3127,7 +3167,8 @@ function renderCalendarView() {
   const month1 = currentDateObj.getMonth();
 
   // Renderizar seletor de grupos no rodapé dinamicamente
-  const groupsList = groups.map(g => {
+  const visibleGroupsForSelector = groups.filter(g => g.visibleInCalendar !== false);
+  const groupsList = visibleGroupsForSelector.map(g => {
     let label = g.nome;
     if (g.nome.toLowerCase().startsWith('grupo ')) {
       label = g.nome.substring(6).trim().toUpperCase();
@@ -3136,7 +3177,7 @@ function renderCalendarView() {
     }
     return { id: g.id, label: label };
   });
-  if (!groupsList.some(g => g.id === 'adm')) {
+  if (!groupsList.some(g => g.id === 'adm') && groups.find(g => g.id === 'adm')?.visibleInCalendar !== false) {
     groupsList.push({ id: 'adm', label: 'ADM' });
   }
 
@@ -3245,6 +3286,16 @@ function renderSingleCalendarMonth(year, month) {
     const hasApoiosClass = totalSupports > 0 ? 'has-apoios' : '';
     const dataDateAttr = totalSupports > 0 ? `data-date="${dateStr}"` : '';
 
+    let hoverText = formatDatePt(dateStr);
+    const occupiedSlots = daySlots.filter(s => s.status === 'ATRIBUIDO' && s.usuarioId);
+    if (occupiedSlots.length > 0) {
+      const names = occupiedSlots.map(s => {
+        const u = users.find(user => user.id === s.usuarioId);
+        return u && u.nome ? u.nome.split(' ')[0] : 'Desconhecido';
+      });
+      hoverText += `\nApoio: ${names.join(', ')}`;
+    }
+
     let indicatorsHtml = '';
     if (totalSupports > 0) {
       const freeSlotsCount = daySlots.filter(s => s.status === 'LIVRE').length;
@@ -3261,7 +3312,7 @@ function renderSingleCalendarMonth(year, month) {
     }
 
     gridHtml += `
-      <div class="calendar-day-cell ${shiftClass} ${todayClass} ${hasApoiosClass}" ${dataDateAttr} title="${formatDatePt(dateStr)}">
+      <div class="calendar-day-cell ${shiftClass} ${todayClass} ${hasApoiosClass}" ${dataDateAttr} title="${hoverText}">
         <span class="calendar-day-num">${dayNum}</span>
         <span class="calendar-day-shift">${shiftText}</span>
         ${totalSupports > 0 ? indicatorsHtml : ''}
@@ -3331,8 +3382,15 @@ function openCalendarDayDetails(dateStr) {
             </div>
             <span style="font-weight: bold; color: var(--info); font-size: 0.95rem;">${h.pontuacao.toFixed(2)} pts</span>
           </div>
-          <div style="font-size: 0.82rem; color: var(--text-secondary);">
-            <strong>Atividade:</strong> ${h.subgrupo}
+          <div style="font-size: 0.82rem; color: var(--text-secondary); display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;">
+            <div>
+              <strong>Atividade:</strong> ${h.subgrupo}
+            </div>
+            ${h.totalHoras ? `
+              <div style="font-size: 0.72rem; color: var(--success); font-weight: bold; background: hsla(142, 70%, 45%, 0.1); padding: 2px 6px; border-radius: 4px;" title="Horário: ${h.horaInicio || '07:00'} às ${h.horaTermino || '19:00'}">
+                ⏱️ ${h.horaInicio || '07:00'}-${h.horaTermino || '19:00'} (${h.totalHoras}h)
+              </div>
+            ` : ''}
           </div>
           <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.72rem; color: var(--text-muted); flex-wrap: wrap; gap: 6px; margin-top: 4px;">
             <div style="display: flex; gap: 4px;">
@@ -3510,7 +3568,10 @@ function renderHistoryTable() {
         <td>${user?.nome || 'Desconhecido'}</td>
         <td>
           ${groupName ? `<span style="font-size: 0.72rem; font-weight: bold; text-transform: uppercase; color: var(--info); display: block; margin-bottom: 2px;">${groupName}</span>` : ''}
-          <span style="font-size: 0.85rem;">${h.subgrupo}</span>
+          <div style="display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+            <span style="font-size: 0.85rem;">${h.subgrupo}</span>
+            ${h.totalHoras ? `<span class="badge" style="font-size: 0.7rem; padding: 1px 5px; border-radius: 4px; background: hsla(142, 70%, 45%, 0.15); color: var(--success); font-weight: bold;" title="Início: ${h.horaInicio || '07:00'} - Término: ${h.horaTermino || '19:00'}">${h.totalHoras}h</span>` : ''}
+          </div>
         </td>
         <td>
           ${h.regras.map(rid => {
@@ -3549,9 +3610,12 @@ function renderHistoryTable() {
           <span style="color: var(--text-muted); font-size: 0.75rem;">Colaborador:</span>
           <strong>${user?.nome || 'Desconhecido'}</strong>
         </div>
-        <div style="font-size: 0.85rem;">
-          <span style="color: var(--text-muted); font-size: 0.75rem;">Área/Função:</span>
-          <strong>${groupName ? groupName + ' - ' : ''}${h.subgrupo}</strong>
+        <div style="font-size: 0.85rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px;">
+          <div>
+            <span style="color: var(--text-muted); font-size: 0.75rem;">Área/Função:</span>
+            <strong>${groupName ? groupName + ' - ' : ''}${h.subgrupo}</strong>
+          </div>
+          ${h.totalHoras ? `<span style="font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; background: hsla(142, 70%, 45%, 0.15); color: var(--success); font-weight: bold;" title="Início: ${h.horaInicio || '07:00'} - Término: ${h.horaTermino || '19:00'}">${h.totalHoras}h</span>` : ''}
         </div>
         <div style="margin-top: 4px;">
           <span style="color: var(--text-muted); font-size: 0.75rem; display: block; margin-bottom: 4px;">Regras Aplicadas:</span>
@@ -4001,13 +4065,12 @@ function updateFormUsuarioSelectCompatibility() {
   const selectedAreas = Array.from(checkedCbs).map(cb => cb.value);
   
   const inputDate = document.getElementById('form-data');
-  const inputHorario = document.getElementById('form-horario');
+  const inputHoraInicio = document.getElementById('form-hora-inicio');
   const dateVal = inputDate ? inputDate.value : '';
-  const horarioVal = inputHorario ? inputHorario.value : '';
+  const horaInicioVal = inputHoraInicio ? inputHoraInicio.value : '07:00';
   
-  // Se o horário começar com ou contiver 19, assume turno noturno "19", senão diurno "07"
-  const targetShift = (horarioVal.startsWith('19') || horarioVal.includes('19')) ? '19' : 
-                      (horarioVal.startsWith('07') || horarioVal.includes('07')) ? '07' : '';
+  // Se o horário começar com 19, 18 ou 20, assume turno noturno "19", senão diurno "07"
+  const targetShift = (horaInicioVal.startsWith('19') || horaInicioVal.startsWith('18') || horaInicioVal.startsWith('20')) ? '19' : '07';
 
   const sortedRegUsers = [...users]
     .filter(u => u.cargo !== 'GPI' && u.cargo !== 'OPMAN')
@@ -4084,6 +4147,12 @@ function renderRulesCheckboxes() {
 // --- LÓGICA DE PRÉ-VISUALIZAÇÃO DE CÁLCULO ---
 
 function updatePointsPreview() {
+  // Calcular e exibir a pré-visualização de horas geradas
+  if (regHoraInicioInput && regHoraTerminoInput && regHorasPreview) {
+    const hours = calculateSupportHours(regHoraInicioInput.value, regHoraTerminoInput.value);
+    regHorasPreview.textContent = `${hours}h`;
+  }
+
   const selectedCbs = rulesCheckboxContainer.querySelectorAll('input[name="reg-regras"]:checked');
   const regras = Array.from(selectedCbs).map(cb => cb.value);
 
@@ -4550,6 +4619,10 @@ function handleAutoRegistroApoio(e) {
 
   const score = calculateSupportScore(regras);
 
+  const regHoraInicio = regHoraInicioInput ? regHoraInicioInput.value : '07:00';
+  const regHoraTermino = regHoraTerminoInput ? regHoraTerminoInput.value : '19:00';
+  const regTotalHoras = calculateSupportHours(regHoraInicio, regHoraTermino);
+
   if (editingHistoryId) {
     const prevItem = history.find(h => h.id === editingHistoryId);
 
@@ -4560,6 +4633,9 @@ function handleAutoRegistroApoio(e) {
           usuarioId: regUserId,
           grupoId: regGrupo,
           data: regData,
+          horaInicio: regHoraInicio,
+          horaTermino: regHoraTermino,
+          totalHoras: regTotalHoras,
           subgrupo: isAutotroca ? regSubgrupo + ' (Autotroca)' : regSubgrupo,
           regras: regras,
           pontuacao: score,
@@ -4636,6 +4712,9 @@ function handleAutoRegistroApoio(e) {
       usuarioId: regUserId,
       grupoId: regGrupo,
       data: regData,
+      horaInicio: regHoraInicio,
+      horaTermino: regHoraTermino,
+      totalHoras: regTotalHoras,
       subgrupo: isAutotroca ? regSubgrupo + ' (Autotroca)' : regSubgrupo,
       causaRaiz: regCausaRaizSelect ? (regCausaRaizSelect.value || 'Outros') : 'Outros',
       regras: regras,
@@ -4808,7 +4887,11 @@ function handleIniciarEdicaoEscala(slotId) {
   document.getElementById('form-grupo').value = slot.grupoId;
   document.getElementById('form-subgrupo').value = slot.subgrupo;
   document.getElementById('form-data').value = slot.data;
-  document.getElementById('form-horario').value = slot.horario;
+  
+  const horaInicioVal = slot.horaInicio || ((slot.horario && slot.horario.includes('19')) ? '19:00' : '07:00');
+  const horaTerminoVal = slot.horaTermino || ((slot.horario && slot.horario.includes('07') && slot.horario.startsWith('19')) ? '07:00' : '19:00');
+  document.getElementById('form-hora-inicio').value = horaInicioVal;
+  document.getElementById('form-hora-termino').value = horaTerminoVal;
   
   const elMotivo = document.getElementById('form-motivo');
   if (elMotivo) {
@@ -4942,7 +5025,10 @@ function handleCriarSolicitacaoSlot(e) {
 
   const formGrupo = document.getElementById('form-grupo').value;
   const formSubgrupo = document.getElementById('form-subgrupo').value;
-  const formHorario = document.getElementById('form-horario').value;
+  const formHoraInicio = document.getElementById('form-hora-inicio')?.value || '07:00';
+  const formHoraTermino = document.getElementById('form-hora-termino')?.value || '19:00';
+  const formHorario = `${formHoraInicio.replace(':', '')}x${formHoraTermino.replace(':', '')}`;
+  const formTotalHoras = calculateSupportHours(formHoraInicio, formHoraTermino);
   const elMotivo = document.getElementById('form-motivo');
   const formMotivo = elMotivo ? elMotivo.value : '';
   const formPrioridade = document.querySelector('input[name="prioridade"]:checked').value;
@@ -5071,6 +5157,9 @@ function handleCriarSolicitacaoSlot(e) {
                 data: formData,
                 grupoId: formGrupo,
                 subgrupo: formSubgrupo,
+                horaInicio: formHoraInicio,
+                horaTermino: formHoraTermino,
+                totalHoras: formTotalHoras,
                 regras: finalRegras,
                 pontuacao: score
               };
@@ -5086,6 +5175,9 @@ function handleCriarSolicitacaoSlot(e) {
             data: formData,
             grupoId: formGrupo,
             subgrupo: formSubgrupo,
+            horaInicio: formHoraInicio,
+            horaTermino: formHoraTermino,
+            totalHoras: formTotalHoras,
             regras: finalRegras,
             pontuacao: score,
             dataRegistro: new Date(simulatedCurrentDate + 'T12:00:00').toISOString(),
@@ -5104,6 +5196,8 @@ function handleCriarSolicitacaoSlot(e) {
             subgrupo: formSubgrupo,
             data: formData,
             horario: formHorario,
+            horaInicio: formHoraInicio,
+            horaTermino: formHoraTermino,
             status: newUsuarioId ? 'ATRIBUIDO' : 'LIVRE',
             usuarioId: newUsuarioId,
             regrasPrevistas: regrasPrevistas,
@@ -5181,6 +5275,8 @@ function handleCriarSolicitacaoSlot(e) {
         subgrupo: formSubgrupo,
         data: dStr,
         horario: formHorario,
+        horaInicio: formHoraInicio,
+        horaTermino: formHoraTermino,
         status: selectedUsuarioId ? 'ATRIBUIDO' : 'LIVRE',
         usuarioId: selectedUsuarioId,
         observacao: '',
@@ -5220,6 +5316,9 @@ function handleCriarSolicitacaoSlot(e) {
           data: dStr,
           grupoId: formGrupo,
           subgrupo: formSubgrupo,
+          horaInicio: formHoraInicio,
+          horaTermino: formHoraTermino,
+          totalHoras: formTotalHoras,
           regras: finalRegras,
           pontuacao: score,
           dataRegistro: new Date(simulatedCurrentDate + 'T12:00:00').toISOString(),
@@ -5502,6 +5601,8 @@ function renderRelatorios() {
 
   // --- KPI CARDS ---
   const totalApoios = filtered.length;
+  const totalHorasApoio = filtered.reduce((acc, h) => acc + (h.totalHoras || 0), 0);
+  const mediaHorasApoio = totalApoios > 0 ? (totalHorasApoio / totalApoios).toFixed(1) : '0';
 
   // Mês atual
   const hoje = simulatedCurrentDate;
@@ -5563,40 +5664,50 @@ function renderRelatorios() {
       <div class="kpi-card kpi-card--primary">
         <div class="kpi-card-header"><span class="kpi-label">Total de Apoios</span><span class="kpi-icon">&#x1F4CB;</span></div>
         <span class="kpi-value">${totalApoios}</span>
-        <span class="kpi-sublabel">No per\u00edodo selecionado</span>
+        <span class="kpi-sublabel">No período selecionado</span>
+      </div>
+      <div class="kpi-card kpi-card--success">
+        <div class="kpi-card-header"><span class="kpi-label">Total de Horas</span><span class="kpi-icon">⏱️</span></div>
+        <span class="kpi-value">${totalHorasApoio}h</span>
+        <span class="kpi-sublabel">Horas acumuladas no período</span>
       </div>
       <div class="kpi-card kpi-card--info">
-        <div class="kpi-card-header"><span class="kpi-label">Apoios no M\u00eas Atual</span><span class="kpi-icon">&#x1F4C5;</span></div>
+        <div class="kpi-card-header"><span class="kpi-label">Média Horas / Apoio</span><span class="kpi-icon">📊</span></div>
+        <span class="kpi-value">${mediaHorasApoio}h</span>
+        <span class="kpi-sublabel">Duração média por evento</span>
+      </div>
+      <div class="kpi-card kpi-card--info">
+        <div class="kpi-card-header"><span class="kpi-label">Apoios no Mês Atual</span><span class="kpi-icon">&#x1F4C5;</span></div>
         <span class="kpi-value">${apoiosMesAtual}</span>
         <span class="kpi-sublabel">${formatMonthName(mesAtual)}</span>
       </div>
       <div class="kpi-card kpi-card--success">
-        <div class="kpi-card-header"><span class="kpi-label">M\u00e9dia / M\u00eas</span><span class="kpi-icon">&#x1F4CA;</span></div>
+        <div class="kpi-card-header"><span class="kpi-label">Média / Mês</span><span class="kpi-icon">&#x1F4CA;</span></div>
         <span class="kpi-value">${mediaApoiosMes}</span>
-        <span class="kpi-sublabel">${mesesComDados.size} m\u00eas(es) com dados</span>
+        <span class="kpi-sublabel">${mesesComDados.size} mês(es) com dados</span>
       </div>
       <div class="kpi-card kpi-card--primary">
         <div class="kpi-card-header"><span class="kpi-label">Colaboradores Ativos</span><span class="kpi-icon">&#x1F465;</span></div>
         <span class="kpi-value">${colabAtivos.size}</span>
-        <span class="kpi-sublabel">Com \u22651 apoio no per\u00edodo</span>
+        <span class="kpi-sublabel">Com ≥1 apoio no período</span>
       </div>
       <div class="kpi-card" style="background:hsla(222,47%,15%,0.6);border:1px solid ${icaColor};border-radius:var(--radius-md);padding:20px;display:flex;flex-direction:column;gap:8px;">
-        <div class="kpi-card-header"><span class="kpi-label">Concentra\u00e7\u00e3o (ICA)</span><span class="kpi-icon">&#x1F3AF;</span></div>
+        <div class="kpi-card-header"><span class="kpi-label">Concentração (ICA)</span><span class="kpi-icon">&#x1F3AF;</span></div>
         <span class="kpi-value" style="color:${icaColor}">${icaVal}%</span>
-        <span class="kpi-sublabel">${icaLabel} \u2014 top ${top20Count} fazem ${icaVal}% dos apoios</span>
+        <span class="kpi-sublabel">${icaLabel} — top ${top20Count} fazem ${icaVal}% dos apoios</span>
       </div>
       <div class="kpi-card" style="background:hsla(222,47%,15%,0.6);border:1px solid ${tupColor};border-radius:var(--radius-md);padding:20px;display:flex;flex-direction:column;gap:8px;">
         <div class="kpi-card-header"><span class="kpi-label">Cobertura do Plantel (TUP)</span><span class="kpi-icon">&#x1F465;</span></div>
         <span class="kpi-value" style="color:${tupColor}">${tupVal}%</span>
-        <span class="kpi-sublabel">${tupLabel} \u2014 ${colabAtivos.size} de ${elegiveisTotal} el\u00edgiveis</span>
+        <span class="kpi-sublabel">${tupLabel} — ${colabAtivos.size} de ${elegiveisTotal} elíggiveis</span>
       </div>
       <div class="kpi-card" style="background:hsla(222,47%,15%,0.6);border:1px solid ${agmColor};border-radius:var(--radius-md);padding:20px;display:flex;flex-direction:column;gap:8px;">
-        <div class="kpi-card-header"><span class="kpi-label">Aprova\u00e7\u00f5es Pendentes (AGM)</span><span class="kpi-icon">\u2705</span></div>
+        <div class="kpi-card-header"><span class="kpi-label">Aprovações Pendentes (AGM)</span><span class="kpi-icon">✅</span></div>
         <span class="kpi-value" style="color:${agmColor}">${agmCount}</span>
-        <span class="kpi-sublabel">${agmCount > 0 ? '\u{1F6A8} Aguardando aprova\u00e7\u00e3o este m\u00eas' : '\u2705 Nenhuma pendente'}</span>
+        <span class="kpi-sublabel">${agmCount > 0 ? '🚨 Aguardando aprovação este mês' : '✅ Nenhuma pendente'}</span>
       </div>
       <div class="kpi-card" style="background:hsla(222,47%,15%,0.6);border:1px solid ${tendenciaColor};border-radius:var(--radius-md);padding:20px;display:flex;flex-direction:column;gap:8px;">
-        <div class="kpi-card-header"><span class="kpi-label">Tend\u00eancia (vs M\u00eas Ant.)</span><span class="kpi-icon">&#x1F4C8;</span></div>
+        <div class="kpi-card-header"><span class="kpi-label">Tendência (vs Mês Ant.)</span><span class="kpi-icon">&#x1F4C8;</span></div>
         <span class="kpi-value" style="color:${tendenciaColor};font-size:1.5rem;">${tendenciaText}</span>
         <span class="kpi-sublabel">${apoiosMesAnterior} apoios em ${formatMonthName(mesAnteriorStr)}</span>
       </div>
@@ -5922,9 +6033,11 @@ function renderKpiTopApoiadores(filtered) {
   // Contar apoios por colaborador
   const countMap = {};
   const scoreMap = {};
+  const hoursMap = {};
   filtered.forEach(h => {
     countMap[h.usuarioId] = (countMap[h.usuarioId] || 0) + 1;
     scoreMap[h.usuarioId] = (scoreMap[h.usuarioId] || 0) + h.pontuacao;
+    hoursMap[h.usuarioId] = (hoursMap[h.usuarioId] || 0) + (h.totalHoras || 0);
   });
 
   // Criar ranking
@@ -5932,15 +6045,16 @@ function renderKpiTopApoiadores(filtered) {
     id: uid,
     nome: users.find(u => u.id === uid)?.nome || uid,
     count: countMap[uid],
-    score: scoreMap[uid]
+    score: scoreMap[uid],
+    hours: hoursMap[uid]
   }));
-  ranking.sort((a, b) => b.count - a.count || a.score - b.score);
+  ranking.sort((a, b) => b.count - a.count || b.hours - a.hours || a.score - b.score);
 
   const top = ranking.slice(0, 15);
   const maxCount = top.length > 0 ? top[0].count : 1;
 
   if (top.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="5" class="kpi-no-data">Nenhum apoio registrado no período</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="kpi-no-data">Nenhum apoio registrado no período</td></tr>';
     return;
   }
 
@@ -5955,6 +6069,7 @@ function renderKpiTopApoiadores(filtered) {
           <span style="font-size: 0.7rem; color: var(--text-muted); margin-left: 6px;">${r.id.toUpperCase()}</span>
         </td>
         <td style="text-align: center; font-weight: 700; color: var(--info);">${r.count}</td>
+        <td style="text-align: center; font-weight: 700; color: var(--success);">${r.hours}h</td>
         <td style="text-align: right; font-family: var(--font-mono); font-size: 0.8rem;">${r.score.toFixed(2)}</td>
         <td>
           <div style="display: flex; align-items: center; gap: 8px;">
@@ -6684,15 +6799,18 @@ function updateLocalGroupsFromInputs() {
     const idInput = row.querySelector('.config-group-id');
     const nomeInput = row.querySelector('.config-group-nome');
     const dataInicioInput = row.querySelector('.config-group-datainicio');
+    const visibleInput = row.querySelector('.config-group-visible');
 
     const groupId = idInput ? idInput.value.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '') : id;
     const groupNome = nomeInput ? nomeInput.value.trim() : '';
     const groupDataInicio = dataInicioInput ? dataInicioInput.value : '';
+    const groupVisible = visibleInput ? visibleInput.checked : true;
 
     updatedGroups.push({
       id: groupId,
       nome: groupNome,
-      dataInicio: groupDataInicio
+      dataInicio: groupDataInicio,
+      visibleInCalendar: groupVisible
     });
   });
   
@@ -6793,6 +6911,9 @@ function renderConfiguracoes() {
           </td>
           <td>
             <input type="date" class="input-field config-group-datainicio" value="${dataInicioVal}" style="width: 100%; text-align: center; font-size: 0.85rem;">
+          </td>
+          <td style="text-align: center;">
+            <input type="checkbox" class="config-group-visible" ${g.visibleInCalendar !== false ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer; vertical-align: middle;">
           </td>
           <td style="text-align: center;">
             <button type="button" class="btn btn-danger btn-delete-group" data-id="${g.id}" style="padding: 4px 8px; font-size: 0.75rem; background: var(--danger); border-color: var(--danger); color: white;">❌ Excluir</button>
