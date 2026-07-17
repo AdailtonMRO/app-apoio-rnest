@@ -718,13 +718,16 @@ function init() {
     operatorAreasForm.addEventListener('submit', handleSaveOperatorAreas);
   }
 
-  // Monitorar alterações nos checkboxes do slot para atualizar a compatibilidade dos usuários e o subgrupo
-  document.querySelectorAll('input[name="slot-areas-funcoes"]').forEach(cb => {
-    cb.addEventListener('change', () => {
-      updateFormSubgrupoFromAreas();
-      updateFormUsuarioSelectCompatibility();
+  // Monitorar alterações nos checkboxes do slot para atualizar a compatibilidade dos usuários e o subgrupo (usando delegação de eventos)
+  const slotAreasContainer = document.getElementById('slot-areas-checkboxes-container');
+  if (slotAreasContainer) {
+    slotAreasContainer.addEventListener('change', (e) => {
+      if (e.target && e.target.name === 'slot-areas-funcoes') {
+        updateFormSubgrupoFromAreas();
+        updateFormUsuarioSelectCompatibility();
+      }
     });
-  });
+  }
 
   const elFormData = document.getElementById('form-data');
   if (elFormData) {
