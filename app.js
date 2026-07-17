@@ -1600,6 +1600,7 @@ function executeSubstituirVaga(slotId, isAutotroca, folgaDate = '', isPayback = 
   const slotHours = calculateSupportHours(slot.horaInicio || '07:00', slot.horaTermino || '19:00');
   const currentHours = getUserMonthlySupportHours(currentUser.id, slot.data);
   const needsAuthorization = (currentHours + slotHours) > currentConfig.monthlyHoursLimit;
+  const monthlyCount = getUserMonthlySupportCount(currentUser.id, slot.data);
 
   // 3. Reatribuir
   slots = slots.map(s => {
@@ -2731,11 +2732,9 @@ function getSlotCardHtml(slot) {
       <div class="slot-schedule">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
         <span>${formatDatePt(slot.data)}</span>
-        <span>•</span>
-        <span>Turno: ${slot.horario}</span>
         ${slot.horaInicio && slot.horaTermino ? `
           <span>•</span>
-          <span style="color: var(--success); font-weight: bold;">⏱️ ${slot.horaInicio} às ${slot.horaTermino} (${calculateSupportHours(slot.horaInicio, slot.horaTermino)}h)</span>
+          <span class="slot-hours">⏱️ ${slot.horaInicio} às ${slot.horaTermino} (${calculateSupportHours(slot.horaInicio, slot.horaTermino)}h)</span>
         ` : ''}
       </div>
 
@@ -4392,6 +4391,7 @@ function executeAssumirVagaDireta(slotId, isAutotroca, folgaDate = '', isPayback
   const slotHours = calculateSupportHours(slot.horaInicio || '07:00', slot.horaTermino || '19:00');
   const currentHours = getUserMonthlySupportHours(currentUser.id, slot.data);
   const needsAuthorization = (currentHours + slotHours) > currentConfig.monthlyHoursLimit;
+  const monthlyCount = getUserMonthlySupportCount(currentUser.id, slot.data);
 
   slots = slots.map(s => {
     if (s.id === slotId) {
@@ -5520,12 +5520,18 @@ function generateWhatsappTemplate() {
           emoji = '🔴';
           if (u) {
             const displayNickname = u.apelido || (u.nome ? u.nome.trim().split(' ')[0] : 'Desconhecido');
+            const monthlyCount = getUserMonthlySupportCount(u.id, s.data);
             const monthlyHours = getUserMonthlySupportHours(u.id, s.data);
+            
+            const letterMap = ['', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
+            const letterRep = monthlyCount > 0 ? (letterMap[monthlyCount] || `[${monthlyCount}]`) : '0';
+            const rep = monthlyCount > 0 ? `${letterRep}${monthlyHours}` : '0';
+
             if (u.id === currentUser.id) {
-              userText = `👉 *${displayNickname} (${monthlyHours}h) (VOCÊ)* 👈`;
+              userText = `👉 *${displayNickname} (${rep}) (VOCÊ)* 👈`;
               emoji = '⭐';
             } else {
-              userText = `${displayNickname} (${monthlyHours}h)`;
+              userText = `${displayNickname} (${rep})`;
             }
           } else {
             userText = 'Desconhecido';

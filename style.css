@@ -1,4 +1,4 @@
-﻿/* Apoio RNEST - Combined Stylesheet (Lei de Apoio 2025) */
+/* Apoio RNEST - Combined Stylesheet (Lei de Apoio 2025) */
 
 :root {
   /* Cores base - HSL */
@@ -198,6 +198,10 @@
 }
 
 [data-theme="claro"] .slot-schedule svg {
+  color: #ffffff;
+}
+
+[data-theme="claro"] .slot-hours {
   color: #ffffff;
 }
 
@@ -923,6 +927,11 @@ a:hover {
 
 .slot-schedule svg {
   color: var(--primary);
+}
+
+.slot-hours {
+  color: var(--success);
+  font-weight: bold;
 }
 
 .slot-details {
