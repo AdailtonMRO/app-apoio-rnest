@@ -1,7 +1,7 @@
 {
-  "name": "",
-  "short_name": "",
-  "description": "Sistema de Classificação de Prioridade & Apoio RNEST",
+  "name": "Kikai",
+  "short_name": "Kikai",
+  "description": "Kikai - Sistema de Classificação de Prioridade & Apoio",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#0f172a",

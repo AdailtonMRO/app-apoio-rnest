@@ -71,32 +71,57 @@ function isCurrentUserOperador() {
 }
 
 function getDefaultAreasForUser(user) {
+  const activeAreas = currentConfig.areasFuncoes || AREAS_FUNCOES;
+  const userAreas = [];
+  
   if (user.tipo === 'SUPERVISOR' || (user.cargo && user.cargo.toLowerCase().includes('supervisor'))) {
-    return ['SUPERVISORES'];
+    if (activeAreas['SUPERVISORES']) {
+      return [...activeAreas['SUPERVISORES']];
+    }
   }
   
   const cargoLower = (user.cargo || '').toLowerCase();
   const nomeLower = (user.nome || '').toLowerCase();
   
+  // Buscar correspondência de palavras chave nas áreas existentes
+  Object.keys(activeAreas).forEach(grupo => {
+    activeAreas[grupo].forEach(area => {
+      const areaLower = area.toLowerCase();
+      if (
+        (cargoLower && areaLower.split(' ').some(word => word.length > 3 && cargoLower.includes(word))) ||
+        (nomeLower && areaLower.split(' ').some(word => word.length > 3 && nomeLower.includes(word)))
+      ) {
+        userAreas.push(area);
+      }
+    });
+  });
+  
+  if (userAreas.length > 0) return userAreas;
+  
+  // Fallback baseado nos padrões antigos (caso existam nas novas áreas)
   if (cargoLower.includes('elétrica') || cargoLower.includes('eletrica') || nomeLower.includes('elétrica') || nomeLower.includes('eletrica')) {
-    return ['CAMPO ELÉTRICA', 'PAINEL ELÉTRICO', 'APOIO TÉCNICO ELÉTRICA'];
+    const list = ['CAMPO ELÉTRICA', 'PAINEL ELÉTRICO', 'APOIO TÉCNICO ELÉTRICA'];
+    const valid = list.filter(item => Object.values(activeAreas).flat().includes(item));
+    if (valid.length > 0) return valid;
   }
   if (cargoLower.includes('térmica') || cargoLower.includes('termica') || cargoLower.includes('caldeira') || nomeLower.includes('térmica') || nomeLower.includes('termica')) {
-    return ['CALDEIRAS', 'AUXILIARES', 'PAINEL TÉRMICO'];
+    const list = ['CALDEIRAS', 'AUXILIARES', 'PAINEL TÉRMICO'];
+    const valid = list.filter(item => Object.values(activeAreas).flat().includes(item));
+    if (valid.length > 0) return valid;
   }
   if (cargoLower.includes('águas') || cargoLower.includes('aguas') || cargoLower.includes('etdi') || nomeLower.includes('águas') || nomeLower.includes('aguas')) {
-    return ['TORRES', 'ETDI', 'ÁGUAS', 'PAINEL ÁGUAS'];
+    const list = ['TORRES', 'ETDI', 'ÁGUAS', 'PAINEL ÁGUAS'];
+    const valid = list.filter(item => Object.values(activeAreas).flat().includes(item));
+    if (valid.length > 0) return valid;
   }
   
-  // Distribuição padrão baseada no caractere da chave/id
-  const charCode = user.id ? user.id.charCodeAt(0) : 0;
-  if (charCode % 3 === 0) {
-    return ['CAMPO ELÉTRICA', 'PAINEL ELÉTRICO'];
-  } else if (charCode % 3 === 1) {
-    return ['CALDEIRAS', 'AUXILIARES', 'PAINEL TÉRMICO'];
-  } else {
-    return ['TORRES', 'ETDI', 'ÁGUAS'];
+  // Se nada funcionar, pega as primeiras áreas disponíveis
+  const allAvailableAreas = Object.values(activeAreas).flat();
+  if (allAvailableAreas.length > 0) {
+    return allAvailableAreas.slice(0, 2);
   }
+  
+  return [];
 }
 
 function getDefaultGrupoTrabalho(user) {
@@ -163,13 +188,14 @@ function renderAreasCheckboxList(containerId, checkboxName) {
   const container = document.getElementById(containerId);
   if (!container) return;
 
+  const activeAreas = currentConfig.areasFuncoes || AREAS_FUNCOES;
   let html = '';
-  Object.keys(AREAS_FUNCOES).forEach(grupo => {
+  Object.keys(activeAreas).forEach(grupo => {
     html += `
       <div style="margin-bottom: 8px;">
         <div style="font-weight: bold; color: var(--primary); margin-bottom: 4px; border-bottom: 1px solid var(--border-color); padding-bottom: 2px; font-size: 0.85rem;">${grupo}</div>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding-left: 6px;">
-          ${AREAS_FUNCOES[grupo].map(area => `
+          ${activeAreas[grupo].map(area => `
             <label style="display: flex; align-items: center; gap: 6px; font-size: 0.8rem; cursor: pointer; color: var(--text-secondary); margin-bottom: 0;">
               <input type="checkbox" name="${checkboxName}" value="${area}" style="width: auto;">
               <span>${area}</span>
@@ -390,6 +416,17 @@ const btnSubmitReg = document.getElementById('btn-submit-reg');
 
 // --- INICIALIZAÇÃO ---
 function init() {
+  // Configurar títulos dinâmicos da aplicação (Kikai - ID da Organização Ativa)
+  document.title = `Kikai - ${orgId}`;
+  const appTitleHeader = document.getElementById('app-title-header');
+  if (appTitleHeader) {
+    appTitleHeader.textContent = `Kikai - ${orgId}`;
+  }
+  const loginAppTitle = document.getElementById('login-app-title');
+  if (loginAppTitle) {
+    loginAppTitle.textContent = `Kikai - ${orgId}`;
+  }
+
   loadData();
   initConfiguracoesWiring();
 
@@ -1155,6 +1192,11 @@ function setupRealtimeSync() {
       ...DEFAULT_CONFIG,
       ...data
     };
+    if (currentConfig.areasFuncoes) {
+      currentConfig.areasFuncoes = JSON.parse(JSON.stringify(currentConfig.areasFuncoes));
+    } else {
+      currentConfig.areasFuncoes = JSON.parse(JSON.stringify(AREAS_FUNCOES));
+    }
     supportRules = currentConfig.supportRules || [ ...SUPPORT_RULES ];
     renderAll();
   }));
@@ -1169,6 +1211,7 @@ function loadData() {
   candidatos = {};
   autotrocas = [];
   currentConfig = { ...DEFAULT_CONFIG };
+  currentConfig.areasFuncoes = JSON.parse(JSON.stringify(DEFAULT_CONFIG.areasFuncoes || AREAS_FUNCOES));
   supportRules = [ ...SUPPORT_RULES ];
   currentUser = users.find(u => u.id === currentUserId) || users[0];
   currentUserId = currentUser.id;
@@ -6291,7 +6334,7 @@ function exportKpiCsv() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `relatorio_apoios_rnest_${simulatedCurrentDate}.csv`;
+  a.download = `relatorio_apoios_kikai_${orgId}_${simulatedCurrentDate}.csv`;
   a.click();
   URL.revokeObjectURL(url);
 
@@ -7009,6 +7052,129 @@ function renderConfiguracoes() {
       });
     });
   }
+
+  // --- BLOCCO 5: ÁREAS DE ATUAÇÃO ---
+  const configAreasWrapper = document.getElementById('config-areas-wrapper');
+  if (configAreasWrapper) {
+    let areasHtml = '';
+    const activeAreas = currentConfig.areasFuncoes || AREAS_FUNCOES || {};
+    
+    if (!window.expandedGroups) {
+      window.expandedGroups = {};
+    }
+    
+    Object.keys(activeAreas).forEach(grupo => {
+      if (window.expandedGroups[grupo] === undefined) {
+        window.expandedGroups[grupo] = true;
+      }
+      const isExpanded = window.expandedGroups[grupo];
+      const subAreas = activeAreas[grupo] || [];
+      
+      areasHtml += `
+        <div class="glass-panel" style="padding: 12px 16px; border: 1px solid var(--border-color); background: rgba(255,255,255,0.02); margin-bottom: 8px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;" class="area-group-header" data-group="${grupo}">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 0.9rem; font-weight: bold; color: var(--primary);">${isExpanded ? '▼' : '▶'} ${grupo}</span>
+              <span style="font-size: 0.75rem; color: var(--text-muted);">(${subAreas.length} área(s))</span>
+            </div>
+            <div>
+              <button type="button" class="btn btn-danger btn-delete-area-group" data-group="${grupo}" style="padding: 2px 8px; font-size: 0.7rem; background: var(--danger); border-color: var(--danger); color: white;">✕ Excluir Grupo</button>
+            </div>
+          </div>
+          
+          <div style="display: ${isExpanded ? 'block' : 'none'}; margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--border-color);">
+            <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;">
+              ${subAreas.map((area, idx) => `
+                <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.03); padding: 6px 10px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.05);">
+                  <span style="font-size: 0.85rem; color: var(--text-secondary);">${area}</span>
+                  <button type="button" class="btn btn-danger btn-delete-subarea" data-group="${grupo}" data-idx="${idx}" style="padding: 2px 6px; font-size: 0.65rem; background: transparent; border: none; color: var(--danger); cursor: pointer;">✕</button>
+                </div>
+              `).join('')}
+              ${subAreas.length === 0 ? `<div style="font-style: italic; color: var(--text-muted); font-size: 0.8rem; padding: 4px 0;">Nenhuma sub-área cadastrada.</div>` : ''}
+            </div>
+            
+            <div style="display: flex; gap: 8px;">
+              <input type="text" class="input-field input-new-subarea" placeholder="Nova sub-área (ex: CAMPO ELÉTRICA)" style="font-size: 0.8rem; padding: 4px 8px; flex: 1;">
+              <button type="button" class="btn btn-primary btn-add-subarea" data-group="${grupo}" style="padding: 4px 12px; font-size: 0.8rem; white-space: nowrap;">+ Adicionar</button>
+            </div>
+          </div>
+        </div>
+      `;
+    });
+    
+    if (Object.keys(activeAreas).length === 0) {
+      areasHtml = '<div style="font-style: italic; color: var(--text-muted); font-size: 0.85rem;">Nenhum grupo de áreas configurado.</div>';
+    }
+    
+    configAreasWrapper.innerHTML = areasHtml;
+    
+    // Bind clicks to toggle expand/collapse
+    configAreasWrapper.querySelectorAll('.area-group-header').forEach(header => {
+      header.addEventListener('click', (e) => {
+        if (e.target.closest('.btn-delete-area-group')) return;
+        const g = header.getAttribute('data-group');
+        window.expandedGroups[g] = !window.expandedGroups[g];
+        renderConfiguracoes();
+      });
+    });
+    
+    // Bind clicks to Delete Groups
+    configAreasWrapper.querySelectorAll('.btn-delete-area-group').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const g = btn.getAttribute('data-group');
+        if (confirm(`Tem certeza que deseja excluir o grupo "${g}" e todas as suas sub-áreas?`)) {
+          if (!currentConfig.areasFuncoes) {
+            currentConfig.areasFuncoes = JSON.parse(JSON.stringify(AREAS_FUNCOES));
+          }
+          delete currentConfig.areasFuncoes[g];
+          renderConfiguracoes();
+        }
+      });
+    });
+    
+    // Bind clicks to Delete Subareas
+    configAreasWrapper.querySelectorAll('.btn-delete-subarea').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const g = btn.getAttribute('data-group');
+        const idx = parseInt(btn.getAttribute('data-idx'), 10);
+        if (!currentConfig.areasFuncoes) {
+          currentConfig.areasFuncoes = JSON.parse(JSON.stringify(AREAS_FUNCOES));
+        }
+        currentConfig.areasFuncoes[g].splice(idx, 1);
+        renderConfiguracoes();
+      });
+    });
+    
+    // Bind clicks to Add Subarea
+    configAreasWrapper.querySelectorAll('.btn-add-subarea').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const g = btn.getAttribute('data-group');
+        const panel = btn.closest('.glass-panel');
+        const input = panel.querySelector('.input-new-subarea');
+        const val = input.value.trim().toUpperCase();
+        if (!val) {
+          showBanner("Digite o nome da sub-área.", "warning");
+          return;
+        }
+        
+        if (!currentConfig.areasFuncoes) {
+          currentConfig.areasFuncoes = JSON.parse(JSON.stringify(AREAS_FUNCOES));
+        }
+        if (!currentConfig.areasFuncoes[g]) {
+          currentConfig.areasFuncoes[g] = [];
+        }
+        
+        if (currentConfig.areasFuncoes[g].includes(val)) {
+          showBanner("Esta sub-área já existe neste grupo.", "warning");
+          return;
+        }
+        
+        currentConfig.areasFuncoes[g].push(val);
+        renderConfiguracoes();
+      });
+    });
+  }
 }
 
 function initConfiguracoesWiring() {
@@ -7052,6 +7218,30 @@ function initConfiguracoesWiring() {
   const btnAddConfigGroup = document.getElementById('btn-add-config-group');
   if (btnAddConfigGroup) {
     btnAddConfigGroup.addEventListener('click', handleAddGroup);
+  }
+
+  const btnAddConfigAreaGroup = document.getElementById('btn-add-config-area-group');
+  if (btnAddConfigAreaGroup) {
+    btnAddConfigAreaGroup.addEventListener('click', () => {
+      const gName = prompt("Digite o nome do novo Grupo de Áreas (ex: MECÂNICA):");
+      if (!gName) return;
+      const cleanName = gName.trim().toUpperCase();
+      if (!cleanName) return;
+      
+      if (!currentConfig.areasFuncoes) {
+        currentConfig.areasFuncoes = JSON.parse(JSON.stringify(AREAS_FUNCOES));
+      }
+      
+      if (currentConfig.areasFuncoes[cleanName]) {
+        showBanner("Este grupo de áreas já existe.", "warning");
+        return;
+      }
+      
+      currentConfig.areasFuncoes[cleanName] = [];
+      if (!window.expandedGroups) window.expandedGroups = {};
+      window.expandedGroups[cleanName] = true;
+      renderConfiguracoes();
+    });
   }
 
   const btnSaveConfig = document.getElementById('btn-save-config');
@@ -7104,6 +7294,7 @@ function initConfiguracoesWiring() {
       currentConfig.bumpingEnabled = bumpingVal;
       currentConfig.penaltiesEnabled = penaltiesVal;
       currentConfig.supportRules = supportRules;
+      currentConfig.areasFuncoes = currentConfig.areasFuncoes || JSON.parse(JSON.stringify(AREAS_FUNCOES));
 
       try {
         await persistChanges('config');

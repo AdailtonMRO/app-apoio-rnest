@@ -148,5 +148,6 @@ export const DEFAULT_CONFIG = {
   lateSubmissionHours: 72,
   bumpingEnabled: true,
   penaltiesEnabled: true,
-  supportRules: SUPPORT_RULES
+  supportRules: SUPPORT_RULES,
+  areasFuncoes: AREAS_FUNCOES
 };

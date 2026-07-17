@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%236366f1'%3E%3Cpath d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z'/%3E%3C/svg%3E" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Apoio RNEST - Apoio Democrático</title>
+    <title>Kikai</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -24,7 +24,7 @@
       <div class="glass-panel" style="max-width: 420px; padding: 40px; text-align: center; display: flex; flex-direction: column; gap: 24px; align-items: center; border: 1px solid var(--primary-glow); box-shadow: var(--shadow-primary);">
         <div style="font-size: 3.5rem;">🚦</div>
         <div>
-          <h2 style="font-size: 1.8rem; font-family: var(--font-heading); margin-bottom: 8px;">Apoio RNEST</h2>
+          <h2 id="login-app-title" style="font-size: 1.8rem; font-family: var(--font-heading); margin-bottom: 8px;">Kikai</h2>
           <p style="font-size: 0.9rem; color: var(--text-secondary);">Sistema de Classificação de Prioridade & Apoio Democrática</p>
         </div>
         
@@ -54,7 +54,7 @@
         <div class="brand">
           <div class="logo-icon">🚦</div>
           <div>
-            <h1>Apoio RNEST</h1>
+            <h1 id="app-title-header">Kikai</h1>
             <p>Sistema Democrático para Apoio</p>
           </div>
         </div>
@@ -131,9 +131,6 @@
               </button>
               <button id="btn-open-infracao-modal" class="btn btn-danger" style="display: none;">
                 ⚠️ Aplicar Multa WhatsApp (+0.01)
-              </button>
-              <button id="btn-open-csv-modal" class="btn btn-secondary" style="display: none; background: #047857; color: white; border-color: #059669;">
-                📂 Importar/Exportar CSV
               </button>
             </div>
 
@@ -744,8 +741,25 @@
                 </div>
               </div>
 
+              <!-- Bloco 5: Áreas e Funções de Atuação -->
+              <div class="glass-panel" style="padding: 16px; margin-bottom: 24px; border: 1px solid var(--border-color);">
+                <h3 style="font-size: 1rem; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">🔧 Áreas/Funções de Atuação (Conhecimento)</h3>
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">
+                  Configure os grupos de especialidades e as respectivas sub-áreas de atuação. Isso determina as competências atribuíveis aos operadores e os filtros das vagas de apoio.
+                </p>
+                <div id="config-areas-wrapper" style="display: flex; flex-direction: column; gap: 16px;">
+                  <!-- Preenchido via JS -->
+                </div>
+                <div style="margin-top: 16px; display: flex; justify-content: flex-start;">
+                  <button id="btn-add-config-area-group" type="button" class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.85rem; background: var(--border-color); color: var(--text); border: 1px solid rgba(255,255,255,0.1); cursor: pointer;">➕ Adicionar Novo Grupo de Áreas</button>
+                </div>
+              </div>
+
               <!-- Ações -->
               <div style="display: flex; justify-content: flex-end; gap: 12px; align-items: center; flex-wrap: wrap;">
+                <button id="btn-open-csv-modal" class="btn btn-secondary" style="display: none; background: #047857; color: white; border-color: #059669; padding: 10px 16px; font-weight: bold; align-items: center; gap: 6px;">
+                  📂 Importar/Exportar CSV
+                </button>
                 <button id="btn-restore-db-structure" class="btn btn-secondary" style="padding: 10px 16px; font-weight: bold; background: #b91c1c; color: white; border: none; cursor: pointer;">🔧 Criar Config/Grupos Faltantes</button>
                 <button id="btn-save-config" class="btn btn-primary" style="padding: 10px 24px; font-weight: bold;">💾 Salvar Configurações</button>
               </div>
@@ -1448,7 +1462,7 @@
 
       <!-- FOOTER -->
       <footer style="margin-top: auto; padding-top: 40px; padding-bottom: 10px; text-align: center; font-size: 0.75rem; color: var(--text-muted);">
-        <p>© 2026 Apoio RNEST. Sistema regulado pelo <a href="#" id="btn-open-lei-modal" style="color: var(--info); text-decoration: underline; font-weight: 600;">Lei do Apoio 📜</a>.</p>
+        <p>© 2026 Kikai. Sistema regulado pelo <a href="#" id="btn-open-lei-modal" style="color: var(--info); text-decoration: underline; font-weight: 600;">Lei do Apoio 📜</a>.</p>
       </footer>
 
     </div>
