@@ -2038,6 +2038,12 @@ function getDisputeWinner(slotId) {
 // --- RENDERIZADORES DE TELA (HTML DINÂMICO) ---
 
 function renderAll() {
+  // Re-renderizar checklists de áreas com base na configuração atualizada
+  renderAreasCheckboxList('user-areas-checkboxes-container', 'user-areas-funcoes');
+  renderAreasCheckboxList('slot-areas-checkboxes-container', 'slot-areas-funcoes');
+  renderAreasCheckboxList('reg-areas-checkboxes-container', 'reg-areas-funcoes');
+  renderAreasCheckboxList('operator-areas-checkboxes-container', 'operator-areas-funcoes');
+
   renderRoleSelect();
   renderTabs();
   renderAdminBar();
