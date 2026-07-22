@@ -6,6 +6,7 @@
     "source": "functions"
   },
   "hosting": {
+    "site": "app-apoio-rnest",
     "public": ".",
     "ignore": [
       "firebase.json",
