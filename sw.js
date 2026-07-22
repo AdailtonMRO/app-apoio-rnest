@@ -25,13 +25,14 @@ messaging.onBackgroundMessage((payload) => {
 
   const title = payload.notification?.title || '🚦 Solicitação de Apoio 🚦';
   const body  = payload.notification?.body  || 'Uma nova vaga foi cadastrada no sistema!';
+  const targetUrl = payload.fcmOptions?.link || payload.data?.url || payload.data?.link || '/?org=rnest_teu_ut';
 
   const options = {
     body,
     icon:    '/icon-192.png',
     badge:   '/icon-192.png',
     vibrate: [200, 100, 200],
-    data: { url: '/' }
+    data: { url: targetUrl }
   };
 
   self.registration.showNotification(title, options);

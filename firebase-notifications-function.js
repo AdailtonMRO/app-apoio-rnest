@@ -85,10 +85,12 @@ exports.notifyNewSupportSlot = onDocumentUpdated("rnest_teu_ut_database/slots", 
         Urgency: "high",
       },
       notification: {
-        icon: "/icon-192.png",
-        badge: "/icon-192.png",
-        click_action: "/?org=rnest_teu_ut", // Direciona ao site com o tenant ativo
+        icon: "https://app-apoio-rnest.web.app/icon-192.png",
+        badge: "https://app-apoio-rnest.web.app/icon-192.png",
         vibrate: [200, 100, 200]
+      },
+      fcmOptions: {
+        link: "https://app-apoio-rnest.web.app/?org=rnest_teu_ut"
       }
     }
   };
