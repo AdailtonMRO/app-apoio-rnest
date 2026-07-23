@@ -1692,7 +1692,7 @@ function executeSubstituirVaga(slotId, isAutotroca, folgaDate = '', isPayback = 
   
   const supportDate = new Date(slot.data + 'T00:00:00');
   const simDate = new Date(simulatedCurrentDate + 'T00:00:00');
-  const eAtrasado = (simDate - supportDate) > (3 * 24 * 60 * 60 * 1000);
+  const eAtrasado = (currentConfig && currentConfig.penaltiesEnabled) && ((simDate - supportDate) > (3 * 24 * 60 * 60 * 1000));
   const finalRegras = eAtrasado ? ['R13'] : finalSelectedRules;
   const score = calculateSupportScore(finalRegras);
 
@@ -4632,7 +4632,7 @@ function executeAssumirVagaDireta(slotId, isAutotroca, folgaDate = '', isPayback
   
   const supportDate = new Date(slot.data + 'T00:00:00');
   const simDate = new Date(simulatedCurrentDate + 'T00:00:00');
-  const eAtrasado = (simDate - supportDate) > (3 * 24 * 60 * 60 * 1000);
+  const eAtrasado = (currentConfig && currentConfig.penaltiesEnabled) && ((simDate - supportDate) > (3 * 24 * 60 * 60 * 1000));
   
   const finalRegras = eAtrasado ? ['R13'] : finalSelectedRules;
   const score = calculateSupportScore(finalRegras);
@@ -4774,7 +4774,7 @@ function handleEncerrarDisputa(slotId) {
   
   const supportDate = new Date(slot.data + 'T00:00:00');
   const simDate = new Date(simulatedCurrentDate + 'T00:00:00');
-  const eAtrasado = (simDate - supportDate) > (3 * 24 * 60 * 60 * 1000);
+  const eAtrasado = (currentConfig && currentConfig.penaltiesEnabled) && ((simDate - supportDate) > (3 * 24 * 60 * 60 * 1000));
   
   const finalRegras = eAtrasado ? ['R13'] : regras;
   const score = calculateSupportScore(finalRegras);
@@ -5415,7 +5415,7 @@ function handleCriarSolicitacaoSlot(e) {
         const regras = regrasPrevistas || ['R1'];
         const supportDate = new Date(formData + 'T00:00:00');
         const simDate = new Date(simulatedCurrentDate + 'T00:00:00');
-        const eAtrasado = (simDate - supportDate) > (3 * 24 * 60 * 60 * 1000);
+        const eAtrasado = (currentConfig && currentConfig.penaltiesEnabled) && ((simDate - supportDate) > (3 * 24 * 60 * 60 * 1000));
         const finalRegras = eAtrasado ? ['R13'] : regras;
         const score = calculateSupportScore(finalRegras);
 
@@ -5579,7 +5579,7 @@ function handleCriarSolicitacaoSlot(e) {
         const regras = regrasPrevistas || ['R1'];
         const supportDate = new Date(dStr + 'T00:00:00');
         const simDate = new Date(simulatedCurrentDate + 'T00:00:00');
-        const eAtrasado = (simDate - supportDate) > (3 * 24 * 60 * 60 * 1000);
+        const eAtrasado = (currentConfig && currentConfig.penaltiesEnabled) && ((simDate - supportDate) > (3 * 24 * 60 * 60 * 1000));
         const finalRegras = eAtrasado ? ['R13'] : regras;
         const score = calculateSupportScore(finalRegras);
 

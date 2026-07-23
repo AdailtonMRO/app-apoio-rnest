@@ -158,8 +158,9 @@ export const saveStoredData = (data) => {
 export const DEFAULT_CONFIG = {
   monthlyHoursLimit: 46,
   lateSubmissionHours: 72,
+  enableLatePenalty: false, // Penalidade R13 desativada por padrão
   bumpingEnabled: true,
-  penaltiesEnabled: true,
+  penaltiesEnabled: false, // Penalidade R13 por atraso de 72h desativada por padrão
   supportRules: SUPPORT_RULES,
   areasFuncoes: AREAS_FUNCOES
 };
