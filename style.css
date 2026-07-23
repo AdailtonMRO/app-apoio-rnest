@@ -1162,6 +1162,36 @@ a:hover {
   font-size: 1.3rem;
 }
 
+/* Pills de Área/Função no Modal */
+.area-pill-btn {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  user-select: none;
+}
+
+.area-pill-btn:hover {
+  border-color: var(--info);
+  color: var(--text-primary);
+  background: var(--bg-card-hover);
+}
+
+.area-pill-btn.selected {
+  background: var(--primary-glow);
+  border-color: var(--info);
+  color: var(--text-primary);
+  box-shadow: 0 0 10px var(--primary-glow);
+}
+
 .form-group {
   display: flex;
   flex-direction: column;

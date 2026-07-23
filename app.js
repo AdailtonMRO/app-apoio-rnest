@@ -1617,7 +1617,7 @@ function handleSubstituirVaga(slotId) {
   openConfirmAssumeModal(slotId, true);
 }
 
-function executeSubstituirVaga(slotId, isAutotroca, folgaDate = '', isPayback = false, selectedRules = null) {
+function executeSubstituirVaga(slotId, isAutotroca, folgaDate = '', isPayback = false, selectedRules = null, selectedArea = null) {
   const slot = slots.find(s => s.id === slotId);
   if (!slot) return;
 
@@ -1628,6 +1628,7 @@ function executeSubstituirVaga(slotId, isAutotroca, folgaDate = '', isPayback = 
 
   const regimeBase = (slot.regrasPrevistas && slot.regrasPrevistas.includes('R2')) ? 'R2' : 'R1';
   const finalSelectedRules = selectedRules || slot.regrasPrevistas || [regimeBase];
+  const finalSelectedArea = selectedArea || slot.areaAssumida || (slot.areasFuncoes && slot.areasFuncoes.length > 0 ? slot.areasFuncoes[0] : '');
 
   const oldAssigneeId = slot.usuarioId;
   const oldUser = users.find(u => u.id === oldAssigneeId);
@@ -1658,7 +1659,8 @@ function executeSubstituirVaga(slotId, isAutotroca, folgaDate = '', isPayback = 
         ...s,
         status: 'ATRIBUIDO',
         usuarioId: currentUser.id,
-        regrasPrevistas: finalSelectedRules
+        regrasPrevistas: finalSelectedRules,
+        areaAssumida: finalSelectedArea
       };
       if (finalIsPayback) {
         updated.autotrocaPayback = true;
@@ -1708,7 +1710,8 @@ function executeSubstituirVaga(slotId, isAutotroca, folgaDate = '', isPayback = 
     regras: finalRegras,
     pontuacao: score,
     dataRegistro: new Date(simulatedCurrentDate + 'T12:00:00').toISOString(),
-    registradoPorId: currentUser.id
+    registradoPorId: currentUser.id,
+    areaFuncao: finalSelectedArea
   };
   if (isAutotroca && !finalIsPayback) {
     novoHistorico.isAutotroca = true;
@@ -2800,12 +2803,18 @@ function getSlotCardHtml(slot) {
         </div>
       ` : ''}
 
-      <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 4px;">
-        <strong>Áreas/Funções:</strong> 
-        <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; margin-bottom: 8px;">
-          ${(slot.areasFuncoes || []).map(area => `<span class="badge" style="font-size: 0.65rem; padding: 2px 6px; background: hsla(220, 50%, 50%, 0.15); border: 1px solid hsla(220, 50%, 50%, 0.25); text-transform: uppercase; color: hsl(220, 50%, 80%);">${area}</span>`).join('') || '<span style="font-style: italic; color: var(--text-muted);">Não direcionada</span>'}
+      ${slot.areaAssumida ? `
+        <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 6px;">
+          <strong>📍 Área Assumida:</strong> <span class="badge" style="font-size: 0.7rem; padding: 2px 6px; background: hsla(190, 90%, 50%, 0.15); border: 1px solid var(--info); color: var(--info); font-weight: 600; text-transform: uppercase;">${slot.areaAssumida}</span>
         </div>
-      </div>
+      ` : `
+        <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 4px;">
+          <strong>Áreas/Funções Oferecidas:</strong> 
+          <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; margin-bottom: 8px;">
+            ${(slot.areasFuncoes || []).map(area => `<span class="badge" style="font-size: 0.65rem; padding: 2px 6px; background: hsla(220, 50%, 50%, 0.15); border: 1px solid hsla(220, 50%, 50%, 0.25); text-transform: uppercase; color: hsl(220, 50%, 80%);">${area}</span>`).join('') || '<span style="font-style: italic; color: var(--text-muted);">Não direcionada</span>'}
+          </div>
+        </div>
+      `}
 
       <div style="font-size: 0.8rem; color: var(--text-secondary);">
         <strong>Pontuação Prevista:</strong> <code style="color: var(--info); font-weight: bold;">${pesoPrevisao.toFixed(2)} pts</code> 
@@ -3714,6 +3723,7 @@ function renderHistoryTable() {
           <div>
             <span style="color: var(--text-muted); font-size: 0.75rem;">Área/Função:</span>
             <strong>${groupName ? groupName + ' - ' : ''}${h.subgrupo}</strong>
+            ${h.areaFuncao ? `<span class="badge" style="font-size: 0.65rem; padding: 2px 6px; background: hsla(190, 90%, 50%, 0.15); border: 1px solid var(--info); color: var(--info); font-weight: 600; text-transform: uppercase; display: inline-block; margin-left: 4px;">📍 ${h.areaFuncao}</span>` : ''}
           </div>
           <span style="font-size: 0.75rem; color: var(--success); font-weight: bold;">⏱️ ${horaInicioStr} às ${horaTerminoStr} (${h.totalHoras || 12}h)</span>
         </div>
@@ -4351,12 +4361,15 @@ function checkLateSubmission() {
 
 // --- EVENT HANDLERS ---
 
+let currentModalSelectedArea = null;
+
 function openConfirmAssumeModal(slotId, isSub) {
   const slot = slots.find(s => s.id === slotId);
   if (!slot) return;
 
   currentModalSlotId = slotId;
   currentModalIsSub = isSub;
+  currentModalSelectedArea = null;
 
   const confirmModalText = document.getElementById('confirm-modal-text');
   const normalContainer = document.getElementById('confirm-normal-btn-container');
@@ -4371,6 +4384,60 @@ function openConfirmAssumeModal(slotId, isSub) {
     regimeBadge.innerHTML = regimeBase === 'R2'
       ? `📋 <strong style="color: var(--text-primary);">Regime definido pelo supervisor:</strong> <span style="font-weight: 600; color: var(--info);">R2 - ADM (Carga 8h - Peso 0.7)</span>`
       : `🔵 <strong style="color: var(--text-primary);">Regime definido pelo supervisor:</strong> <span style="font-weight: 600; color: var(--info);">R1 - TURNO (Carga 12h - Peso 1.0)</span>`;
+  }
+
+  // Configurar Seleção de Área/Função Assumida
+  const areaContainer = document.getElementById('confirm-area-assumida-container');
+  const areaGrid = document.getElementById('confirm-area-buttons-grid');
+  const slotAreas = slot.areasFuncoes || [];
+
+  if (areaContainer && areaGrid) {
+    if (slotAreas.length === 0) {
+      areaContainer.style.display = 'none';
+      currentModalSelectedArea = '';
+    } else {
+      areaContainer.style.display = 'block';
+      const userAreas = currentUser ? (currentUser.areasFuncoes || []) : [];
+      
+      // Auto-seleção: se houver 1 área ou se já havia áreaAssumida, ou 1ª área compatível
+      if (slotAreas.length === 1) {
+        currentModalSelectedArea = slotAreas[0];
+      } else if (slot.areaAssumida && slotAreas.includes(slot.areaAssumida)) {
+        currentModalSelectedArea = slot.areaAssumida;
+      } else {
+        const firstCompatible = slotAreas.find(a => userAreas.includes(a));
+        currentModalSelectedArea = firstCompatible || slotAreas[0];
+      }
+
+      let areaHtml = '';
+      slotAreas.forEach(area => {
+        const isSelected = area === currentModalSelectedArea;
+        const isCompatible = userAreas.length === 0 || userAreas.includes(area);
+        areaHtml += `
+          <button type="button" class="area-pill-btn ${isSelected ? 'selected' : ''}" data-area="${area}" ${!isCompatible ? 'style="opacity: 0.65;"' : ''}>
+            ${isSelected ? '✓ ' : ''}${area}
+          </button>
+        `;
+      });
+      areaGrid.innerHTML = areaHtml;
+
+      areaGrid.querySelectorAll('.area-pill-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const areaVal = btn.getAttribute('data-area');
+          currentModalSelectedArea = areaVal;
+          areaGrid.querySelectorAll('.area-pill-btn').forEach(b => {
+            const bArea = b.getAttribute('data-area');
+            if (bArea === areaVal) {
+              b.classList.add('selected');
+              b.textContent = '✓ ' + bArea;
+            } else {
+              b.classList.remove('selected');
+              b.textContent = bArea;
+            }
+          });
+        });
+      });
+    }
   }
 
   // Preencher Demais Características (R3 a R12)
@@ -4449,6 +4516,15 @@ function handleConfirmAssumeSelection(isAutotroca, isPayback = false) {
   }
 
   const slot = slots.find(s => s.id === currentModalSlotId);
+  const slotAreas = slot ? (slot.areasFuncoes || []) : [];
+
+  if (slotAreas.length > 0 && !currentModalSelectedArea) {
+    showBanner('Por favor, selecione qual Área/Função você irá assumir neste apoio.', 'danger');
+    return;
+  }
+
+  const selectedArea = currentModalSelectedArea || (slotAreas.length > 0 ? slotAreas[0] : '');
+
   const regimeBase = (slot && slot.regrasPrevistas && slot.regrasPrevistas.includes('R2')) ? 'R2' : 'R1';
   const checkedCbs = document.querySelectorAll('input[name="confirm-op-regras"]:checked');
   const checkedDemaisRules = Array.from(checkedCbs).map(cb => cb.value);
@@ -4457,9 +4533,9 @@ function handleConfirmAssumeSelection(isAutotroca, isPayback = false) {
   confirmAssumeModal.style.display = 'none';
 
   if (currentModalIsSub) {
-    executeSubstituirVaga(currentModalSlotId, isAutotroca, folgaDate, isPayback, selectedRules);
+    executeSubstituirVaga(currentModalSlotId, isAutotroca, folgaDate, isPayback, selectedRules, selectedArea);
   } else {
-    executeAssumirVagaDireta(currentModalSlotId, isAutotroca, folgaDate, isPayback, selectedRules);
+    executeAssumirVagaDireta(currentModalSlotId, isAutotroca, folgaDate, isPayback, selectedRules, selectedArea);
   }
 }
 
@@ -4496,7 +4572,7 @@ function handleAssumirVagaDireta(slotId) {
   openConfirmAssumeModal(slotId, false);
 }
 
-function executeAssumirVagaDireta(slotId, isAutotroca, folgaDate = '', isPayback = false, selectedRules = null) {
+function executeAssumirVagaDireta(slotId, isAutotroca, folgaDate = '', isPayback = false, selectedRules = null, selectedArea = null) {
   if (!currentUser || !isCurrentUserOperador()) {
     showBanner('Apenas apoiadores podem assumir escalas.', 'danger');
     return;
@@ -4507,6 +4583,7 @@ function executeAssumirVagaDireta(slotId, isAutotroca, folgaDate = '', isPayback
 
   const regimeBase = (slot.regrasPrevistas && slot.regrasPrevistas.includes('R2')) ? 'R2' : 'R1';
   const finalSelectedRules = selectedRules || slot.regrasPrevistas || [regimeBase];
+  const finalSelectedArea = selectedArea || slot.areaAssumida || (slot.areasFuncoes && slot.areasFuncoes.length > 0 ? slot.areasFuncoes[0] : '');
 
   const debts = autotrocas.filter(at => at.usuarioId === currentUser.id && at.tipo === 'CONTRARIA' && at.status === 'PENDENTE');
   const userHasDebt = debts.length > 0;
@@ -4523,7 +4600,8 @@ function executeAssumirVagaDireta(slotId, isAutotroca, folgaDate = '', isPayback
         ...s,
         status: 'ATRIBUIDO',
         usuarioId: currentUser.id,
-        regrasPrevistas: finalSelectedRules
+        regrasPrevistas: finalSelectedRules,
+        areaAssumida: finalSelectedArea
       };
       if (finalIsPayback) {
         updated.autotrocaPayback = true;
@@ -4573,7 +4651,8 @@ function executeAssumirVagaDireta(slotId, isAutotroca, folgaDate = '', isPayback
     regras: finalRegras,
     pontuacao: score,
     dataRegistro: new Date(simulatedCurrentDate + 'T12:00:00').toISOString(),
-    registradoPorId: currentUser.id
+    registradoPorId: currentUser.id,
+    areaFuncao: finalSelectedArea
   };
   if (isAutotroca && !finalIsPayback) {
     novoHistorico.isAutotroca = true;
