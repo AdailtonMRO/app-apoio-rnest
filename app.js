@@ -1617,7 +1617,7 @@ function handleSubstituirVaga(slotId) {
   openConfirmAssumeModal(slotId, true);
 }
 
-function executeSubstituirVaga(slotId, isAutotroca, folgaDate = '', isPayback = false) {
+function executeSubstituirVaga(slotId, isAutotroca, folgaDate = '', isPayback = false, selectedRules = null) {
   const slot = slots.find(s => s.id === slotId);
   if (!slot) return;
 
@@ -1625,6 +1625,9 @@ function executeSubstituirVaga(slotId, isAutotroca, folgaDate = '', isPayback = 
     showBanner('Não é possível substituir vagas de apoio faltando menos de 24 horas para o início.', 'danger');
     return;
   }
+
+  const regimeBase = (slot.regrasPrevistas && slot.regrasPrevistas.includes('R2')) ? 'R2' : 'R1';
+  const finalSelectedRules = selectedRules || slot.regrasPrevistas || [regimeBase];
 
   const oldAssigneeId = slot.usuarioId;
   const oldUser = users.find(u => u.id === oldAssigneeId);
@@ -1654,7 +1657,8 @@ function executeSubstituirVaga(slotId, isAutotroca, folgaDate = '', isPayback = 
       const updated = {
         ...s,
         status: 'ATRIBUIDO',
-        usuarioId: currentUser.id
+        usuarioId: currentUser.id,
+        regrasPrevistas: finalSelectedRules
       };
       if (finalIsPayback) {
         updated.autotrocaPayback = true;
@@ -1683,12 +1687,11 @@ function executeSubstituirVaga(slotId, isAutotroca, folgaDate = '', isPayback = 
 
   // 4. Novo histórico
   const historyId = 'h_' + Date.now();
-  const regras = slot.regrasPrevistas || ['R1'];
   
   const supportDate = new Date(slot.data + 'T00:00:00');
   const simDate = new Date(simulatedCurrentDate + 'T00:00:00');
   const eAtrasado = (simDate - supportDate) > (3 * 24 * 60 * 60 * 1000);
-  const finalRegras = eAtrasado ? ['R13'] : regras;
+  const finalRegras = eAtrasado ? ['R13'] : finalSelectedRules;
   const score = calculateSupportScore(finalRegras);
 
   const subgrupoText = finalIsPayback 
@@ -4244,16 +4247,19 @@ function renderRulesCheckboxes() {
   });
   rulesCheckboxContainer.innerHTML = html;
 
-  let modalHtml = '';
-  supportRules.filter(r => r.id !== 'R13').forEach(r => {
-    modalHtml += `
-      <label style="display: flex; align-items: flex-start; gap: 8px; font-size: 0.8rem; color: var(--text-secondary); cursor: pointer; padding: 4px;">
-        <input type="checkbox" name="modal-prev-regras" value="${r.id}">
-        <span><strong>${r.id}</strong> - ${r.descricao}</span>
-      </label>
-    `;
-  });
-  modalRulesCheckboxes.innerHTML = modalHtml;
+  let modalHtml = `
+    <label style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: #fff; cursor: pointer;">
+      <input type="radio" name="modal-regime-base" value="R1" checked style="width: auto;">
+      <span><strong>R1 - Turno</strong> (12h - Peso 1.0)</span>
+    </label>
+    <label style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; color: #fff; cursor: pointer;">
+      <input type="radio" name="modal-regime-base" value="R2" style="width: auto;">
+      <span><strong>R2 - ADM</strong> (8h - Peso 0.7)</span>
+    </label>
+  `;
+  if (modalRulesCheckboxes) {
+    modalRulesCheckboxes.innerHTML = modalHtml;
+  }
 
   rulesCheckboxContainer.querySelectorAll('input[type="checkbox"]').forEach(cb => {
     cb.addEventListener('change', updatePointsPreview);
@@ -4357,6 +4363,39 @@ function openConfirmAssumeModal(slotId, isSub) {
   const autotrocaWrapper = document.getElementById('confirm-autotroca-wrapper');
   const paybackContainer = document.getElementById('confirm-payback-btn-container');
 
+  // Regime Base definido pelo supervisor
+  const regimeBase = (slot.regrasPrevistas && slot.regrasPrevistas.includes('R2')) ? 'R2' : 'R1';
+
+  const regimeBadge = document.getElementById('confirm-regime-base-badge');
+  if (regimeBadge) {
+    regimeBadge.innerHTML = regimeBase === 'R2'
+      ? `📋 <strong>Regime definido pelo supervisor:</strong> R2 - ADM (Carga 8h - Peso 0.7)`
+      : `🔵 <strong>Regime definido pelo supervisor:</strong> R1 - TURNO (Carga 12h - Peso 1.0)`;
+  }
+
+  // Preencher Demais Características (R3 a R12)
+  const demaisContainer = document.getElementById('confirm-demais-regras-container');
+  if (demaisContainer) {
+    let demaisHtml = '';
+    const demaisRules = SUPPORT_RULES.filter(r => r.id !== 'R1' && r.id !== 'R2' && r.id !== 'R13');
+    demaisRules.forEach(r => {
+      const isChecked = slot.regrasPrevistas && slot.regrasPrevistas.includes(r.id);
+      demaisHtml += `
+        <label style="display: flex; align-items: flex-start; gap: 8px; font-size: 0.8rem; color: var(--text-secondary); cursor: pointer; padding: 4px;">
+          <input type="checkbox" name="confirm-op-regras" value="${r.id}" ${isChecked ? 'checked' : ''} style="width: auto; margin-top: 2px;">
+          <span><strong>${r.id}</strong> - ${r.descricao} <small style="color: var(--info);">(Peso ${r.peso})</small></span>
+        </label>
+      `;
+    });
+    demaisContainer.innerHTML = demaisHtml;
+
+    demaisContainer.querySelectorAll('input[name="confirm-op-regras"]').forEach(cb => {
+      cb.addEventListener('change', () => updateConfirmPointsPreview(regimeBase));
+    });
+  }
+
+  updateConfirmPointsPreview(regimeBase);
+
   // Verificar se o usuário atual possui débitos
   const debts = autotrocas.filter(at => at.usuarioId === currentUser.id && at.tipo === 'CONTRARIA' && at.status === 'PENDENTE');
   const hasDebt = debts.length > 0;
@@ -4389,6 +4428,18 @@ function openConfirmAssumeModal(slotId, isSub) {
   confirmAssumeModal.style.display = 'flex';
 }
 
+function updateConfirmPointsPreview(regimeBase) {
+  const pointsPreview = document.getElementById('confirm-points-preview');
+  if (!pointsPreview) return;
+
+  const checkedCbs = document.querySelectorAll('input[name="confirm-op-regras"]:checked');
+  const checkedRules = Array.from(checkedCbs).map(cb => cb.value);
+  const allRules = [regimeBase, ...checkedRules];
+
+  const score = calculateSupportScore(allRules);
+  pointsPreview.textContent = score.toFixed(2);
+}
+
 function handleConfirmAssumeSelection(isAutotroca, isPayback = false) {
   const folgaDate = confirmDataFolga ? confirmDataFolga.value : '';
 
@@ -4397,12 +4448,18 @@ function handleConfirmAssumeSelection(isAutotroca, isPayback = false) {
     return;
   }
 
+  const slot = slots.find(s => s.id === currentModalSlotId);
+  const regimeBase = (slot && slot.regrasPrevistas && slot.regrasPrevistas.includes('R2')) ? 'R2' : 'R1';
+  const checkedCbs = document.querySelectorAll('input[name="confirm-op-regras"]:checked');
+  const checkedDemaisRules = Array.from(checkedCbs).map(cb => cb.value);
+  const selectedRules = [regimeBase, ...checkedDemaisRules];
+
   confirmAssumeModal.style.display = 'none';
 
   if (currentModalIsSub) {
-    executeSubstituirVaga(currentModalSlotId, isAutotroca, folgaDate, isPayback);
+    executeSubstituirVaga(currentModalSlotId, isAutotroca, folgaDate, isPayback, selectedRules);
   } else {
-    executeAssumirVagaDireta(currentModalSlotId, isAutotroca, folgaDate, isPayback);
+    executeAssumirVagaDireta(currentModalSlotId, isAutotroca, folgaDate, isPayback, selectedRules);
   }
 }
 
@@ -4439,7 +4496,7 @@ function handleAssumirVagaDireta(slotId) {
   openConfirmAssumeModal(slotId, false);
 }
 
-function executeAssumirVagaDireta(slotId, isAutotroca, folgaDate = '', isPayback = false) {
+function executeAssumirVagaDireta(slotId, isAutotroca, folgaDate = '', isPayback = false, selectedRules = null) {
   if (!currentUser || !isCurrentUserOperador()) {
     showBanner('Apenas apoiadores podem assumir escalas.', 'danger');
     return;
@@ -4447,6 +4504,9 @@ function executeAssumirVagaDireta(slotId, isAutotroca, folgaDate = '', isPayback
 
   const slot = slots.find(s => s.id === slotId);
   if (!slot) return;
+
+  const regimeBase = (slot.regrasPrevistas && slot.regrasPrevistas.includes('R2')) ? 'R2' : 'R1';
+  const finalSelectedRules = selectedRules || slot.regrasPrevistas || [regimeBase];
 
   const debts = autotrocas.filter(at => at.usuarioId === currentUser.id && at.tipo === 'CONTRARIA' && at.status === 'PENDENTE');
   const userHasDebt = debts.length > 0;
@@ -4459,7 +4519,12 @@ function executeAssumirVagaDireta(slotId, isAutotroca, folgaDate = '', isPayback
 
   slots = slots.map(s => {
     if (s.id === slotId) {
-      const updated = { ...s, status: 'ATRIBUIDO', usuarioId: currentUser.id };
+      const updated = {
+        ...s,
+        status: 'ATRIBUIDO',
+        usuarioId: currentUser.id,
+        regrasPrevistas: finalSelectedRules
+      };
       if (finalIsPayback) {
         updated.autotrocaPayback = true;
         delete updated.autotroca;
@@ -4486,13 +4551,12 @@ function executeAssumirVagaDireta(slotId, isAutotroca, folgaDate = '', isPayback
   });
 
   const historyId = 'h_' + Date.now();
-  const regras = slot.regrasPrevistas || ['R1'];
   
   const supportDate = new Date(slot.data + 'T00:00:00');
   const simDate = new Date(simulatedCurrentDate + 'T00:00:00');
   const eAtrasado = (simDate - supportDate) > (3 * 24 * 60 * 60 * 1000);
   
-  const finalRegras = eAtrasado ? ['R13'] : regras;
+  const finalRegras = eAtrasado ? ['R13'] : finalSelectedRules;
   const score = calculateSupportScore(finalRegras);
 
   const subgrupoText = finalIsPayback 
@@ -4964,7 +5028,8 @@ function handleCancelarSlotModal() {
   if (formDataInicioInput) formDataInicioInput.required = false;
   if (formDataFimInput) formDataFimInput.required = false;
 
-  modalRulesCheckboxes.querySelectorAll('input[name="modal-prev-regras"]').forEach(cb => cb.checked = false);
+  const r1Radio = modalRulesCheckboxes?.querySelector('input[value="R1"]');
+  if (r1Radio) r1Radio.checked = true;
 }
 
 function handleIniciarEdicaoEscala(slotId) {
@@ -5021,10 +5086,10 @@ function handleIniciarEdicaoEscala(slotId) {
     elMotivo.disabled = !isCurrentUserAdminOrSupervisor();
   }
 
-  // Preencher as regras previstas
-  modalRulesCheckboxes.querySelectorAll('input[name="modal-prev-regras"]').forEach(cb => {
-    cb.checked = slot.regrasPrevistas && slot.regrasPrevistas.includes(cb.value);
-  });
+  // Preencher o regime base (R1 ou R2)
+  const isR2 = slot.regrasPrevistas && slot.regrasPrevistas.includes('R2');
+  const targetRadio = modalRulesCheckboxes?.querySelector(`input[value="${isR2 ? 'R2' : 'R1'}"]`);
+  if (targetRadio) targetRadio.checked = true;
 
   // Preencher regra de candidatura (radio buttons) - Apenas Acesso Direto
   const isDisputa = false;
@@ -5156,8 +5221,8 @@ function handleCriarSolicitacaoSlot(e) {
   const formPrioridade = document.querySelector('input[name="prioridade"]:checked').value;
   const formTipoData = document.getElementById('form-tipo-data')?.value || 'unica';
 
-  const modalCbs = modalRulesCheckboxes.querySelectorAll('input[name="modal-prev-regras"]:checked');
-  const regrasPrevistas = Array.from(modalCbs).map(cb => cb.value);
+  const selectedRegime = document.querySelector('input[name="modal-regime-base"]:checked')?.value || 'R1';
+  const regrasPrevistas = [selectedRegime];
   
   const selectedUsuarioId = document.getElementById('form-usuario')?.value || null;
 
