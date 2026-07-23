@@ -647,23 +647,53 @@ a:hover {
 
 .logo-icon {
   font-size: 1.8rem;
-  background: var(--gradient-primary);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  line-height: 1;
   display: inline-block;
 }
 
 .brand h1 {
   font-size: 1.5rem;
   font-weight: 800;
-  background: linear-gradient(135deg, #fff 0%, var(--text-secondary) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
 }
 
 .brand p {
-  font-size: 0.75rem;
-  color: var(--text-muted);
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+/* Sobregravações de Contraste para o Header e Navegação no Modo Claro */
+[data-theme="claro"] .app-header {
+  background: #ffffff;
+  border-bottom: 2px solid rgba(0, 133, 66, 0.3);
+  box-shadow: 0 2px 14px rgba(0, 133, 66, 0.08);
+}
+
+[data-theme="claro"] .brand h1 {
+  color: #008542 !important;
+  font-weight: 800;
+}
+
+[data-theme="claro"] .brand p {
+  color: #1a3b2b !important;
+  font-weight: 600;
+}
+
+[data-theme="claro"] .role-switcher span {
+  color: #1a3b2b !important;
+  font-weight: 600;
+}
+
+[data-theme="claro"] #auth-user-name {
+  color: #0a1a12 !important;
+  font-weight: 700;
+}
+
+[data-theme="claro"] #auth-user-role {
+  color: #1a3b2b !important;
+  font-weight: 600;
 }
 
 .simulation-panel {
@@ -765,6 +795,28 @@ a:hover {
   background: var(--primary);
   color: #fff;
   box-shadow: var(--shadow-primary);
+}
+
+[data-theme="claro"] .app-views-nav {
+  background: #f4f8f5;
+  border-color: rgba(0, 133, 66, 0.25);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="claro"] .view-tab-btn {
+  color: #1a3b2b;
+  font-weight: 700;
+}
+
+[data-theme="claro"] .view-tab-btn:hover {
+  color: #008542;
+  background: rgba(0, 133, 66, 0.1);
+}
+
+[data-theme="claro"] .view-tab-btn.active {
+  background: #008542;
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(0, 133, 66, 0.25);
 }
 
 @media (max-width: 600px) {
