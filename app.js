@@ -5936,9 +5936,19 @@ function renderRelatorios() {
   const agmCount = slots.filter(s => s.status === 'aguardando_aprovacao' && s.data && s.data.substring(0, 7) === mesAtual).length;
   const agmColor = agmCount > 0 ? 'var(--warning)' : 'var(--success)';
 
-  // R13
-  const apoiosComR13 = filtered.filter(h => h.regras && h.regras.includes('R13')).length;
-  const taxaR13 = totalApoios > 0 ? ((apoiosComR13 / totalApoios) * 100).toFixed(1) : '0.0';
+  // Áreas/Funções Assumidas
+  const areaCountsMap = {};
+  filtered.forEach(h => {
+    const area = h.areaFuncao || h.areaAssumida;
+    if (area) {
+      areaCountsMap[area] = (areaCountsMap[area] || 0) + 1;
+    }
+  });
+  const qtdAreasDiferentes = Object.keys(areaCountsMap).length;
+  const sortedAreas = Object.entries(areaCountsMap).sort((a, b) => b[1] - a[1]);
+  const topAreaName = sortedAreas.length > 0 ? sortedAreas[0][0] : 'Nenhuma';
+  const topAreaCount = sortedAreas.length > 0 ? sortedAreas[0][1] : 0;
+  const topAreaPct = totalApoios > 0 ? Math.round((topAreaCount / totalApoios) * 100) : 0;
 
   // Pontuação média
   const pontuacaoMedia = totalApoios > 0
@@ -5962,6 +5972,11 @@ function renderRelatorios() {
         <div class="kpi-card-header"><span class="kpi-label">Média Horas / Apoio</span><span class="kpi-icon">📊</span></div>
         <span class="kpi-value">${mediaHorasApoio}h</span>
         <span class="kpi-sublabel">Duração média por evento</span>
+      </div>
+      <div class="kpi-card kpi-card--info" style="border: 1px solid var(--info);">
+        <div class="kpi-card-header"><span class="kpi-label">Áreas/Funções Assumidas</span><span class="kpi-icon">📍</span></div>
+        <span class="kpi-value" style="color: var(--info);">${qtdAreasDiferentes} áreas</span>
+        <span class="kpi-sublabel">${topAreaCount > 0 ? `Mais atuada: ${topAreaName} (${topAreaPct}%)` : 'Sem dados de áreas'}</span>
       </div>
       <div class="kpi-card kpi-card--info">
         <div class="kpi-card-header"><span class="kpi-label">Apoios no Mês Atual</span><span class="kpi-icon">&#x1F4C5;</span></div>
@@ -6007,6 +6022,7 @@ function renderRelatorios() {
   renderKpiChartRules(filtered);
   renderKpiChartCausaRaiz(filtered);
   renderKpiChartSemana(filtered);
+  renderKpiChartAreas(filtered);
 
   // --- TABELAS ---
   renderKpiTopApoiadores(filtered);
@@ -6256,6 +6272,70 @@ function renderKpiChartSemana(filtered) {
       }]
     },
     options: getChartOptions('Quantidade')
+  });
+}
+
+// --- CHART: Distribuição por Área/Função Assumida ---
+let kpiChartAreas = null;
+function renderKpiChartAreas(filtered) {
+  const canvas = document.getElementById('kpi-chart-areas');
+  if (!canvas || typeof Chart === 'undefined') return;
+
+  const areaCounts = {};
+  filtered.forEach(h => {
+    const area = h.areaFuncao || h.areaAssumida || 'Não Informada';
+    areaCounts[area] = (areaCounts[area] || 0) + 1;
+  });
+
+  const sorted = Object.entries(areaCounts).sort((a, b) => b[1] - a[1]);
+  const labels = sorted.map(e => e[0]);
+  const data = sorted.map(e => e[1]);
+
+  if (kpiChartAreas) kpiChartAreas.destroy();
+  if (labels.length === 0) return;
+
+  const palette = [
+    'hsla(190,80%,50%,0.85)', 'hsla(210,80%,55%,0.85)', 'hsla(142,70%,50%,0.85)',
+    'hsla(280,70%,55%,0.85)', 'hsla(38,80%,55%,0.85)', 'hsla(0,70%,55%,0.85)',
+    'hsla(245,80%,65%,0.85)', 'hsla(60,80%,55%,0.85)'
+  ];
+
+  kpiChartAreas = new Chart(canvas, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Apoios Assumidos',
+        data,
+        backgroundColor: labels.map((_, i) => palette[i % palette.length]),
+        borderColor: 'hsla(222,47%,12%,0.8)',
+        borderWidth: 1,
+        borderRadius: 6
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: 'hsla(222,47%,12%,0.95)', titleColor: '#fff', bodyColor: 'hsl(215,20%,75%)',
+          borderColor: 'hsla(222,47%,22%,0.6)', borderWidth: 1, cornerRadius: 8, padding: 12,
+          callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed.y} apoio(s)` }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: { color: 'hsl(215,16%,70%)', stepSize: 1 },
+          grid: { color: 'hsla(222,47%,20%,0.4)' }
+        },
+        x: {
+          ticks: { color: 'hsl(215,16%,70%)', font: { family: 'Inter', size: 11 } },
+          grid: { display: false }
+        }
+      }
+    }
   });
 }
 
