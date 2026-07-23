@@ -1370,6 +1370,15 @@ a:hover {
 .kpi-card--primary .kpi-value { color: hsl(245, 90%, 75%); }
 .kpi-card--primary::before { background: var(--gradient-primary); }
 
+[data-theme="claro"] .kpi-card--primary .kpi-value { color: var(--primary); }
+[data-theme="claro"] .kpi-label { color: #1a3b2b; font-weight: 600; }
+[data-theme="claro"] .kpi-sublabel { color: #4e5652; font-weight: 500; }
+[data-theme="claro"] .kpi-chart-title { color: #0a1a12; font-weight: 700; }
+[data-theme="claro"] .kpi-chart-container { background: #ffffff; border-color: rgba(0, 133, 66, 0.25); box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04); }
+[data-theme="claro"] .kpi-card { background: #ffffff; border-color: rgba(0, 133, 66, 0.25); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03); }
+[data-theme="claro"] .kpi-table-section { background: #ffffff; border-color: rgba(0, 133, 66, 0.25); }
+[data-theme="claro"] .kpi-rank-default { background: #e2e8f0; color: #0f172a; font-weight: 600; }
+
 .kpi-card--info .kpi-value { color: var(--info); }
 .kpi-card--info::before { background: linear-gradient(135deg, hsl(190, 90%, 50%), hsl(210, 80%, 60%)); }
 

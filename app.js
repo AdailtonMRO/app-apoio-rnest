@@ -5993,22 +5993,22 @@ function renderRelatorios() {
         <span class="kpi-value">${colabAtivos.size}</span>
         <span class="kpi-sublabel">Com ≥1 apoio no período</span>
       </div>
-      <div class="kpi-card" style="background:hsla(222,47%,15%,0.6);border:1px solid ${icaColor};border-radius:var(--radius-md);padding:20px;display:flex;flex-direction:column;gap:8px;">
+      <div class="kpi-card" style="background:var(--bg-card);border:1px solid ${icaColor};border-radius:var(--radius-md);padding:20px;display:flex;flex-direction:column;gap:8px;">
         <div class="kpi-card-header"><span class="kpi-label">Concentração (ICA)</span><span class="kpi-icon">&#x1F3AF;</span></div>
         <span class="kpi-value" style="color:${icaColor}">${icaVal}%</span>
         <span class="kpi-sublabel">${icaLabel} — top ${top20Count} fazem ${icaVal}% dos apoios</span>
       </div>
-      <div class="kpi-card" style="background:hsla(222,47%,15%,0.6);border:1px solid ${tupColor};border-radius:var(--radius-md);padding:20px;display:flex;flex-direction:column;gap:8px;">
+      <div class="kpi-card" style="background:var(--bg-card);border:1px solid ${tupColor};border-radius:var(--radius-md);padding:20px;display:flex;flex-direction:column;gap:8px;">
         <div class="kpi-card-header"><span class="kpi-label">Cobertura do Plantel (TUP)</span><span class="kpi-icon">&#x1F465;</span></div>
         <span class="kpi-value" style="color:${tupColor}">${tupVal}%</span>
         <span class="kpi-sublabel">${tupLabel} — ${colabAtivos.size} de ${elegiveisTotal} elíggiveis</span>
       </div>
-      <div class="kpi-card" style="background:hsla(222,47%,15%,0.6);border:1px solid ${agmColor};border-radius:var(--radius-md);padding:20px;display:flex;flex-direction:column;gap:8px;">
+      <div class="kpi-card" style="background:var(--bg-card);border:1px solid ${agmColor};border-radius:var(--radius-md);padding:20px;display:flex;flex-direction:column;gap:8px;">
         <div class="kpi-card-header"><span class="kpi-label">Aprovações Pendentes (AGM)</span><span class="kpi-icon">✅</span></div>
         <span class="kpi-value" style="color:${agmColor}">${agmCount}</span>
         <span class="kpi-sublabel">${agmCount > 0 ? '🚨 Aguardando aprovação este mês' : '✅ Nenhuma pendente'}</span>
       </div>
-      <div class="kpi-card" style="background:hsla(222,47%,15%,0.6);border:1px solid ${tendenciaColor};border-radius:var(--radius-md);padding:20px;display:flex;flex-direction:column;gap:8px;">
+      <div class="kpi-card" style="background:var(--bg-card);border:1px solid ${tendenciaColor};border-radius:var(--radius-md);padding:20px;display:flex;flex-direction:column;gap:8px;">
         <div class="kpi-card-header"><span class="kpi-label">Tendência (vs Mês Ant.)</span><span class="kpi-icon">&#x1F4C8;</span></div>
         <span class="kpi-value" style="color:${tendenciaColor};font-size:1.5rem;">${tendenciaText}</span>
         <span class="kpi-sublabel">${apoiosMesAnterior} apoios em ${formatMonthName(mesAnteriorStr)}</span>
@@ -6341,16 +6341,21 @@ function renderKpiChartAreas(filtered) {
 
 // --- Chart.js theme options ---
 function getChartOptions(yLabel) {
+  const isLight = document.documentElement.getAttribute('data-theme') === 'claro';
+  const labelColor = isLight ? '#1a3b2b' : 'hsl(215, 16%, 70%)';
+  const gridColor = isLight ? 'rgba(0, 133, 66, 0.12)' : 'hsla(222, 47%, 22%, 0.3)';
+  const tooltipBg = isLight ? 'rgba(10, 26, 18, 0.94)' : 'hsla(222, 47%, 12%, 0.95)';
+
   return {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
       legend: { display: false },
       tooltip: {
-        backgroundColor: 'hsla(222, 47%, 12%, 0.95)',
+        backgroundColor: tooltipBg,
         titleColor: '#fff',
-        bodyColor: 'hsl(215, 20%, 75%)',
-        borderColor: 'hsla(222, 47%, 22%, 0.6)',
+        bodyColor: 'hsl(215, 20%, 85%)',
+        borderColor: isLight ? 'rgba(0, 133, 66, 0.25)' : 'hsla(222, 47%, 22%, 0.6)',
         borderWidth: 1,
         cornerRadius: 8,
         padding: 12,
@@ -6361,12 +6366,12 @@ function getChartOptions(yLabel) {
     scales: {
       x: {
         ticks: {
-          color: 'hsl(215, 16%, 50%)',
-          font: { family: 'Inter', size: 11 },
+          color: labelColor,
+          font: { family: 'Inter', size: 11, weight: '600' },
           maxRotation: 45
         },
         grid: {
-          color: 'hsla(222, 47%, 22%, 0.3)',
+          color: gridColor,
           drawBorder: false
         }
       },
@@ -6375,16 +6380,16 @@ function getChartOptions(yLabel) {
         title: {
           display: true,
           text: yLabel,
-          color: 'hsl(215, 16%, 50%)',
-          font: { family: 'Inter', size: 12 }
+          color: labelColor,
+          font: { family: 'Inter', size: 12, weight: '700' }
         },
         ticks: {
-          color: 'hsl(215, 16%, 50%)',
-          font: { family: 'Inter', size: 11 },
+          color: labelColor,
+          font: { family: 'Inter', size: 11, weight: '600' },
           precision: 0
         },
         grid: {
-          color: 'hsla(222, 47%, 22%, 0.3)',
+          color: gridColor,
           drawBorder: false
         }
       }
