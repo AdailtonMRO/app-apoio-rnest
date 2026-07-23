@@ -1623,12 +1623,16 @@ a:hover {
 }
 
 .shift-folga {
-  background-color: hsla(220, 10%, 15%, 0.45) !important; /* Cinza escuro para integrar no tema escuro */
-  border-color: hsla(220, 10%, 25%, 0.5) !important;
+  background-color: hsla(220, 15%, 18%, 0.7) !important; /* Cinza escuro integrado ao tema escuro */
+  border-color: hsla(220, 15%, 28%, 0.6) !important;
 }
 
-.shift-folga .calendar-day-num, .shift-folga .calendar-day-shift {
-  color: var(--text-secondary);
+.shift-folga .calendar-day-num {
+  color: hsl(215, 20%, 85%) !important;
+}
+
+.shift-folga .calendar-day-shift {
+  color: hsl(215, 20%, 70%) !important;
 }
 
 .shift-adm {
@@ -1640,7 +1644,49 @@ a:hover {
   border: 2px solid var(--danger) !important;
   box-shadow: 0 0 10px hsla(0, 84%, 60%, 0.4) !important;
   position: relative;
-}/* Interatividade e Indicadores de Apoio no Calendário */
+}
+
+/* Sobregravações de Contraste para Calendário no Modo Claro */
+[data-theme="claro"] .calendar-month-title {
+  color: #008542 !important;
+  font-weight: 800;
+}
+
+[data-theme="claro"] .calendar-day-header {
+  color: #0a1a12 !important;
+  font-weight: 700;
+  font-size: 0.78rem;
+}
+
+[data-theme="claro"] .shift-diurno {
+  background-color: #fef9c3 !important;
+  border-color: #facc15 !important;
+}
+[data-theme="claro"] .shift-diurno .calendar-day-num { color: #713f12 !important; }
+[data-theme="claro"] .shift-diurno .calendar-day-shift { color: #854d0e !important; }
+
+[data-theme="claro"] .shift-noturno {
+  background-color: #e0f2fe !important;
+  border-color: #38bdf8 !important;
+}
+[data-theme="claro"] .shift-noturno .calendar-day-num { color: #0369a1 !important; }
+[data-theme="claro"] .shift-noturno .calendar-day-shift { color: #075985 !important; }
+
+[data-theme="claro"] .shift-adm {
+  background-color: #dcfce7 !important;
+  border-color: #4ade80 !important;
+}
+[data-theme="claro"] .shift-adm .calendar-day-num { color: #15803d !important; }
+[data-theme="claro"] .shift-adm .calendar-day-shift { color: #166534 !important; }
+
+[data-theme="claro"] .shift-folga {
+  background-color: #f1f5f9 !important;
+  border-color: #cbd5e1 !important;
+}
+[data-theme="claro"] .shift-folga .calendar-day-num { color: #0f172a !important; }
+[data-theme="claro"] .shift-folga .calendar-day-shift { color: #475569 !important; }
+
+/* Interatividade e Indicadores de Apoio no Calendário */
 .calendar-day-cell.has-apoios {
   cursor: pointer;
   position: relative;
@@ -1662,26 +1708,27 @@ a:hover {
 }
 
 .calendar-indicator {
-  font-size: 0.6rem;
-  font-weight: 700;
+  font-size: 0.62rem;
+  font-weight: 800;
   border-radius: 4px;
-  padding: 1px 4px;
+  padding: 1px 5px;
   color: #ffffff !important;
   line-height: 1;
   display: inline-block;
   text-align: center;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.25);
 }
 
 .calendar-indicator.indicator-free {
-  background-color: #10b981; /* Verde */
+  background-color: #059669; /* Verde esmeralda alto contraste */
 }
 
 .calendar-indicator.indicator-occupied {
-  background-color: #3b82f6; /* Azul */
+  background-color: #0284c7; /* Azul cerúleo alto contraste */
 }
 
 .calendar-indicator.indicator-history {
-  background-color: #8b5cf6; /* Roxo */
+  background-color: #7c3aed; /* Roxo vibrante */
 }
 
 /* Botões Circulares do Seletor de Grupo */
@@ -1690,8 +1737,8 @@ a:hover {
   height: 42px;
   border-radius: 50%;
   border: 1px solid var(--border-color);
-  background: hsla(222, 47%, 12%, 0.6);
-  color: var(--text-secondary);
+  background: var(--bg-card);
+  color: var(--text-primary);
   font-weight: 700;
   font-size: 1.1rem;
   cursor: pointer;
@@ -1699,6 +1746,17 @@ a:hover {
   align-items: center;
   justify-content: center;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+[data-theme="claro"] .group-circle-btn {
+  background: #ffffff;
+  border-color: rgba(0, 133, 66, 0.3);
+  color: #0a1a12;
+}
+
+[data-theme="claro"] .group-circle-btn:hover {
+  background: #f0f6f2;
+  border-color: #008542;
 }
 
 .group-circle-btn:hover {

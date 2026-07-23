@@ -3501,7 +3501,7 @@ function openCalendarDayDetails(dateStr) {
               ${h.regras.map(rid => {
                 const rule = supportRules.find(r => r.id === rid);
                 const color = rid === 'R13' ? 'var(--danger)' : 'var(--primary)';
-                return `<code style="font-size: 0.65rem; padding: 1px 4px; border-radius: 4px; background: rgba(255,255,255,0.05); color: ${color};" title="${rule?.descricao || rid}">${rid}</code>`;
+                return `<code style="font-size: 0.65rem; padding: 1px 5px; border-radius: 4px; background: var(--bg-input); border: 1px solid var(--border-color); color: ${color}; font-weight: 600;" title="${rule?.descricao || rid}">${rid}</code>`;
               }).join('')}
             </div>
             <span>Registrado por ${regBy?.nome || 'Sistema'}</span>
