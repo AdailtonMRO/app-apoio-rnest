@@ -1,4 +1,4 @@
-import { getStoredData, saveStoredData, SUPPORT_RULES, INITIAL_USERS, INITIAL_GROUPS, INITIAL_SLOTS, INITIAL_HISTORY, AREAS_FUNCOES, SHIFT_CYCLE, GROUP_START_DATES, DEFAULT_CONFIG } from './data.js';
+import { getStoredData, saveStoredData, SUPPORT_RULES, INITIAL_USERS, INITIAL_GROUPS, INITIAL_SLOTS, INITIAL_HISTORY, AREAS_FUNCOES, SHIFT_CYCLE, GROUP_START_DATES, DEFAULT_CONFIG, CAUSAS_RAIZ_APOIO } from './data.js';
 import { isFirebaseEnabled, loginWithGoogle, logout, onAuthChange, syncDocument, updateDocument, getNotificationToken, orgId } from './firebase-db.js';
 
 // --- ESTADO GLOBAL DA APLICAÇÃO ---
@@ -1701,6 +1701,7 @@ function executeSubstituirVaga(slotId, isAutotroca, folgaDate = '', isPayback = 
     data: slot.data,
     grupoId: slot.grupoId || '',
     subgrupo: subgrupoText,
+    causaRaiz: slot.motivo || 'Composição de Turno',
     regras: finalRegras,
     pontuacao: score,
     dataRegistro: new Date(simulatedCurrentDate + 'T12:00:00').toISOString(),
@@ -2790,6 +2791,12 @@ function getSlotCardHtml(slot) {
         ` : ''}
       </div>
 
+      ${slot.motivo ? `
+        <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 6px;">
+          <strong>🔍 Causa Raiz:</strong> <span class="badge" style="font-size: 0.7rem; padding: 2px 6px; background: hsla(160, 50%, 40%, 0.15); border: 1px solid hsla(160, 50%, 40%, 0.25); color: hsl(160, 80%, 75%);">${slot.motivo}</span>
+        </div>
+      ` : ''}
+
       <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 4px;">
         <strong>Áreas/Funções:</strong> 
         <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; margin-bottom: 8px;">
@@ -3643,19 +3650,24 @@ function renderHistoryTable() {
     const regBy = users.find(u => u.id === h.registradoPorId);
     const group = groups.find(g => g.id === h.grupoId);
     const groupName = group ? group.nome : '';
+    const displayNickname = user ? (user.apelido || (user.nome ? user.nome.trim().split(' ')[0] : 'Desconhecido')) : 'Desconhecido';
+    const regByNickname = regBy ? (regBy.apelido || (regBy.nome ? regBy.nome.trim().split(' ')[0] : 'Sistema')) : 'Sistema';
     
     const canEdit = isCurrentUserGestor() || h.usuarioId === currentUser.id || h.registradoPorId === currentUser.id;
     const canDelete = isCurrentUserAdminOnly();
 
+    const horaInicioStr = h.horaInicio || '07:00';
+    const horaTerminoStr = h.horaTermino || '19:00';
+
     html += `
       <tr>
         <td><strong>${formatDatePt(h.data)}</strong></td>
-        <td>${user?.nome || 'Desconhecido'}</td>
+        <td><strong title="${user?.nome || ''}" style="font-size: 0.9rem; cursor: help;">${displayNickname}</strong></td>
         <td>
           ${groupName ? `<span style="font-size: 0.72rem; font-weight: bold; text-transform: uppercase; color: var(--info); display: block; margin-bottom: 2px;">${groupName}</span>` : ''}
-          <div style="display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-            <span style="font-size: 0.85rem;">${h.subgrupo}</span>
-            ${h.totalHoras ? `<span class="badge" style="font-size: 0.7rem; padding: 1px 5px; border-radius: 4px; background: hsla(142, 70%, 45%, 0.15); color: var(--success); font-weight: bold;" title="Início: ${h.horaInicio || '07:00'} - Término: ${h.horaTermino || '19:00'}">${h.totalHoras}h</span>` : ''}
+          <div style="display: flex; flex-direction: column; gap: 2px;">
+            <span style="font-size: 0.85rem; font-weight: 500;">${h.subgrupo}</span>
+            <span style="font-size: 0.75rem; color: var(--text-secondary);">⏱️ ${horaInicioStr} às ${horaTerminoStr} ${h.totalHoras ? `(${h.totalHoras}h)` : ''}</span>
           </div>
         </td>
         <td>
@@ -3667,7 +3679,7 @@ function renderHistoryTable() {
         </td>
         <td>
           <span style="font-size: 0.72rem; color: var(--text-muted);">
-            Em: ${formatDatePt(h.dataRegistro.split('T')[0])} por ${regBy?.nome || 'Sistema'}
+            Em: ${formatDatePt(h.dataRegistro.split('T')[0])} por ${regByNickname}
           </span>
         </td>
         <td style="text-align: right; font-weight: bold; color: var(--info);">${h.pontuacao.toFixed(4)} pts</td>
@@ -3692,15 +3704,15 @@ function renderHistoryTable() {
           <strong style="color: var(--info); font-size: 1.05rem;">${h.pontuacao.toFixed(4)} pts</strong>
         </div>
         <div style="font-size: 0.85rem; margin-top: 2px;">
-          <span style="color: var(--text-muted); font-size: 0.75rem;">Colaborador:</span>
-          <strong>${user?.nome || 'Desconhecido'}</strong>
+          <span style="color: var(--text-muted); font-size: 0.75rem;">Apelido:</span>
+          <strong title="${user?.nome || ''}">${displayNickname}</strong>
         </div>
-        <div style="font-size: 0.85rem; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px;">
+        <div style="font-size: 0.85rem; display: flex; flex-direction: column; gap: 2px;">
           <div>
             <span style="color: var(--text-muted); font-size: 0.75rem;">Área/Função:</span>
             <strong>${groupName ? groupName + ' - ' : ''}${h.subgrupo}</strong>
           </div>
-          ${h.totalHoras ? `<span style="font-size: 0.7rem; padding: 2px 6px; border-radius: 4px; background: hsla(142, 70%, 45%, 0.15); color: var(--success); font-weight: bold;" title="Início: ${h.horaInicio || '07:00'} - Término: ${h.horaTermino || '19:00'}">${h.totalHoras}h</span>` : ''}
+          <span style="font-size: 0.75rem; color: var(--success); font-weight: bold;">⏱️ ${horaInicioStr} às ${horaTerminoStr} (${h.totalHoras || 12}h)</span>
         </div>
         <div style="margin-top: 4px;">
           <span style="color: var(--text-muted); font-size: 0.75rem; display: block; margin-bottom: 4px;">Regras Aplicadas:</span>
@@ -3714,7 +3726,7 @@ function renderHistoryTable() {
         </div>
         <div style="border-top: 1px solid var(--border-color); padding-top: 8px; margin-top: 4px; display: flex; justify-content: space-between; align-items: center; font-size: 0.72rem; flex-wrap: wrap; gap: 8px;">
           <span style="color: var(--text-muted);">
-            Por: ${regBy?.nome || 'Sistema'} em ${formatDatePt(h.dataRegistro.split('T')[0])}
+            Por: ${regByNickname} em ${formatDatePt(h.dataRegistro.split('T')[0])}
           </span>
           <div style="display: inline-flex; gap: 6px; align-items: center;">
             ${canEdit ? `
@@ -4493,6 +4505,7 @@ function executeAssumirVagaDireta(slotId, isAutotroca, folgaDate = '', isPayback
     data: slot.data,
     grupoId: slot.grupoId || '',
     subgrupo: subgrupoText,
+    causaRaiz: slot.motivo || 'Composição de Turno',
     regras: finalRegras,
     pontuacao: score,
     dataRegistro: new Date(simulatedCurrentDate + 'T12:00:00').toISOString(),
@@ -5153,6 +5166,11 @@ function handleCriarSolicitacaoSlot(e) {
     return;
   }
 
+  if (!formMotivo) {
+    showBanner('Por favor, selecione a Causa Raiz / Motivo da Solicitação.', 'danger');
+    return;
+  }
+
   const checkedAreasCbs = document.querySelectorAll('input[name="slot-areas-funcoes"]:checked');
   const slotAreas = Array.from(checkedAreasCbs).map(cb => cb.value);
 
@@ -5427,6 +5445,7 @@ function handleCriarSolicitacaoSlot(e) {
           data: dStr,
           grupoId: formGrupo,
           subgrupo: formSubgrupo,
+          causaRaiz: formMotivo || 'Composição de Turno',
           horaInicio: formHoraInicio,
           horaTermino: formHoraTermino,
           totalHoras: formTotalHoras,

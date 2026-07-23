@@ -27,7 +27,7 @@ Para cadastrar novas necessidades de apoio na escala de turnos:
     *   **Áreas/Funções Necessárias**: Marque as áreas obrigatórias para que apenas operadores qualificados possam assumir a vaga.
     *   **Características Previstas**: Selecione as regras ($R_1$ a $R_{12}$) para cálculo automático da pontuação prevista.
     *   **Atribuição Direta (Opcional)**: Você pode escalar diretamente um operador para a vaga na criação. O sistema validará se ele atende às áreas necessárias e alertará se ele exceder o limite mensal de 3 apoios.
-    *   **Motivo da Solicitação (Opcional)**: Campo de anotação interna (ex: "Falta de pessoal", "Dobra operacional"). Esta informação é salva de forma segura e não é enviada no template do WhatsApp.
+    *   **Motivo da Solicitação / Causa Raiz (Obrigatório)**: Selecione a causa da necessidade do apoio na lista suspensa padronizada (ex: "Licença Médica", "Composição de Turno", "Férias"). Esta informação é salva e integrada ao histórico, mas é omitida no template do WhatsApp.
 3.  **Vagas Repetidas**: Use o configurador de recorrência para gerar vagas em lote (ex: repetir semanalmente por X semanas).
 
 ---

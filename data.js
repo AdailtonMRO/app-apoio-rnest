@@ -47,6 +47,18 @@ export const AREAS_FUNCOES = {
   ]
 };
 
+export const CAUSAS_RAIZ_APOIO = [
+  { value: 'Composição de Turno', label: '👥 Composição de Turno' },
+  { value: 'Licença Médica', label: '🏥 Licença Médica' },
+  { value: 'Férias', label: '🌴 Férias' },
+  { value: 'OPMAN Ausente', label: '🔧 OPMAN Ausente' },
+  { value: 'Treinamento', label: '📚 Treinamento' },
+  { value: 'Partida/Parada de Máquinas', label: '⚙️ Partida/Parada de Máquinas' },
+  { value: 'Contingência/Emergência', label: '🚨 Contingência/Emergência' },
+  { value: 'GPI/Administrativo', label: '📋 GPI/Administrativo' },
+  { value: 'Outros', label: '📌 Outros' }
+];
+
 export const SHIFT_CYCLE = [
   "19", "19", "19", "F", "F", "F", "F", "F",  // 1-8
   "07", "07", "19", "19", "F", "F", "F", "F", "F", // 9-17

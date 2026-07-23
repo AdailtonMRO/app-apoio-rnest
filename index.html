@@ -363,8 +363,8 @@
                   <thead>
                     <tr>
                       <th>Data Apoio</th>
-                      <th>Colaborador</th>
-                      <th>Área</th>
+                      <th>Apelido</th>
+                      <th>Área / Horário</th>
                       <th>Características (Art. 4º)</th>
                       <th>Lançamento</th>
                       <th style="text-align: right;">Pontuação</th>
@@ -1013,10 +1013,21 @@
 
 
 
-            <!-- Motivo da Solicitação (Editável apenas por Administradores) -->
+            <!-- Motivo da Solicitação / Causa Raiz (Editável por Administradores) -->
             <div class="form-group" id="container-form-motivo">
-              <label class="form-label" for="form-motivo">Motivo da Solicitação (Opcional, apenas Admin edita):</label>
-              <textarea id="form-motivo" class="input-field" placeholder="Ex: Dobra por falta de pessoal, apoio emergencial..." rows="2"></textarea>
+              <label class="form-label" for="form-motivo">🔍 Causa Raiz / Motivo da Solicitação (Obrigatório):</label>
+              <select id="form-motivo" class="input-field" required>
+                <option value="">-- Selecione a causa raiz / motivo --</option>
+                <option value="Composição de Turno">👥 Composição de Turno</option>
+                <option value="Licença Médica">🏥 Licença Médica</option>
+                <option value="Férias">🌴 Férias</option>
+                <option value="OPMAN Ausente">🔧 OPMAN Ausente</option>
+                <option value="Treinamento">📚 Treinamento</option>
+                <option value="Partida/Parada de Máquinas">⚙️ Partida/Parada de Máquinas</option>
+                <option value="Contingência/Emergência">🚨 Contingência/Emergência</option>
+                <option value="GPI/Administrativo">📋 GPI/Administrativo</option>
+                <option value="Outros">📌 Outros</option>
+              </select>
             </div>
 
             <div class="form-group">
