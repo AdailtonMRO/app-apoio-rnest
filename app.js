@@ -4369,8 +4369,8 @@ function openConfirmAssumeModal(slotId, isSub) {
   const regimeBadge = document.getElementById('confirm-regime-base-badge');
   if (regimeBadge) {
     regimeBadge.innerHTML = regimeBase === 'R2'
-      ? `📋 <strong>Regime definido pelo supervisor:</strong> R2 - ADM (Carga 8h - Peso 0.7)`
-      : `🔵 <strong>Regime definido pelo supervisor:</strong> R1 - TURNO (Carga 12h - Peso 1.0)`;
+      ? `📋 <strong style="color: var(--text-primary);">Regime definido pelo supervisor:</strong> <span style="font-weight: 600; color: var(--info);">R2 - ADM (Carga 8h - Peso 0.7)</span>`
+      : `🔵 <strong style="color: var(--text-primary);">Regime definido pelo supervisor:</strong> <span style="font-weight: 600; color: var(--info);">R1 - TURNO (Carga 12h - Peso 1.0)</span>`;
   }
 
   // Preencher Demais Características (R3 a R12)
@@ -4381,9 +4381,9 @@ function openConfirmAssumeModal(slotId, isSub) {
     demaisRules.forEach(r => {
       const isChecked = slot.regrasPrevistas && slot.regrasPrevistas.includes(r.id);
       demaisHtml += `
-        <label style="display: flex; align-items: flex-start; gap: 8px; font-size: 0.8rem; color: var(--text-secondary); cursor: pointer; padding: 4px;">
+        <label style="display: flex; align-items: flex-start; gap: 8px; font-size: 0.8rem; color: var(--text-primary); cursor: pointer; padding: 3px 4px;">
           <input type="checkbox" name="confirm-op-regras" value="${r.id}" ${isChecked ? 'checked' : ''} style="width: auto; margin-top: 2px;">
-          <span><strong>${r.id}</strong> - ${r.descricao} <small style="color: var(--info);">(Peso ${r.peso})</small></span>
+          <span style="line-height: 1.3;"><strong style="color: var(--text-primary);">${r.id}</strong> - <span style="color: var(--text-secondary);">${r.descricao}</span> <small style="color: var(--info); font-weight: 600;">(Peso ${r.peso})</small></span>
         </label>
       `;
     });

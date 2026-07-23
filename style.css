@@ -53,35 +53,35 @@
 [data-theme="claro"] {
   /* Fundos — branco puro */
   --bg-color:        #ffffff;
-  --bg-card:         rgba(255, 255, 255, 0.95);
-  --bg-card-hover:   rgba(255, 255, 255, 1);
+  --bg-card:         #f4f8f5;
+  --bg-card-hover:   #ffffff;
   --bg-input:        #ffffff;
-  --border-color:    rgba(0, 133, 66, 0.18);
-  --border-hover:    rgba(0, 133, 66, 0.38);
+  --border-color:    rgba(0, 133, 66, 0.28);
+  --border-hover:    rgba(0, 133, 66, 0.48);
 
-  /* Textos — escuros para contraste no fundo claro */
-  --text-primary:    #0f2419;
-  --text-secondary:  #3a5c47;
-  --text-muted:      #75787b;
+  /* Textos — escuros para excelente contraste no fundo claro */
+  --text-primary:    #0a1a12;
+  --text-secondary:  #1a3b2b;
+  --text-muted:      #4e5652;
 
   /* Cor primária: verde empresa */
   --primary:         #008542;
   --primary-hover:   #006830;
-  --primary-glow:    rgba(0, 133, 66, 0.12);
+  --primary-glow:    rgba(0, 133, 66, 0.14);
 
   /* Status com as cores da empresa */
   --success:         #008542;
-  --success-glow:    rgba(0, 133, 66, 0.10);
-  --warning:         #ed8b00;
-  --warning-glow:    rgba(237, 139, 0, 0.12);
-  --danger:          #c0392b;
-  --danger-glow:     rgba(192, 57, 43, 0.10);
-  --info:            #006298;
+  --success-glow:    rgba(0, 133, 66, 0.12);
+  --warning:         #d97700;
+  --warning-glow:    rgba(217, 119, 0, 0.14);
+  --danger:          #b91c1c;
+  --danger-glow:     rgba(185, 28, 28, 0.12);
+  --info:            #005585;
 
   /* Gradientes suaves com verde + teal empresa */
   --gradient-primary: linear-gradient(135deg, #008542 0%, #00b2a9 100%);
-  --gradient-card:    linear-gradient(180deg, rgba(255,255,255,0.95) 0%, rgba(244,248,245,0.85) 100%);
-  --gradient-glow:    linear-gradient(135deg, rgba(0,133,66,0.06) 0%, rgba(0,178,169,0.06) 100%);
+  --gradient-card:    linear-gradient(180deg, #ffffff 0%, #f0f6f2 100%);
+  --gradient-glow:    linear-gradient(135deg, rgba(0,133,66,0.08) 0%, rgba(0,178,169,0.08) 100%);
 
   /* Sombras suaves — adequadas para fundo claro */
   --shadow-lg:       0 4px 24px -4px rgba(0, 133, 66, 0.10), 0 1px 4px rgba(0,0,0,0.06);
